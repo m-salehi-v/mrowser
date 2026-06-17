@@ -1,0 +1,24 @@
+# Gradle / build output
+.gradle/
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local SDK config
+local.properties
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Signing — never commit keys
+*.keystore
+*.jks
+keystore.properties
+
+# OS
+.DS_Store
