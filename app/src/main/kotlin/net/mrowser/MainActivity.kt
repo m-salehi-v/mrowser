@@ -62,7 +62,7 @@ class MainActivity : Activity() {
         )
         val handoff = HandoffController(this, sniffer)
 
-        webView.webViewClient = SniffingWebViewClient(sniffer)
+        webView.webViewClient = SniffingWebViewClient(sniffer) { url -> showAddressBar(url) }
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
@@ -130,6 +130,11 @@ class MainActivity : Activity() {
 
     private fun showHome() {
         homeView.show()
+    }
+
+    private fun showAddressBar(url: String) {
+        urlInput.setText(url)
+        chrome.requestReveal(atTop = true, focusInput = false)
     }
 
     private fun addCurrentToFavorites() {

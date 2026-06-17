@@ -22,7 +22,12 @@ class ChromeController(
 
     val isVisible: Boolean get() = state == ChromeVisibility.State.VISIBLE
 
-    fun requestReveal(atTop: Boolean) = dispatch(ChromeVisibility.Event.RevealRequested(atTop))
+    private var pendingFocus = true
+
+    fun requestReveal(atTop: Boolean, focusInput: Boolean = true) {
+        pendingFocus = focusInput
+        dispatch(ChromeVisibility.Event.RevealRequested(atTop))
+    }
     fun onInteracted() = dispatch(ChromeVisibility.Event.Interacted)
     fun onPageInteracted() = dispatch(ChromeVisibility.Event.PageInteracted)
 
@@ -45,7 +50,7 @@ class ChromeController(
         bar.translationY = -bar.height.toFloat()
         bar.alpha = 0f
         bar.animate().translationY(0f).alpha(1f).setDuration(180).start()
-        urlInput.requestFocus()
+        if (pendingFocus) urlInput.requestFocus()
     }
 
     private fun animateOut() {

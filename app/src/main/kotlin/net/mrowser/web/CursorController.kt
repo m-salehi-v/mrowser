@@ -53,7 +53,7 @@ class CursorController(
 
     /** @return true if UP was pressed while the cursor is pinned at the top and the page is already scrolled to top. */
     fun startMove(dx: Int, dy: Int): Boolean {
-        val pinnedTop = dy < 0 && y <= 0f && webView.scrollY == 0
+        val pinnedTop = dy < 0 && y <= 0f
         if (pinnedTop) return true
         if (dirX == dx && dirY == dy) return false
         dirX = dx; dirY = dy; holdStart = SystemClock.uptimeMillis()

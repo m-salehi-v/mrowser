@@ -54,6 +54,12 @@ class CursorLayout @JvmOverloads constructor(
             if (event.action == KeyEvent.ACTION_UP) return handleBack()
             return true
         }
+        if (event.keyCode == KeyEvent.KEYCODE_MENU) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                if (chrome.isVisible) chrome.onPageInteracted() else chrome.requestReveal(atTop = true)
+            }
+            return true
+        }
         // A visible chrome bar gets keys normally (its controls have focus).
         if (chrome.isVisible) return super.dispatchKeyEvent(event)
 
