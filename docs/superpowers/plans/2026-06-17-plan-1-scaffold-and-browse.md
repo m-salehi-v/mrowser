@@ -6,7 +6,7 @@
 
 **Architecture:** Single Gradle `:app` module, Kotlin, classic Android Views, no AppCompat/Compose/Leanback library (lightest). A plain `Activity` hosts a `WebView` plus a top URL bar; a pure-Kotlin `UrlNormalizer` (unit-tested) turns raw input into a loadable URL. Release APK is signed from a gitignored keystore; GitHub Actions builds debug APKs on push and a signed APK on release.
 
-**Tech Stack:** Kotlin 2.2.10 · AGP 9.1.1 · Gradle 9.1.0 · JDK 17 · compileSdk 36 / build-tools 36.0.0 · minSdk 21 / targetSdk 34 · androidx.core-ktx 1.19.0 · JUnit 4.13.2.
+**Tech Stack:** AGP 9.1.1 (built-in Kotlin — no separate Kotlin plugin) · Gradle 9.3.1 · JDK 17 · compileSdk 36 / build-tools 36.0.0 · minSdk 21 / targetSdk 34 · JUnit 4.13.2 (test-only; Plan 1 ships no runtime androidx dependency — core-ktx 1.19.0 requires compileSdk 37, which AGP 9.1.1 does not support, and nothing in Plan 1 uses it, so it is added later when first needed).
 
 **Scope vs spec:** This plan covers spec §4 (stack), §5/§6.1 (manifest/launcher), a minimal §6.3 (WebView host, no cursor yet), URL entry (subset of §6.2), §11 (build/CI), §12 (open-source: README/LICENSE). Favorites (§6.2), cursor (§6.3), sniffer/handoff/player (§6.4–6.6) are Plans 2–4.
 
@@ -112,10 +112,9 @@ rootProject.name = "mrowser"
 - [ ] **Step 2: Bootstrap the Gradle wrapper with a one-off Gradle 9.1.0**
 
 ```bash
-cd /tmp
-curl -sL https://services.gradle.org/distributions/gradle-9.1.0-bin.zip -o gradle-9.1.0-bin.zip
-unzip -q -o gradle-9.1.0-bin.zip
-/tmp/gradle-9.1.0/bin/gradle -p /Users/mohammad/Projects/mrowser wrapper --gradle-version 9.1.0 --distribution-type bin
+curl -sL https://services.gradle.org/distributions/gradle-9.3.1-bin.zip -o /tmp/gradle-9.3.1-bin.zip
+unzip -q -o /tmp/gradle-9.3.1-bin.zip -d /tmp
+/tmp/gradle-9.3.1/bin/gradle -p /Users/mohammad/Projects/mrowser wrapper --gradle-version 9.3.1 --distribution-type bin
 ```
 
 Expected: `BUILD SUCCESSFUL`; `gradlew` and `gradle/wrapper/gradle-wrapper.jar` now exist in the project.
@@ -123,7 +122,7 @@ Expected: `BUILD SUCCESSFUL`; `gradlew` and `gradle/wrapper/gradle-wrapper.jar` 
 - [ ] **Step 3: Verify the wrapper**
 
 Run: `/Users/mohammad/Projects/mrowser/gradlew --version`
-Expected: prints `Gradle 9.1.0`.
+Expected: prints `Gradle 9.3.1`. (AGP 9.1.1 requires Gradle ≥ 9.3.1.)
 
 - [ ] **Step 4: Add the version catalog**
 
@@ -132,17 +131,13 @@ Create `gradle/libs.versions.toml`:
 ```toml
 [versions]
 agp = "9.1.1"
-kotlin = "2.2.10"
-coreKtx = "1.19.0"
 junit = "4.13.2"
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 ```
 
 - [ ] **Step 5: Add root build + properties + module include**
@@ -152,9 +147,12 @@ Create `build.gradle.kts`:
 ```kotlin
 plugins {
     alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.android) apply false
 }
 ```
+
+(AGP 9 ships built-in Kotlin support enabled by default, so the separate
+`org.jetbrains.kotlin.android` plugin is intentionally omitted — applying it
+clashes with AGP's own `kotlin` extension.)
 
 Create `gradle.properties`:
 
@@ -176,9 +174,10 @@ include(":app")
 Create `app/build.gradle.kts`:
 
 ```kotlin
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -210,11 +209,12 @@ android {
 }
 
 kotlin {
-    jvmToolchain(17)
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
 }
 ```
@@ -684,10 +684,10 @@ Replace the entire contents of `app/build.gradle.kts`:
 ```kotlin
 import java.io.FileInputStream
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
 }
 
 val keystorePropsFile = rootProject.file("keystore.properties")
@@ -737,11 +737,12 @@ android {
 }
 
 kotlin {
-    jvmToolchain(17)
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
+    }
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
 }
 ```

@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">mrowser</string>
+    <string name="url_hint">Enter address</string>
+    <string name="go">Go</string>
+</resources>
