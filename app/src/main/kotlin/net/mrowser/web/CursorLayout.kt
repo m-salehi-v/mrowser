@@ -27,6 +27,9 @@ class CursorLayout @JvmOverloads constructor(
     /** Set by the Activity; returns true if it consumed BACK (e.g. exited fullscreen). */
     var onBack: () -> Boolean = { false }
 
+    var playChip: android.view.View? = null
+    var onChipClick: () -> Unit = {}
+
     private val density = resources.displayMetrics.density
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E50914") }
     private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -89,10 +92,18 @@ class CursorLayout @JvmOverloads constructor(
             KeyEvent.ACTION_UP -> {
                 okDown = false
                 longPressHandler.removeCallbacks(longPress)
-                if (!longPressed) cursor.tap()
+                if (!longPressed) {
+                    if (chipContains(cursor.x, cursor.y)) onChipClick() else cursor.tap()
+                }
             }
         }
         return true
+    }
+
+    private fun chipContains(x: Float, y: Float): Boolean {
+        val chip = playChip ?: return false
+        if (chip.visibility != android.view.View.VISIBLE) return false
+        return x >= chip.left && x <= chip.right && y >= chip.top && y <= chip.bottom
     }
 
     private fun handleBack(): Boolean {

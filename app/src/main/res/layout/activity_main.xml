@@ -50,4 +50,18 @@
             android:src="@android:drawable/ic_menu_rotate"
             android:contentDescription="@string/reload" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/playChip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="36dp"
+        android:background="@drawable/play_chip_bg"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="12dp"
+        android:text="@string/play_synced"
+        android:textColor="@color/on_surface"
+        android:textSize="18sp"
+        android:visibility="gone" />
 </net.mrowser.web.CursorLayout>
