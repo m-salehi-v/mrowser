@@ -44,7 +44,7 @@ Pure logic under `net.mrowser.stream`; Android-coupled pieces alongside.
 - `isAdHost(url, denylist): Boolean` — host matches a small built-in ad/analytics denylist.
 
 ### 4.2 `StreamCandidate` (data) + `StreamCandidateSelector` (pure)
-- `StreamCandidate { url, kind, headers, seq }` — `seq` orders by sighting.
+- `StreamCandidate { url, kind, seq }` — `seq` orders by sighting. (Headers are assembled at handoff time in `bestRequest` from `CookieManager`/UA/page URL, not stored per candidate.)
 - `selectBest(candidates): StreamCandidate?` — newest (highest `seq`) `MANIFEST_HLS` not on an ad host, else null.
 - `selectSubtitles(candidates): List<StreamCandidate>` — all `SUBTITLE` candidates, newest first, deduped by url.
 
