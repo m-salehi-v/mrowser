@@ -6,9 +6,12 @@ import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.TextView
+import net.mrowser.handoff.HandoffController
+import net.mrowser.stream.SniffingWebViewClient
+import net.mrowser.stream.StreamSniffer
 import net.mrowser.web.BrowserWebChromeClient
 import net.mrowser.web.ChromeController
 import net.mrowser.web.CursorController
@@ -22,6 +25,8 @@ class MainActivity : Activity() {
     private lateinit var urlInput: EditText
     private lateinit var chrome: ChromeController
     private lateinit var chromeClient: BrowserWebChromeClient
+    private lateinit var sniffer: StreamSniffer
+    private lateinit var playChip: TextView
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,15 +36,23 @@ class MainActivity : Activity() {
         layout = findViewById(R.id.cursorLayout)
         webView = findViewById(R.id.webView)
         urlInput = findViewById(R.id.urlInput)
+        playChip = findViewById(R.id.playChip)
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
 
-        webView.webViewClient = WebViewClient()
+        sniffer = StreamSniffer(
+            userAgent = { webView.settings.userAgentString },
+            onStreamAvailable = { runOnUiThread { playChip.visibility = View.VISIBLE } },
+            onCleared = { playChip.visibility = View.GONE }
+        )
+        val handoff = HandoffController(this, sniffer)
+
+        webView.webViewClient = SniffingWebViewClient(sniffer)
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
-            onEnter = { bar.visibility = View.GONE; layout.invalidate() },
+            onEnter = { bar.visibility = View.GONE; playChip.visibility = View.GONE; layout.invalidate() },
             onExit = { layout.invalidate() }
         )
         webView.webChromeClient = chromeClient
@@ -56,6 +69,8 @@ class MainActivity : Activity() {
         layout.webView = webView
         layout.cursor = cursor
         layout.chrome = chrome
+        layout.playChip = playChip
+        layout.onChipClick = { handoff.play() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
 
         layout.post {
