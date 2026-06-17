@@ -1,67 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
-<net.mrowser.web.CursorLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/cursorLayout"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/surface">
 
-    <WebView
-        android:id="@+id/webView"
+    <net.mrowser.web.CursorLayout
+        android:id="@+id/cursorLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <WebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:id="@+id/chromeBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:background="@drawable/bar_background"
+            android:padding="10dp"
+            android:visibility="gone">
+
+            <ImageButton
+                android:id="@+id/backButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/focus_ring"
+                android:src="@android:drawable/ic_media_previous"
+                android:contentDescription="@string/back" />
+
+            <ImageButton
+                android:id="@+id/homeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/focus_ring"
+                android:src="@android:drawable/ic_menu_revert"
+                android:contentDescription="@string/home" />
+
+            <EditText
+                android:id="@+id/urlInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/focus_ring"
+                android:padding="8dp"
+                android:hint="@string/url_hint"
+                android:imeOptions="actionGo"
+                android:inputType="textUri"
+                android:textColor="@color/on_surface"
+                android:textColorHint="@color/hint" />
+
+            <ImageButton
+                android:id="@+id/favoriteButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/focus_ring"
+                android:src="@android:drawable/btn_star_big_on"
+                android:contentDescription="@string/add_favorite" />
+
+            <ImageButton
+                android:id="@+id/reloadButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/focus_ring"
+                android:src="@android:drawable/ic_menu_rotate"
+                android:contentDescription="@string/reload" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/playChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="36dp"
+            android:background="@drawable/play_chip_bg"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            android:text="@string/play_synced"
+            android:textColor="@color/on_surface"
+            android:textSize="18sp"
+            android:visibility="gone" />
+    </net.mrowser.web.CursorLayout>
+
+    <net.mrowser.home.HomeView
+        android:id="@+id/homeView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
-    <LinearLayout
-        android:id="@+id/chromeBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@drawable/bar_background"
-        android:padding="10dp"
-        android:visibility="gone">
-
-        <ImageButton
-            android:id="@+id/backButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/focus_ring"
-            android:src="@android:drawable/ic_media_previous"
-            android:contentDescription="@string/back" />
-
-        <EditText
-            android:id="@+id/urlInput"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:background="@drawable/focus_ring"
-            android:padding="8dp"
-            android:hint="@string/url_hint"
-            android:imeOptions="actionGo"
-            android:inputType="textUri"
-            android:textColor="@color/on_surface"
-            android:textColorHint="@color/hint" />
-
-        <ImageButton
-            android:id="@+id/reloadButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/focus_ring"
-            android:src="@android:drawable/ic_menu_rotate"
-            android:contentDescription="@string/reload" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/playChip"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="36dp"
-        android:background="@drawable/play_chip_bg"
-        android:paddingHorizontal="20dp"
-        android:paddingVertical="12dp"
-        android:text="@string/play_synced"
-        android:textColor="@color/on_surface"
-        android:textSize="18sp"
-        android:visibility="gone" />
-</net.mrowser.web.CursorLayout>
+</FrameLayout>
