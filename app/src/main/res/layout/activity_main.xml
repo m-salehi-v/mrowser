@@ -1,37 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
+<net.mrowser.web.CursorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/cursorLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black">
+    android:background="@color/surface">
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <LinearLayout
-        android:orientation="horizontal"
+        android:id="@+id/chromeBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="8dp">
+        android:orientation="horizontal"
+        android:background="@drawable/bar_background"
+        android:padding="10dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/focus_ring"
+            android:src="@android:drawable/ic_media_previous"
+            android:contentDescription="@string/back" />
 
         <EditText
             android:id="@+id/urlInput"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/focus_ring"
+            android:padding="8dp"
             android:hint="@string/url_hint"
             android:imeOptions="actionGo"
             android:inputType="textUri"
-            android:textColor="@android:color/white"
-            android:textColorHint="#888888" />
+            android:textColor="@color/on_surface"
+            android:textColorHint="@color/hint" />
 
-        <Button
-            android:id="@+id/goButton"
+        <ImageButton
+            android:id="@+id/reloadButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/go" />
+            android:background="@drawable/focus_ring"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:contentDescription="@string/reload" />
     </LinearLayout>
-
-    <WebView
-        android:id="@+id/webView"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1" />
-</LinearLayout>
+</net.mrowser.web.CursorLayout>
