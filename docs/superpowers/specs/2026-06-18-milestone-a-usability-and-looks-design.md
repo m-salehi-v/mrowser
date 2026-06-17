@@ -57,7 +57,7 @@ Stateless math, no Android types:
 ### 5.2 `CursorController`
 Owns cursor state (position, mode, held direction). Drives a ~60 fps repeating `Runnable` while a direction key is held, using `CursorGeometry`. Produces:
 - **Tap:** `MotionEvent.obtain` ACTION_DOWN then ACTION_UP at the cursor, dispatched to the WebView; also an ACTION_HOVER_MOVE before tap so CSS `:hover` menus open.
-- **Edge auto-scroll:** while the cursor sits in the top/bottom edge zone, synthesize a vertical drag (ACTION_DOWN → ACTION_MOVE(s) → ACTION_UP) under the cursor so inner scroll containers *and* the page scroll. A movement threshold distinguishes a drag from a tap.
+- **Edge auto-scroll:** while the cursor sits in the top/bottom edge zone, scroll the page via `webView.scrollBy` (MVP — simple and reliable for the common case). If the target site puts controls inside an inner scroll container this misses, switch to a synthesized vertical drag under the cursor (verified on-device); not built until proven necessary.
 - **Mode toggle** on long-press OK.
 
 ### 5.3 `ChromeVisibility` (pure)
@@ -115,7 +115,7 @@ app/src/test/kotlin/net/mrowser/web/
 ## 10. Risks
 
 - **MotionEvent synthesis coverage** — some players use pointer/hover events; mitigated by hover-before-tap and the focus-mode fallback. Verify on the real site.
-- **Edge-scroll vs inner scroll** — synthesized drag under the cursor handles both; tune thresholds on-device.
+- **Edge-scroll vs inner scroll** — MVP uses `webView.scrollBy` (page scroll); inner-container scroll via synthesized drag is added on-device only if the target site needs it.
 - **Old system WebView fullscreen** — verify `onShowCustomView` on the box; the user already runs TV Bro (same WebView) so fullscreen is expected to work.
 
 ## 11. Out of scope (→ later milestones)
