@@ -1,0 +1,8 @@
+<resources>
+    <color name="surface">#FF141414</color>
+    <color name="accent">#FFE50914</color>
+    <color name="on_surface">#FFFFFFFF</color>
+    <color name="hint">#FF8C8C8C</color>
+    <color name="bar_frost">#CC1A1A1A</color>
+    <color name="cursor_outline">#CCFFFFFF</color>
+</resources>
