@@ -16,7 +16,7 @@ the native-player handoff are planned next — see `docs/superpowers/`.
 - JDK 17
 - Android SDK with `platforms;android-36` and `build-tools;36.0.0`
 
-Toolchain: AGP 9.1.1 (built-in Kotlin) · Gradle 9.3.1 · `minSdk 21` /
+Toolchain: AGP 9.1.1 (built-in Kotlin) · Gradle 9.3.1 · `minSdk 23` /
 `targetSdk 34` / `compileSdk 36`. No Google Play Services dependency.
 
 ## Build
