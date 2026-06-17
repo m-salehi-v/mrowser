@@ -18,7 +18,7 @@ android {
 
     defaultConfig {
         applicationId = "net.mrowser"
-        minSdk = 21
+        minSdk = 23
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
@@ -59,5 +59,9 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.hls)
+    implementation(libs.media3.ui)
     testImplementation(libs.junit)
+    testImplementation(libs.json)
 }

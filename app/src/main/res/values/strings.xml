@@ -2,4 +2,7 @@
     <string name="app_name">mrowser</string>
     <string name="url_hint">Enter address</string>
     <string name="go">Go</string>
+    <string name="back">Back</string>
+    <string name="reload">Reload</string>
+    <string name="play_synced">▶ Play synced</string>
 </resources>
