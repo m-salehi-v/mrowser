@@ -35,8 +35,7 @@ class PlayerActivity : Activity() {
 
         val trackSelector = DefaultTrackSelector(this).apply {
             parameters = buildUponParameters()
-                .setTunnelingEnabled(true)        // ExoPlayer falls back if unsupported
-                .setPreferredTextLanguage(null)   // subtitles off by default
+                .setPreferredTextLanguage("fa")   // Persian subtitles on by default
                 .build()
         }
         val exo = ExoPlayer.Builder(this).setTrackSelector(trackSelector).build()

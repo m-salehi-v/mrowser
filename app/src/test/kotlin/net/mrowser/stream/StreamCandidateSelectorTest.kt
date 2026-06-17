@@ -10,13 +10,30 @@ class StreamCandidateSelectorTest {
     private fun hls(url: String, seq: Int) = StreamCandidate(url, MediaKind.MANIFEST_HLS, seq)
     private fun sub(url: String, seq: Int) = StreamCandidate(url, MediaKind.SUBTITLE, seq)
 
-    @Test fun `selects the newest non-ad hls manifest`() {
+    @Test fun `prefers the master playlist over variants`() {
         val list = listOf(
-            hls("https://cdn.site.net/old.m3u8", 1),
-            hls("https://pubads.g.doubleclick.net/ad.m3u8", 2),
-            hls("https://cdn.site.net/new.m3u8", 3)
+            hls("https://site.net/master.m3u8?key=1", 1),
+            hls("https://cdn.net/halt-video/i.m3u8", 2),
+            hls("https://cdn.net/halt-audio/i.m3u8", 3)
         )
-        assertEquals("https://cdn.site.net/new.m3u8", StreamCandidateSelector.selectBest(list)?.url)
+        assertEquals("https://site.net/master.m3u8?key=1", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
+    @Test fun `falls back to the earliest manifest when none is named master`() {
+        val list = listOf(
+            hls("https://cdn.net/a/i.m3u8", 2),
+            hls("https://cdn.net/b/i.m3u8", 1),
+            hls("https://cdn.net/c/i.m3u8", 3)
+        )
+        assertEquals("https://cdn.net/b/i.m3u8", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
+    @Test fun `ignores ad-host manifests`() {
+        val list = listOf(
+            hls("https://pubads.g.doubleclick.net/ad.m3u8", 1),
+            hls("https://cdn.net/real/i.m3u8", 2)
+        )
+        assertEquals("https://cdn.net/real/i.m3u8", StreamCandidateSelector.selectBest(list)?.url)
     }
 
     @Test fun `returns null when there is no manifest`() {
