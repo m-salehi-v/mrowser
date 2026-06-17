@@ -6,7 +6,7 @@
 
 **Architecture:** Single Gradle `:app` module, Kotlin, classic Android Views, no AppCompat/Compose/Leanback library (lightest). A plain `Activity` hosts a `WebView` plus a top URL bar; a pure-Kotlin `UrlNormalizer` (unit-tested) turns raw input into a loadable URL. Release APK is signed from a gitignored keystore; GitHub Actions builds debug APKs on push and a signed APK on release.
 
-**Tech Stack:** AGP 9.1.1 (built-in Kotlin — no separate Kotlin plugin) · Gradle 9.3.1 · JDK 17 · compileSdk 36 / build-tools 36.0.0 · minSdk 21 / targetSdk 34 · androidx.core-ktx 1.19.0 · JUnit 4.13.2.
+**Tech Stack:** AGP 9.1.1 (built-in Kotlin — no separate Kotlin plugin) · Gradle 9.3.1 · JDK 17 · compileSdk 36 / build-tools 36.0.0 · minSdk 21 / targetSdk 34 · JUnit 4.13.2 (test-only; Plan 1 ships no runtime androidx dependency — core-ktx 1.19.0 requires compileSdk 37, which AGP 9.1.1 does not support, and nothing in Plan 1 uses it, so it is added later when first needed).
 
 **Scope vs spec:** This plan covers spec §4 (stack), §5/§6.1 (manifest/launcher), a minimal §6.3 (WebView host, no cursor yet), URL entry (subset of §6.2), §11 (build/CI), §12 (open-source: README/LICENSE). Favorites (§6.2), cursor (§6.3), sniffer/handoff/player (§6.4–6.6) are Plans 2–4.
 
@@ -131,11 +131,9 @@ Create `gradle/libs.versions.toml`:
 ```toml
 [versions]
 agp = "9.1.1"
-coreKtx = "1.19.0"
 junit = "4.13.2"
 
 [libraries]
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
@@ -217,7 +215,6 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
 }
 ```
@@ -746,7 +743,6 @@ kotlin {
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
     testImplementation(libs.junit)
 }
 ```
