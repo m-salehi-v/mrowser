@@ -2,14 +2,23 @@ package net.mrowser
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.webkit.WebView
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.Toast
+import java.io.File
+import net.mrowser.data.Favorite
+import net.mrowser.data.JsonFavoritesStore
 import net.mrowser.handoff.HandoffController
+import net.mrowser.home.FavoriteDialog
+import net.mrowser.home.HomeView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
 import net.mrowser.web.BrowserWebChromeClient
@@ -27,6 +36,11 @@ class MainActivity : Activity() {
     private lateinit var chromeClient: BrowserWebChromeClient
     private lateinit var sniffer: StreamSniffer
     private lateinit var playChip: TextView
+    private lateinit var homeView: HomeView
+    private lateinit var favorites: JsonFavoritesStore
+    private lateinit var handoff: HandoffController
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val chipHideRunnable = Runnable { playChip.visibility = View.GONE }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,18 +51,23 @@ class MainActivity : Activity() {
         webView = findViewById(R.id.webView)
         urlInput = findViewById(R.id.urlInput)
         playChip = findViewById(R.id.playChip)
+        homeView = findViewById(R.id.homeView)
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
+        val favoriteButton = findViewById<ImageButton>(R.id.favoriteButton)
+        val homeButton = findViewById<ImageButton>(R.id.homeButton)
+
+        favorites = JsonFavoritesStore(File(filesDir, "favorites.json"))
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
-            onStreamAvailable = { runOnUiThread { playChip.visibility = View.VISIBLE } },
+            onStreamAvailable = { runOnUiThread { showChip(); handoff.play() } },
             onCleared = { playChip.visibility = View.GONE }
         )
-        val handoff = HandoffController(this, sniffer)
+        handoff = HandoffController(this, sniffer)
 
-        webView.webViewClient = SniffingWebViewClient(sniffer)
+        webView.webViewClient = SniffingWebViewClient(sniffer) { url -> updateUrlText(url) }
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
@@ -73,10 +92,14 @@ class MainActivity : Activity() {
         layout.onChipClick = { handoff.play() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
 
-        layout.post {
-            cursor.center(webView.width, webView.height)
-            chrome.requestReveal(atTop = true)
-        }
+        homeView.bind(
+            repository = favorites,
+            onOpen = { openUrl(it.url) },
+            onSubmitUrl = { openUrl(it) },
+            onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { homeView.refresh() } }
+        )
+
+        layout.post { cursor.center(webView.width, webView.height) }
 
         backButton.setOnClickListener {
             if (webView.canGoBack()) webView.goBack()
@@ -86,29 +109,72 @@ class MainActivity : Activity() {
             webView.reload()
             chrome.onInteracted()
         }
+        homeButton.setOnClickListener { showHome() }
+        favoriteButton.setOnClickListener {
+            addCurrentToFavorites()
+            chrome.onInteracted()
+        }
         urlInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) {
-                loadFromInput()
+                UrlNormalizer.normalize(urlInput.text.toString())?.let { openUrl(it) }
                 true
             } else {
                 false
             }
         }
 
-        webView.loadData(WELCOME_HTML, "text/html", "utf-8")
-        layout.requestFocus()
+        showHome()
     }
 
-    private fun loadFromInput() {
-        val url = UrlNormalizer.normalize(urlInput.text.toString()) ?: return
+    private fun openUrl(url: String) {
+        homeView.hide()
+        layout.requestFocus()
         webView.loadUrl(url)
         chrome.onPageInteracted()
     }
 
+    private fun showHome() {
+        homeView.show()
+    }
+
+    private fun updateUrlText(url: String) {
+        urlInput.setText(url)
+    }
+
+    private fun showChip() {
+        playChip.visibility = View.VISIBLE
+        uiHandler.removeCallbacks(chipHideRunnable)
+        uiHandler.postDelayed(chipHideRunnable, CHIP_TIMEOUT_MS)
+    }
+
+    private fun addCurrentToFavorites() {
+        val url = webView.url ?: return
+        val title = webView.title?.takeIf { it.isNotBlank() } ?: (Uri.parse(url).host ?: url)
+        favorites.add(Favorite(title, url))
+        Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (::webView.isInitialized) webView.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::webView.isInitialized) webView.onResume()
+        if (::sniffer.isInitialized && sniffer.hasStream() && homeView.visibility != View.VISIBLE) showChip()
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (homeView.visibility == View.VISIBLE) {
+            super.onBackPressed()
+        } else {
+            showHome()
+        }
+    }
+
     companion object {
-        private const val WELCOME_HTML =
-            "<html><body style='background:#141414;color:#eee;font-family:sans-serif;" +
-            "display:flex;height:100vh;margin:0;align-items:center;justify-content:center'>" +
-            "<h1 style='color:#E50914'>mrowser</h1></body></html>"
+        private const val CHIP_TIMEOUT_MS = 30_000L
     }
 }

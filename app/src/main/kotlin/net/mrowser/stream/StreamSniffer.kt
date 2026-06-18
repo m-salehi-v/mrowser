@@ -48,9 +48,12 @@ class StreamSniffer(
             if (pageUrl.isNotEmpty()) put("Referer", pageUrl)
             CookieManager.getInstance().getCookie(best.url)?.let { put("Cookie", it) }
         }
-        val subs = StreamCandidateSelector.selectSubtitles(candidates).map {
-            val isSrt = it.url.substringBefore('?').lowercase().endsWith(".srt")
-            SubtitleTrack(it.url, if (isSrt) "application/x-subrip" else "text/vtt", "fa", "Persian")
+        val subs = StreamCandidateSelector.selectSubtitles(candidates).mapIndexed { idx, c ->
+            val isSrt = c.url.substringBefore('?').lowercase().endsWith(".srt")
+            val mime = if (isSrt) "application/x-subrip" else "text/vtt"
+            // The first subtitle on a Persian-default page is Persian; the rest get distinct generic labels.
+            if (idx == 0) SubtitleTrack(c.url, mime, "fa", "Persian")
+            else SubtitleTrack(c.url, mime, "und", "Subtitle ${idx + 1}")
         }
         return PlaybackRequest(best.url, headers, subs, pageUrl)
     }

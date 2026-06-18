@@ -18,11 +18,21 @@ class ChromeController(
     private var state = ChromeVisibility.State.HIDDEN
     private val hideRunnable = Runnable { dispatch(ChromeVisibility.Event.IdleElapsed) }
 
-    companion object { const val IDLE_MS = 4000L }
+    companion object { const val IDLE_MS = 8000L }
 
     val isVisible: Boolean get() = state == ChromeVisibility.State.VISIBLE
 
-    fun requestReveal(atTop: Boolean) = dispatch(ChromeVisibility.Event.RevealRequested(atTop))
+    private var pendingFocus = true
+    private var active = false
+
+    /** True only when the bar was opened for interaction; a passive on-load reveal is not active. */
+    val isActive: Boolean get() = active && isVisible
+
+    fun requestReveal(atTop: Boolean, focusInput: Boolean = true) {
+        pendingFocus = focusInput
+        active = focusInput
+        dispatch(ChromeVisibility.Event.RevealRequested(atTop))
+    }
     fun onInteracted() = dispatch(ChromeVisibility.Event.Interacted)
     fun onPageInteracted() = dispatch(ChromeVisibility.Event.PageInteracted)
 
@@ -45,11 +55,12 @@ class ChromeController(
         bar.translationY = -bar.height.toFloat()
         bar.alpha = 0f
         bar.animate().translationY(0f).alpha(1f).setDuration(180).start()
-        urlInput.requestFocus()
+        if (pendingFocus) urlInput.requestFocus()
     }
 
     private fun animateOut() {
         handler.removeCallbacks(hideRunnable)
+        active = false
         bar.animate().translationY(-bar.height.toFloat()).alpha(0f).setDuration(160)
             .withEndAction { bar.visibility = View.GONE }.start()
         webView.requestFocus()

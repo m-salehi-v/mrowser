@@ -34,7 +34,8 @@ class CursorGeometryTest {
 
     @Test fun `speed ramps linearly at the midpoint`() {
         val mid = CursorGeometry.speedForHoldMs(CursorGeometry.ACCEL_MS / 2)
-        assertEquals(26f, mid, 0.5f)
+        val expected = (CursorGeometry.BASE_SPEED_PX + CursorGeometry.MAX_SPEED_PX) / 2
+        assertEquals(expected, mid, 0.5f)
     }
 
     @Test fun `edge detection flags top and bottom zones`() {

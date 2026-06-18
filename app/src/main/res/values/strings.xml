@@ -5,4 +5,19 @@
     <string name="back">Back</string>
     <string name="reload">Reload</string>
     <string name="play_synced">▶ Play synced</string>
+    <string name="home">Home</string>
+    <string name="add_favorite">Add to favorites</string>
+    <string name="favorites_empty">Add a site — press ★ while browsing, or type a URL above.</string>
+    <string name="edit_favorite">Edit favorite</string>
+    <string name="title_hint">Title</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="tracks_title">Tracks</string>
+    <string name="track_video">Video quality</string>
+    <string name="track_audio">Audio</string>
+    <string name="track_subtitles">Subtitles</string>
+    <string name="quality">Quality</string>
+    <string name="speed">Speed</string>
+    <string name="settings">Settings</string>
 </resources>

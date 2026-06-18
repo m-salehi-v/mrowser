@@ -1,15 +1,24 @@
 # mrowser
 
 A lightweight Android TV browser optimized for streaming video. It browses any
-site from a remote and (from a later milestone onward) hands HLS video off to a
-native Media3/ExoPlayer player for tight audio/video sync that the WebView's
-built-in player cannot deliver.
+site from a remote and hands its HLS video off to a native Media3/ExoPlayer
+player for tight audio/video sync that the WebView's built-in player cannot
+deliver.
 
 ## Status
 
-Early development. The current milestone is a baseline browser: a Leanback
-launcher entry, a WebView, and a URL bar. Favorites, a D-pad mouse cursor, and
-the native-player handoff are planned next — see `docs/superpowers/`.
+Working. A home screen with favorites, a D-pad mouse cursor with fullscreen
+video, and automatic handoff of HLS streams to a native ExoPlayer. Design docs
+and plans live in `docs/superpowers/`.
+
+## Features
+
+- Home screen with a favorites grid (add the current page with the ★ button)
+- D-pad mouse cursor for sites a remote can't navigate; MENU opens the address bar
+- Fullscreen HTML5 video
+- Automatic handoff of the page's HLS stream to a native Media3/ExoPlayer for
+  correct A/V sync — with in-player quality, audio-track, and subtitle selection
+- Netflix-style dark UI; sideload-only, no Google Play Services
 
 ## Requirements
 
