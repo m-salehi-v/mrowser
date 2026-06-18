@@ -82,7 +82,7 @@ class CursorLayout @JvmOverloads constructor(
             else -> 1 to 0
         }
         when (event.action) {
-            KeyEvent.ACTION_DOWN -> if (cursor.startMove(dx, dy)) chrome.requestReveal(atTop = true)
+            KeyEvent.ACTION_DOWN -> cursor.startMove(dx, dy)
             KeyEvent.ACTION_UP -> cursor.stopMove()
         }
         return true

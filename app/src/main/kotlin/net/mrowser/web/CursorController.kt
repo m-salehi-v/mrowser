@@ -51,14 +51,10 @@ class CursorController(
         x = width / 2f; y = height / 2f; invalidate()
     }
 
-    /** @return true if UP was pressed while the cursor is pinned at the top and the page is already scrolled to top. */
-    fun startMove(dx: Int, dy: Int): Boolean {
-        val pinnedTop = dy < 0 && y <= 0f
-        if (pinnedTop) return true
-        if (dirX == dx && dirY == dy) return false
+    fun startMove(dx: Int, dy: Int) {
+        if (dirX == dx && dirY == dy) return
         dirX = dx; dirY = dy; holdStart = SystemClock.uptimeMillis()
         handler.removeCallbacks(mover); handler.post(mover)
-        return false
     }
 
     fun stopMove() {

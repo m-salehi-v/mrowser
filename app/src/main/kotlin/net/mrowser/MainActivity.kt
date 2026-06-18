@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.webkit.WebView
@@ -37,6 +39,8 @@ class MainActivity : Activity() {
     private lateinit var homeView: HomeView
     private lateinit var favorites: JsonFavoritesStore
     private lateinit var handoff: HandoffController
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val chipHideRunnable = Runnable { playChip.visibility = View.GONE }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,12 +62,12 @@ class MainActivity : Activity() {
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
-            onStreamAvailable = { runOnUiThread { playChip.visibility = View.VISIBLE; handoff.play() } },
+            onStreamAvailable = { runOnUiThread { showChip(); handoff.play() } },
             onCleared = { playChip.visibility = View.GONE }
         )
         handoff = HandoffController(this, sniffer)
 
-        webView.webViewClient = SniffingWebViewClient(sniffer) { url -> showAddressBar(url) }
+        webView.webViewClient = SniffingWebViewClient(sniffer) { url -> updateUrlText(url) }
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
@@ -133,9 +137,14 @@ class MainActivity : Activity() {
         homeView.show()
     }
 
-    private fun showAddressBar(url: String) {
+    private fun updateUrlText(url: String) {
         urlInput.setText(url)
-        chrome.requestReveal(atTop = true, focusInput = false)
+    }
+
+    private fun showChip() {
+        playChip.visibility = View.VISIBLE
+        uiHandler.removeCallbacks(chipHideRunnable)
+        uiHandler.postDelayed(chipHideRunnable, CHIP_TIMEOUT_MS)
     }
 
     private fun addCurrentToFavorites() {
@@ -153,6 +162,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::webView.isInitialized) webView.onResume()
+        if (::sniffer.isInitialized && sniffer.hasStream() && homeView.visibility != View.VISIBLE) showChip()
     }
 
     @Suppress("DEPRECATION")
@@ -162,5 +172,9 @@ class MainActivity : Activity() {
         } else {
             showHome()
         }
+    }
+
+    companion object {
+        private const val CHIP_TIMEOUT_MS = 30_000L
     }
 }
