@@ -17,4 +17,5 @@
     <string name="track_video">Video quality</string>
     <string name="track_audio">Audio</string>
     <string name="track_subtitles">Subtitles</string>
+    <string name="quality">Quality</string>
 </resources>

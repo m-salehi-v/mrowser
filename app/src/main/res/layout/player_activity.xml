@@ -1,10 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/playerView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
-    app:surface_type="surface_view"
-    app:show_subtitle_button="true"
-    app:resize_mode="fit" />
+    android:background="@android:color/black">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/playerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:surface_type="surface_view"
+        app:show_subtitle_button="true"
+        app:resize_mode="fit" />
+
+    <Button
+        android:id="@+id/qualityButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:background="@drawable/play_chip_bg"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:text="@string/quality"
+        android:textColor="@color/on_surface"
+        android:visibility="gone" />
+</FrameLayout>
