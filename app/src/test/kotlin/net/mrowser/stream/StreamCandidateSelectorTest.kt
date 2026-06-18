@@ -19,6 +19,15 @@ class StreamCandidateSelectorTest {
         assertEquals("https://site.net/master.m3u8?key=1", StreamCandidateSelector.selectBest(list)?.url)
     }
 
+    @Test fun `prefers the newest master when several are seen`() {
+        val list = listOf(
+            hls("https://site.net/master.m3u8?k=old", 1),
+            hls("https://cdn.net/i.m3u8", 2),
+            hls("https://site.net/master.m3u8?k=new", 5)
+        )
+        assertEquals("https://site.net/master.m3u8?k=new", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
     @Test fun `falls back to the earliest manifest when none is named master`() {
         val list = listOf(
             hls("https://cdn.net/a/i.m3u8", 2),

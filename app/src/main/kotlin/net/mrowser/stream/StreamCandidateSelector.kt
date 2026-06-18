@@ -6,16 +6,16 @@ import net.mrowser.stream.MediaUrlClassifier.MediaKind
 object StreamCandidateSelector {
 
     /**
-     * Prefer the master playlist: a URL containing "master" if present, otherwise the
-     * earliest manifest seen (players fetch the master before its variants). Picking a
-     * variant would lose the separate audio/subtitle renditions the master declares.
+     * Prefer the master playlist (it declares the audio + subtitle renditions a variant lacks):
+     * the NEWEST manifest whose URL contains "master" — newest so re-entry uses a freshly
+     * re-issued master rather than a stale one — otherwise the earliest manifest seen.
      */
     fun selectBest(candidates: List<StreamCandidate>): StreamCandidate? {
         val manifests = candidates.filter {
             it.kind == MediaKind.MANIFEST_HLS && !MediaUrlClassifier.isAdHost(it.url)
         }
-        return manifests.firstOrNull { it.url.substringBefore('?').lowercase().contains("master") }
-            ?: manifests.minByOrNull { it.seq }
+        val masters = manifests.filter { it.url.substringBefore('?').lowercase().contains("master") }
+        return masters.maxByOrNull { it.seq } ?: manifests.minByOrNull { it.seq }
     }
 
     fun selectSubtitles(candidates: List<StreamCandidate>): List<StreamCandidate> =

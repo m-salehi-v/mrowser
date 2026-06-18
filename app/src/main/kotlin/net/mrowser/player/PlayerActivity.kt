@@ -5,7 +5,6 @@ import android.app.AlertDialog
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
-import android.widget.ImageButton
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.C
@@ -16,8 +15,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.hls.HlsMediaSource
-import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.PlayerView
 import androidx.media3.ui.TrackSelectionDialogBuilder
@@ -39,17 +37,21 @@ class PlayerActivity : Activity() {
         val request = PlaybackRequest.fromJson(json)
 
         val trackSelector = DefaultTrackSelector(this).apply {
-            parameters = buildUponParameters()
-                .setPreferredTextLanguage("fa")   // prefer Persian subtitles
-                .build()
+            parameters = buildUponParameters().setPreferredTextLanguage("fa").build()
         }
-        val exo = ExoPlayer.Builder(this).setTrackSelector(trackSelector).build()
+        // DefaultMediaSourceFactory (not HlsMediaSource.Factory) is what merges the
+        // side-loaded subtitle tracks; it still builds an HlsMediaSource for the .m3u8.
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
+            .setDefaultRequestProperties(request.headers)
+            .setAllowCrossProtocolRedirects(true)
+        val exo = ExoPlayer.Builder(this)
+            .setTrackSelector(trackSelector)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .build()
         player = exo
         playerView.player = exo
 
-        findViewById<ImageButton>(R.id.tracksButton).setOnClickListener { showTrackMenu(exo) }
-
-        exo.setMediaSource(buildSource(request))
+        exo.setMediaItem(buildMediaItem(request))
         exo.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 Toast.makeText(this@PlayerActivity, "Stream error — back to web player", Toast.LENGTH_LONG).show()
@@ -60,7 +62,23 @@ class PlayerActivity : Activity() {
         exo.playWhenReady = true
     }
 
-    /** Menu → pick a track type → media3's built-in selection dialog. */
+    private fun buildMediaItem(request: PlaybackRequest): MediaItem =
+        MediaItem.Builder()
+            .setUri(request.url)
+            .setMimeType(MimeTypes.APPLICATION_M3U8)
+            .setSubtitleConfigurations(request.subtitles.mapIndexed { i, s -> s.toConfig(default = i == 0) })
+            .build()
+
+    private fun SubtitleTrack.toConfig(default: Boolean): MediaItem.SubtitleConfiguration {
+        val builder = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
+            .setMimeType(if (mimeType == "application/x-subrip") MimeTypes.APPLICATION_SUBRIP else MimeTypes.TEXT_VTT)
+            .setLanguage(language)
+            .setLabel(label)
+        if (default) builder.setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+        return builder.build()
+    }
+
+    /** MENU → pick a track type → media3's built-in selection dialog. */
     private fun showTrackMenu(target: ExoPlayer) {
         val labels = arrayOf(
             getString(R.string.track_video),
@@ -82,26 +100,6 @@ class PlayerActivity : Activity() {
             return true
         }
         return super.onKeyDown(keyCode, event)
-    }
-
-    private fun buildSource(request: PlaybackRequest): MediaSource {
-        val dataSource = DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(request.headers)
-            .setAllowCrossProtocolRedirects(true)
-        val item = MediaItem.Builder()
-            .setUri(request.url)
-            .setSubtitleConfigurations(request.subtitles.mapIndexed { i, s -> s.toConfig(default = i == 0) })
-            .build()
-        return HlsMediaSource.Factory(dataSource).createMediaSource(item)
-    }
-
-    private fun SubtitleTrack.toConfig(default: Boolean): MediaItem.SubtitleConfiguration {
-        val builder = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
-            .setMimeType(if (mimeType == "application/x-subrip") MimeTypes.APPLICATION_SUBRIP else MimeTypes.TEXT_VTT)
-            .setLanguage(language)
-            .setLabel(label)
-        if (default) builder.setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-        return builder.build()
     }
 
     override fun onStop() {
