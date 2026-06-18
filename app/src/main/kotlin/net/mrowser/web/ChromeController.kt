@@ -18,7 +18,7 @@ class ChromeController(
     private var state = ChromeVisibility.State.HIDDEN
     private val hideRunnable = Runnable { dispatch(ChromeVisibility.Event.IdleElapsed) }
 
-    companion object { const val IDLE_MS = 4000L }
+    companion object { const val IDLE_MS = 8000L }
 
     val isVisible: Boolean get() = state == ChromeVisibility.State.VISIBLE
 
