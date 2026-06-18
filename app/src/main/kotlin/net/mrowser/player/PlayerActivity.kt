@@ -1,9 +1,10 @@
 package net.mrowser.player
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.net.Uri
 import android.os.Bundle
-import android.widget.Button
+import android.view.View
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.C
@@ -31,7 +32,6 @@ class PlayerActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.player_activity)
         val playerView = findViewById<PlayerView>(R.id.playerView)
-        val qualityButton = findViewById<Button>(R.id.qualityButton)
 
         val json = intent.getStringExtra(EXTRA_REQUEST) ?: run { finish(); return }
         val request = PlaybackRequest.fromJson(json)
@@ -51,18 +51,18 @@ class PlayerActivity : Activity() {
         player = exo
         playerView.player = exo
 
-        // Quality lives next to the built-in controls: it shows/hides with them (no focus trap).
-        // Audio + subtitle selection are handled by the player's own settings/CC controls.
-        playerView.setControllerVisibilityListener(
-            PlayerView.ControllerVisibilityListener { visibility -> qualityButton.visibility = visibility }
-        )
-        qualityButton.setOnClickListener {
-            player?.let {
-                TrackSelectionDialogBuilder(this, getString(R.string.track_video), it, C.TRACK_TYPE_VIDEO)
-                    .build()
-                    .show()
+        // Replace the built-in control-bar gear's menu with ours, so video Quality sits
+        // alongside Audio and Speed in the same gear. Re-applied whenever the controls
+        // re-appear (the player can reset its own listeners).
+        val installSettings = {
+            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.setOnClickListener {
+                player?.let { showSettings(it) }
             }
         }
+        playerView.setControllerVisibilityListener(
+            PlayerView.ControllerVisibilityListener { installSettings() }
+        )
+        playerView.post { installSettings() }
 
         exo.setMediaItem(buildMediaItem(request))
         exo.addListener(object : Player.Listener {
@@ -73,6 +73,33 @@ class PlayerActivity : Activity() {
         })
         exo.prepare()
         exo.playWhenReady = true
+    }
+
+    private fun showSettings(p: ExoPlayer) {
+        val items = arrayOf(
+            getString(R.string.track_video),
+            getString(R.string.track_audio),
+            getString(R.string.speed)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(R.string.settings)
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> TrackSelectionDialogBuilder(this, items[0], p, C.TRACK_TYPE_VIDEO).build().show()
+                    1 -> TrackSelectionDialogBuilder(this, items[1], p, C.TRACK_TYPE_AUDIO).build().show()
+                    2 -> showSpeed(p)
+                }
+            }
+            .show()
+    }
+
+    private fun showSpeed(p: ExoPlayer) {
+        val speeds = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+        val labels = speeds.map { "${it}x" }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.speed)
+            .setItems(labels) { _, w -> p.setPlaybackSpeed(speeds[w]) }
+            .show()
     }
 
     private fun buildMediaItem(request: PlaybackRequest): MediaItem =

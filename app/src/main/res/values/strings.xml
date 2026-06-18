@@ -18,4 +18,6 @@
     <string name="track_audio">Audio</string>
     <string name="track_subtitles">Subtitles</string>
     <string name="quality">Quality</string>
+    <string name="speed">Speed</string>
+    <string name="settings">Settings</string>
 </resources>
