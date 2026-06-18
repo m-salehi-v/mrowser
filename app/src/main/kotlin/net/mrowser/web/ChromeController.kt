@@ -23,9 +23,14 @@ class ChromeController(
     val isVisible: Boolean get() = state == ChromeVisibility.State.VISIBLE
 
     private var pendingFocus = true
+    private var active = false
+
+    /** True only when the bar was opened for interaction; a passive on-load reveal is not active. */
+    val isActive: Boolean get() = active && isVisible
 
     fun requestReveal(atTop: Boolean, focusInput: Boolean = true) {
         pendingFocus = focusInput
+        active = focusInput
         dispatch(ChromeVisibility.Event.RevealRequested(atTop))
     }
     fun onInteracted() = dispatch(ChromeVisibility.Event.Interacted)
@@ -55,6 +60,7 @@ class ChromeController(
 
     private fun animateOut() {
         handler.removeCallbacks(hideRunnable)
+        active = false
         bar.animate().translationY(-bar.height.toFloat()).alpha(0f).setDuration(160)
             .withEndAction { bar.visibility = View.GONE }.start()
         webView.requestFocus()

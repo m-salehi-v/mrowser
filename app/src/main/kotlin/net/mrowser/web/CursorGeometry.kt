@@ -3,9 +3,9 @@ package net.mrowser.web
 /** Pure cursor math: no Android types, fully unit-testable. */
 object CursorGeometry {
 
-    const val BASE_SPEED_PX = 12f
-    const val MAX_SPEED_PX = 40f
-    const val ACCEL_MS = 600L
+    const val BASE_SPEED_PX = 6f
+    const val MAX_SPEED_PX = 20f
+    const val ACCEL_MS = 900L
 
     data class Point(val x: Float, val y: Float)
 
