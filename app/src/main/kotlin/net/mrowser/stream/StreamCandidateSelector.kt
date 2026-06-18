@@ -21,6 +21,6 @@ object StreamCandidateSelector {
     fun selectSubtitles(candidates: List<StreamCandidate>): List<StreamCandidate> =
         candidates
             .filter { it.kind == MediaKind.SUBTITLE }
-            .sortedByDescending { it.seq }
+            .sortedBy { it.seq }
             .distinctBy { it.url }
 }

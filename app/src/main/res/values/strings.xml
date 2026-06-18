@@ -13,4 +13,8 @@
     <string name="save">Save</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
+    <string name="tracks_title">Tracks</string>
+    <string name="track_video">Video quality</string>
+    <string name="track_audio">Audio</string>
+    <string name="track_subtitles">Subtitles</string>
 </resources>

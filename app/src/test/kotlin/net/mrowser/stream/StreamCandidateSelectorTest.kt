@@ -40,13 +40,13 @@ class StreamCandidateSelectorTest {
         assertNull(StreamCandidateSelector.selectBest(listOf(sub("https://x/fa.vtt", 1))))
     }
 
-    @Test fun `collects subtitles newest first and deduped`() {
+    @Test fun `collects subtitles in sniff order and deduped`() {
         val list = listOf(
             sub("https://x/fa.vtt", 1),
-            sub("https://x/fa.vtt", 2),
-            sub("https://x/en.vtt", 3)
+            sub("https://x/en.vtt", 3),
+            sub("https://x/fa.vtt", 2)
         )
         val subs = StreamCandidateSelector.selectSubtitles(list)
-        assertEquals(listOf("https://x/en.vtt", "https://x/fa.vtt"), subs.map { it.url })
+        assertEquals(listOf("https://x/fa.vtt", "https://x/en.vtt"), subs.map { it.url })
     }
 }
