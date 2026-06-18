@@ -36,6 +36,7 @@ class MainActivity : Activity() {
     private lateinit var playChip: TextView
     private lateinit var homeView: HomeView
     private lateinit var favorites: JsonFavoritesStore
+    private lateinit var handoff: HandoffController
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,10 +58,10 @@ class MainActivity : Activity() {
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
-            onStreamAvailable = { runOnUiThread { playChip.visibility = View.VISIBLE } },
+            onStreamAvailable = { runOnUiThread { playChip.visibility = View.VISIBLE; handoff.play() } },
             onCleared = { playChip.visibility = View.GONE }
         )
-        val handoff = HandoffController(this, sniffer)
+        handoff = HandoffController(this, sniffer)
 
         webView.webViewClient = SniffingWebViewClient(sniffer) { url -> showAddressBar(url) }
         chromeClient = BrowserWebChromeClient(
@@ -142,6 +143,16 @@ class MainActivity : Activity() {
         val title = webView.title?.takeIf { it.isNotBlank() } ?: (Uri.parse(url).host ?: url)
         favorites.add(Favorite(title, url))
         Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (::webView.isInitialized) webView.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::webView.isInitialized) webView.onResume()
     }
 
     @Suppress("DEPRECATION")
