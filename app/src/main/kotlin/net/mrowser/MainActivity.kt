@@ -75,10 +75,11 @@ class MainActivity : Activity() {
         )
         handoff = HandoffController(this, sniffer)
 
-        webView.webViewClient = SniffingWebViewClient(sniffer) { url ->
-            updateUrlText(url)
-            recordHistory(url, null)
-        }
+        webView.webViewClient = SniffingWebViewClient(
+            sniffer,
+            onNavigate = { url -> updateUrlText(url) },
+            onLoaded = { url -> recordHistory(url, webView.title) }
+        )
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
@@ -169,7 +170,7 @@ class MainActivity : Activity() {
     }
 
     private fun recordHistory(url: String, title: String?) {
-        if (!url.startsWith("http")) return
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return
         val label = title?.takeIf { it.isNotBlank() } ?: (Uri.parse(url).host ?: url)
         history.record(HistoryEntry(label, url, System.currentTimeMillis()))
     }
