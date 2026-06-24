@@ -1,6 +1,7 @@
 package net.mrowser.stream
 
 import android.webkit.CookieManager
+import net.mrowser.data.SubtitleLanguagePref
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -12,7 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger
 class StreamSniffer(
     private val userAgent: () -> String,
     private val onStreamAvailable: () -> Unit,
-    private val onCleared: () -> Unit
+    private val onCleared: () -> Unit,
+    private val subtitlePref: () -> SubtitleLanguagePref = { SubtitleLanguagePref.ENGLISH }
 ) {
     private val candidates = CopyOnWriteArrayList<StreamCandidate>()
     private val seq = AtomicInteger(0)
@@ -48,13 +50,7 @@ class StreamSniffer(
             if (pageUrl.isNotEmpty()) put("Referer", pageUrl)
             CookieManager.getInstance().getCookie(best.url)?.let { put("Cookie", it) }
         }
-        val subs = StreamCandidateSelector.selectSubtitles(candidates).mapIndexed { idx, c ->
-            val isSrt = c.url.substringBefore('?').lowercase().endsWith(".srt")
-            val mime = if (isSrt) "application/x-subrip" else "text/vtt"
-            // The first subtitle on a Persian-default page is Persian; the rest get distinct generic labels.
-            if (idx == 0) SubtitleTrack(c.url, mime, "fa", "Persian")
-            else SubtitleTrack(c.url, mime, "und", "Subtitle ${idx + 1}")
-        }
-        return PlaybackRequest(best.url, headers, subs, pageUrl)
+        val plan = SubtitlePlan.build(StreamCandidateSelector.selectSubtitles(candidates), subtitlePref())
+        return PlaybackRequest(best.url, headers, plan.tracks, pageUrl, plan.preferredLanguage)
     }
 }
