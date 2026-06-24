@@ -60,9 +60,12 @@ class PlayerActivity : Activity() {
             playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.setOnClickListener {
                 player?.let { showSettings(it) }
             }
-            // The CC button now drives our own picker (the player has no text track of its own).
-            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_subtitle)?.setOnClickListener {
-                showSubtitlePicker()
+            // media3 disables the CC button when the player has no text track (it does not, by design),
+            // so force it back on each time we re-install — otherwise the disabled view won't dispatch clicks.
+            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_subtitle)?.apply {
+                isEnabled = true
+                alpha = 1f
+                setOnClickListener { showSubtitlePicker() }
             }
         }
         playerView.setControllerVisibilityListener(
