@@ -1,0 +1,61 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+mrowser is a sideload-only Android TV browser (`net.mrowser`) for streaming video. It browses any site with a D-pad-driven virtual mouse cursor, sniffs the page's network traffic for an HLS manifest, and hands that stream off to a native Media3/ExoPlayer activity — because the WebView's built-in player gives poor A/V sync. No Google Play Services; single Gradle module `:app`, all Kotlin.
+
+## Commands
+
+```bash
+./gradlew test               # unit tests (JVM, no device)
+./gradlew test --tests "net.mrowser.stream.MediaUrlClassifierTest"   # single test class
+./gradlew assembleDebug      # debug APK   -> app/build/outputs/apk/debug/
+./gradlew assembleRelease    # signed APK  -> app/build/outputs/apk/release/  (needs keystore.properties; unsigned if absent)
+```
+
+Toolchain: JDK 17, AGP 9.1.1 (built-in Kotlin), Gradle 9.3.1. `compileSdk 36` / `minSdk 23` / `targetSdk 34`. Needs SDK packages `platforms;android-36` and `build-tools;36.0.0`. Versions are pinned in `gradle/libs.versions.toml` (version catalog) — change deps there, not in `app/build.gradle.kts`.
+
+## Architecture
+
+Two activities (`AndroidManifest.xml`), wired in `MainActivity.onCreate`:
+
+- **MainActivity** — the browser. Hosts a `WebView` inside a custom `CursorLayout`, plus the chrome bar and the home screen overlay.
+- **PlayerActivity** — the native player. Handoff is **automatic** when a stream is detected; launched with a serialized `PlaybackRequest` Intent extra. **BACK returns to the browser** (the WebView is paused during playback via `onPause`/`onResume`); the play-synced chip re-enters the player and auto-hides after 30s. Quality / Audio / Speed live in the player's **built-in settings gear** — its click is overridden in `showSettings` (media3 has no public hook, so it reuses `androidx.media3.ui.R.id.exo_settings`); subtitles use the CC button. Finishes (back to the browser) on any playback error.
+
+Code is split by domain under `net.mrowser.*`, and within each domain **pure logic is separated from Android-dependent code so it can be unit-tested without a device**. The pure pieces are the ones with tests in `app/src/test/`. When adding logic, follow this split: put decision/parsing/geometry in a plain object/class and keep the Android glue thin.
+
+### `stream/` — HLS detection and handoff
+The core pipeline:
+1. `SniffingWebViewClient` forwards every `WebView` resource request to `StreamSniffer`.
+2. `StreamSniffer` (thread-safe; called off the UI thread) classifies each URL via the **pure** `MediaUrlClassifier` (extension-based: `.m3u8`→HLS, `.vtt`/`.srt`→subtitle, etc.) and accumulates `StreamCandidate`s.
+3. On the first HLS manifest it fires `onStreamAvailable`, which shows the play chip and triggers handoff.
+4. `bestRequest()` uses the **pure** `StreamCandidateSelector` to pick the manifest + subtitle tracks, attaches headers (User-Agent, Referer, Cookie from `CookieManager`), and returns a `PlaybackRequest`.
+5. `HandoffController` serializes the `PlaybackRequest` to JSON and starts `PlayerActivity`.
+
+Note the Persian-default subtitle convention in `StreamSniffer.bestRequest` and `PlayerActivity` (`preferredTextLanguage = "fa"`, first subtitle labeled Persian + marked default). `PlayerActivity` uses `DefaultMediaSourceFactory` (not `HlsMediaSource.Factory`) specifically so side-loaded subtitles get merged.
+
+### `web/` — the D-pad cursor and chrome
+- `CursorLayout` (FrameLayout) is the input router: it intercepts key events in `dispatchKeyEvent` and dispatches D-pad/OK/BACK/MENU to the cursor or chrome, and paints the cursor dot. This is where the remote-control scheme lives — see the control tables in the Milestone A spec/plan under `docs/superpowers/`.
+- `CursorController` synthesizes `MotionEvent`s (hover/down/up) onto the WebView to emulate a mouse; geometry (acceleration, edge detection) is the **pure** `CursorGeometry`. OK long-press toggles CURSOR/FOCUS mode.
+- `ChromeController` / `ChromeVisibility` manage the auto-hiding address bar, summoned only with **MENU** (a passive on-load reveal shows the current URL without freezing the cursor — see `ChromeController.isActive`). `UrlNormalizer` turns bar text into a loadable URL, or null.
+- `BrowserWebChromeClient` handles HTML5 fullscreen video.
+
+### `home/` + `data/` — home screen and favorites
+- `HomeView` is the launch overlay (favorites grid + URL entry); `FavoriteDialog` edits entries.
+- Favorites use the repository pattern: `FavoritesRepository` interface, `JsonFavoritesStore` implementation persisting to `filesDir/favorites.json`. The **pure** `FavoritesOps` (list transforms) and `FavoritesJson` (serialization) hold all the logic; the store is just file I/O.
+
+## Conventions
+
+- **No AndroidX/Compose** beyond Media3. Activities extend the framework `Activity`, UI is XML layouts in `res/layout`, and pure modules are plain Kotlin `object`s/classes with no Android imports. Keep it that way.
+- Netflix-style dark theme; brand red is `#E50914`.
+- Design docs, specs, and milestone plans live in `docs/superpowers/`. Read the relevant milestone plan before changing cursor input or the handoff pipeline — they document the intended control scheme and edge cases.
+
+## Release & CI
+
+`.github/workflows/build.yml` runs `./gradlew test` + `assembleDebug` on every push/PR (`test-and-debug` job), and builds a **signed** release APK on GitHub Release publish (`release-apk` job, gated by `if: github.event_name == 'release'`) using secrets `KEYSTORE_BASE64`, `STORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` (decoded into a temporary `keystore.properties`). The `release-apk` job needs `permissions: contents: write` to attach the APK — keep it.
+
+Actions are pinned to commit SHAs (supply-chain safety); `.github/dependabot.yml` opens weekly PRs bumping those pins.
+
+**Releasing:** bump `versionCode` (must increase per release) + `versionName` in `app/build.gradle.kts`, push, then `gh release create vX.Y.Z --prerelease --title … --notes …` — the published event triggers the signed build, which attaches `app-release.apk`. Drop `--prerelease` for a stable release. Remote `origin` = `github.com/m-salehi-v/mrowser` (private). Locally, `keystore.properties` and `release.keystore` are gitignored.
