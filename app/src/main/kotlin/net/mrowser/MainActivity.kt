@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.webkit.WebView
@@ -211,6 +212,21 @@ class MainActivity : Activity() {
         super.onResume()
         if (::webView.isInitialized) webView.onResume()
         if (::sniffer.isInitialized && sniffer.hasStream() && homeView.visibility != View.VISIBLE) showChip()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Recovery: if focus was lost (intermittent on the overlays), D-pad keys have
+        // no anchor for focus search and the user is stuck. Re-seat focus into
+        // whatever's on screen and swallow this one press.
+        if (currentFocus == null && event.action == KeyEvent.ACTION_DOWN) {
+            val recovered = when {
+                historyView.visibility == View.VISIBLE -> historyView.restoreFocus()
+                homeView.visibility == View.VISIBLE -> homeView.restoreFocus()
+                else -> layout.requestFocus()
+            }
+            if (recovered) return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     @Suppress("DEPRECATION")

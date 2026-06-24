@@ -66,8 +66,13 @@ class HomeView @JvmOverloads constructor(
     fun show() {
         visibility = View.VISIBLE
         refresh()
-        urlInput.requestFocus()
+        // Post: a synchronous requestFocus right after VISIBLE can fail before the
+        // layout pass, leaving nothing focused (D-pad then dead). See restoreFocus.
+        post { restoreFocus() }
     }
+
+    /** Re-seat D-pad focus on the URL pill. Returns false if it couldn't take focus. */
+    fun restoreFocus(): Boolean = urlInput.requestFocus()
 
     fun hide() {
         visibility = View.GONE

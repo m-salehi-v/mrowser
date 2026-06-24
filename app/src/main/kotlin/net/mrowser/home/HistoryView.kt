@@ -53,8 +53,12 @@ class HistoryView @JvmOverloads constructor(
     fun show() {
         visibility = View.VISIBLE
         refresh()
-        (list.getChildAt(0) ?: clearButton).requestFocus()
+        // Post: see HomeView.show — a sync requestFocus before layout can no-op.
+        post { restoreFocus() }
     }
+
+    /** Re-seat D-pad focus on the first row (or clear-all). Returns false on failure. */
+    fun restoreFocus(): Boolean = (list.getChildAt(0) ?: clearButton).requestFocus()
 
     fun hide() {
         visibility = View.GONE
