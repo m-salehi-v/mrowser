@@ -19,4 +19,16 @@ class PlaybackRequestTest {
         val req = PlaybackRequest("https://x/v.m3u8", mapOf("User-Agent" to "UA"), emptyList(), "t")
         assertEquals(req, PlaybackRequest.fromJson(req.toJson()))
     }
+
+    @Test fun `round trips preferred text language`() {
+        val req = PlaybackRequest("https://x/v.m3u8", mapOf("User-Agent" to "UA"), emptyList(), "t", "en")
+        assertEquals(req, PlaybackRequest.fromJson(req.toJson()))
+    }
+
+    @Test fun `null preferred text language round trips as null`() {
+        val req = PlaybackRequest("https://x/v.m3u8", mapOf("User-Agent" to "UA"), emptyList(), "t", null)
+        val restored = PlaybackRequest.fromJson(req.toJson())
+        assertEquals(req, restored)
+        assertEquals(null, restored.preferredTextLanguage)
+    }
 }

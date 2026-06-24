@@ -14,7 +14,8 @@ data class PlaybackRequest(
     val url: String,
     val headers: Map<String, String>,
     val subtitles: List<SubtitleTrack>,
-    val title: String
+    val title: String,
+    val preferredTextLanguage: String? = null
 ) {
     fun toJson(): String {
         val h = JSONObject()
@@ -27,9 +28,10 @@ data class PlaybackRequest(
                     .put("language", it.language).put("label", it.label)
             )
         }
-        return JSONObject()
+        val o = JSONObject()
             .put("url", url).put("headers", h).put("subtitles", subs).put("title", title)
-            .toString()
+        preferredTextLanguage?.let { o.put("preferredTextLanguage", it) }
+        return o.toString()
     }
 
     companion object {
@@ -42,7 +44,8 @@ data class PlaybackRequest(
                 val s = arr.getJSONObject(it)
                 SubtitleTrack(s.getString("url"), s.getString("mimeType"), s.getString("language"), s.getString("label"))
             }
-            return PlaybackRequest(o.getString("url"), headers, subs, o.getString("title"))
+            val pref = if (o.has("preferredTextLanguage")) o.getString("preferredTextLanguage") else null
+            return PlaybackRequest(o.getString("url"), headers, subs, o.getString("title"), pref)
         }
     }
 }
