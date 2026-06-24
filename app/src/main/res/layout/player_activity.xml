@@ -18,40 +18,49 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|start"
-        android:layout_margin="24dp"
+        android:layout_margin="16dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:background="@color/bar_frost"
-        android:padding="8dp"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp"
         android:visibility="gone">
 
         <Button
             android:id="@+id/subSyncMinus"
+            style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:minWidth="48dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
             android:text="−"
             android:textColor="@color/on_surface"
-            android:textSize="20sp"
+            android:textSize="16sp"
             android:nextFocusRight="@id/subSyncPlus" />
 
         <TextView
             android:id="@+id/subSyncValue"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="12dp"
+            android:paddingHorizontal="6dp"
             android:text="Sub Sync +0.0s"
             android:textColor="@color/on_surface"
-            android:textSize="16sp" />
+            android:textSize="13sp" />
 
         <Button
             android:id="@+id/subSyncPlus"
+            style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:minWidth="48dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
             android:text="+"
             android:textColor="@color/on_surface"
-            android:textSize="20sp"
+            android:textSize="16sp"
             android:nextFocusLeft="@id/subSyncMinus" />
     </LinearLayout>
 </FrameLayout>
