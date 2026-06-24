@@ -39,8 +39,8 @@ class PlayerActivity : Activity() {
         val request = PlaybackRequest.fromJson(json)
 
         val trackSelector = DefaultTrackSelector(this)
-        // DefaultMediaSourceFactory (not HlsMediaSource.Factory) is what merges side-loaded
-        // subtitles; it still builds an HlsMediaSource for the .m3u8.
+        // DefaultMediaSourceFactory builds an HlsMediaSource for the .m3u8. The player carries
+        // no text track — side-loaded subtitles are rendered by SubtitleSyncController, not merged here.
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setDefaultRequestProperties(request.headers)
             .setAllowCrossProtocolRedirects(true)
