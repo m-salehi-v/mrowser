@@ -42,7 +42,9 @@ class ChromeController(
             state = next
             if (next == ChromeVisibility.State.VISIBLE) animateIn() else animateOut()
         }
-        if (state == ChromeVisibility.State.VISIBLE) armIdle()
+        // Only the passive on-load reveal auto-hides. An active bar (opened via MENU)
+        // stays put while the user types / navigates — it closes on BACK, MENU, or submit.
+        if (state == ChromeVisibility.State.VISIBLE && !active) armIdle()
     }
 
     private fun armIdle() {
