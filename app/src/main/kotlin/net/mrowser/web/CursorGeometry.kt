@@ -15,12 +15,17 @@ object CursorGeometry {
     fun step(current: Point, dirX: Int, dirY: Int, speedPx: Float, width: Int, height: Int): Point =
         clamp(current.x + dirX * speedPx, current.y + dirY * speedPx, width, height)
 
-    /** Ramps base -> max linearly over ACCEL_MS, then holds at max. */
-    fun speedForHoldMs(heldMs: Long): Float {
-        if (heldMs <= 0L) return BASE_SPEED_PX
-        if (heldMs >= ACCEL_MS) return MAX_SPEED_PX
-        val t = heldMs.toFloat() / ACCEL_MS
-        return BASE_SPEED_PX + (MAX_SPEED_PX - BASE_SPEED_PX) * t
+    /** Ramps base -> max linearly over ACCEL_MS, then holds at max; scaled by [multiplier]. */
+    fun speedForHoldMs(heldMs: Long, multiplier: Float = 1f): Float {
+        val base = when {
+            heldMs <= 0L -> BASE_SPEED_PX
+            heldMs >= ACCEL_MS -> MAX_SPEED_PX
+            else -> {
+                val t = heldMs.toFloat() / ACCEL_MS
+                BASE_SPEED_PX + (MAX_SPEED_PX - BASE_SPEED_PX) * t
+            }
+        }
+        return base * multiplier
     }
 
     fun isAtTopEdge(y: Float, zonePx: Float): Boolean = y <= zonePx

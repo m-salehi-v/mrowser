@@ -44,4 +44,16 @@ class CursorGeometryTest {
         assertTrue(CursorGeometry.isAtBottomEdge(960f, 1000, 48f))
         assertFalse(CursorGeometry.isAtBottomEdge(900f, 1000, 48f))
     }
+
+    @Test fun `multiplier scales the base speed`() {
+        assertEquals(CursorGeometry.BASE_SPEED_PX * 0.5f, CursorGeometry.speedForHoldMs(0L, 0.5f), 0.001f)
+    }
+
+    @Test fun `multiplier scales the max speed`() {
+        assertEquals(CursorGeometry.MAX_SPEED_PX * 2f, CursorGeometry.speedForHoldMs(CursorGeometry.ACCEL_MS, 2f), 0.001f)
+    }
+
+    @Test fun `default multiplier leaves speed unchanged`() {
+        assertEquals(CursorGeometry.speedForHoldMs(0L), CursorGeometry.speedForHoldMs(0L, 1f), 0.001f)
+    }
 }
