@@ -14,6 +14,11 @@ class SettingsJsonTest {
         assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
     }
 
+    @Test fun `round trips the null-bearing OFF subtitle constant`() {
+        val s = Settings(subtitleLanguage = SubtitleLanguagePref.OFF)
+        assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
+    }
+
     @Test fun `missing fields fall back to defaults`() {
         assertEquals(Settings(), SettingsJson.fromJson("{}"))
     }
