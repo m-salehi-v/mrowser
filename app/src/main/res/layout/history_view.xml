@@ -14,39 +14,22 @@
         android:paddingBottom="24dp">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="@color/on_surface"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:paddingEnd="24dp" />
-
-        <EditText
-            android:id="@+id/homeUrlInput"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/url_pill_bg"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
-            android:paddingTop="12dp"
-            android:paddingBottom="12dp"
-            android:hint="@string/url_hint"
-            android:imeOptions="actionGo"
-            android:inputType="textUri"
+            android:text="@string/history"
             android:textColor="@color/on_surface"
-            android:textColorHint="@color/hint" />
+            android:textSize="28sp"
+            android:textStyle="bold" />
 
         <Button
-            android:id="@+id/homeHistoryButton"
+            android:id="@+id/clearHistoryButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
             android:background="@drawable/focus_ring"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
-            android:text="@string/history"
+            android:text="@string/clear_history"
             android:textColor="@color/on_surface" />
     </LinearLayout>
 
@@ -54,30 +37,27 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:clipChildren="false"
         android:clipToPadding="false"
         android:fillViewport="true">
 
         <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:clipChildren="false">
+            android:layout_height="wrap_content">
 
-            <GridLayout
-                android:id="@+id/favoritesGrid"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/historyList"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:clipChildren="false"
-                android:columnCount="4" />
+                android:orientation="vertical" />
 
             <TextView
-                android:id="@+id/emptyHint"
+                android:id="@+id/historyEmptyHint"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
                 android:paddingTop="80dp"
-                android:text="@string/favorites_empty"
+                android:text="@string/history_empty"
                 android:textColor="@color/hint"
                 android:textSize="18sp"
                 android:visibility="gone" />

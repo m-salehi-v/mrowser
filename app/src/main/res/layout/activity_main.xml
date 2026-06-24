@@ -64,6 +64,16 @@
                 android:tint="@color/on_surface"
                 android:contentDescription="@string/add_favorite" />
 
+            <ImageButton
+                android:id="@+id/historyButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/focus_ring"
+                android:src="@android:drawable/ic_menu_recent_history"
+                android:tint="@color/on_surface"
+                android:contentDescription="@string/history" />
+
             <EditText
                 android:id="@+id/urlInput"
                 android:layout_width="0dp"
@@ -99,4 +109,10 @@
         android:id="@+id/homeView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <net.mrowser.home.HistoryView
+        android:id="@+id/historyView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 </FrameLayout>
