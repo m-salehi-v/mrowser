@@ -21,6 +21,8 @@
     <string name="quality">Quality</string>
     <string name="speed">Speed</string>
     <string name="settings">Settings</string>
+    <string name="subtitle_off">Off</string>
+    <string name="sub_sync_value">Sub Sync %1$+.1fs</string>
     <string name="history">History</string>
     <string name="clear_history">Clear all</string>
     <string name="history_empty">No history yet — sites you visit will show up here.</string>
