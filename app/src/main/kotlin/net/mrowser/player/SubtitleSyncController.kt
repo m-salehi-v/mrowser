@@ -41,12 +41,19 @@ class SubtitleSyncController(
     /** Auto-select the first track (today's "auto-show first") and begin rendering. */
     fun start() {
         if (tracks.isNotEmpty()) select(0)
+        handler.removeCallbacks(ticker)
         handler.post(ticker)
         onOffsetChanged(offsetMs)
     }
 
     fun stop() {
         handler.removeCallbacks(ticker)
+    }
+
+    /** Re-post the ticker after a background round-trip, preserving selection and offset. */
+    fun resume() {
+        handler.removeCallbacks(ticker)
+        handler.post(ticker)
     }
 
     fun adjust(deltaMs: Long) {
