@@ -99,10 +99,8 @@ unit-testable without Android:
 ### UI layer (`home/`)
 
 - **`settings_view.xml`** — full-screen overlay (like `home_view.xml`): a "Settings"
-  heading + a vertical list of three D-pad-focusable rows, each showing a title and the
-  current value.
-- **`settings_row.xml`** — one row: title (start) + current-value label (end), focusable
-  with the existing focus-ring treatment.
+  heading + three inlined D-pad-focusable rows (distinct ids), each a title + current-value
+  label with the existing focus-ring treatment. Three fixed rows → no separate row layout.
 - **`SettingsView.kt`** — mirrors `HistoryView`:
   - `bind(repository: SettingsRepository)`.
   - `show()` / `hide()` (visibility + render + posted `restoreFocus()`); focus-modal.
@@ -114,8 +112,9 @@ unit-testable without Android:
   - Each change calls `repository.update(...)` and re-renders that row's value label. No
     callback to `MainActivity` is needed — all three settings are read live via providers,
     so changes take effect on next use with no notification.
-- **`ic_settings.xml`** — gear vector drawable matching the existing chrome icons.
-- New strings in `strings.xml` (page title, row titles, each option label).
+- No new drawable: the home header uses text buttons (see Entry point), so the existing
+  `@string/settings` label is reused for the button + heading.
+- New strings in `strings.xml` (row titles, On/Off, each option label).
 
 ### Wiring (`MainActivity.onCreate`)
 
@@ -130,17 +129,18 @@ unit-testable without Android:
 - **Settings overlay**: `settingsView.bind(settings)`. No change-callback wiring — all
   three settings are read live at use-time (auto-open in `onStreamAvailable`, subtitle in
   `bestRequest`, cursor speed each frame).
-- **Entry point**: add a gear `ImageButton` to the home header (`home_view.xml`), right of
-  the History button, wired through `HomeView` to open the Settings overlay. Showing
+- **Entry point**: add a text **"Settings"** `Button` to the home header (`home_view.xml`),
+  right of the History button (the header already uses text buttons), reusing
+  `@string/settings`, wired through `HomeView` to open the Settings overlay. Showing
   Settings hides Home/History (focus-modality rule). BACK from Settings → `showHome()`
   (extend `onBackPressed`, matching the History-from-home branch).
 
 ### Player (`player/`)
 
 - **`PlayerActivity`** — replace the hard-coded `setPreferredTextLanguage("fa")`: read
-  `request.preferredTextLanguage`; if non-null set it, else leave it unset. Subtitle
-  `SubtitleConfiguration` default flags come from the request's tracks (already built by the
-  pure helper), so the player no longer assumes Persian.
+  `request.preferredTextLanguage`; if non-null set it, else leave it unset. The default
+  subtitle selection flag is derived as `i == 0 && request.preferredTextLanguage != null`
+  (so the Off case marks no default), instead of always flagging the first track.
 
 ## Data flow
 
@@ -199,8 +199,6 @@ New:
 - `app/src/main/kotlin/net/mrowser/stream/SubtitlePlan.kt` (pure subtitle assembly)
 - `app/src/main/kotlin/net/mrowser/home/SettingsView.kt`
 - `app/src/main/res/layout/settings_view.xml`
-- `app/src/main/res/layout/settings_row.xml`
-- `app/src/main/res/drawable/ic_settings.xml`
 - `app/src/test/kotlin/net/mrowser/data/SettingsJsonTest.kt`
 - `app/src/test/kotlin/net/mrowser/stream/SubtitlePlanTest.kt`
 
