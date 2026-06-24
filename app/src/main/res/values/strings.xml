@@ -23,4 +23,7 @@
     <string name="history">History</string>
     <string name="clear_history">Clear all</string>
     <string name="history_empty">No history yet — sites you visit will show up here.</string>
+    <string name="exit_title">Exit mrowser?</string>
+    <string name="exit_message">Close the browser and return to the home screen.</string>
+    <string name="exit">Exit</string>
 </resources>

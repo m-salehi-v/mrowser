@@ -2,6 +2,7 @@ package net.mrowser
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.AlertDialog
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -220,9 +221,19 @@ class MainActivity : Activity() {
                 // Return to wherever history was opened from.
                 if (historyFromHome) showHome() else layout.requestFocus()
             }
-            homeView.visibility == View.VISIBLE -> super.onBackPressed()
+            homeView.visibility == View.VISIBLE -> confirmExit()
             else -> showHome()
         }
+    }
+
+    /** BACK on the home overlay is the app's root: confirm before exiting to the launcher. */
+    private fun confirmExit() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.exit_title)
+            .setMessage(R.string.exit_message)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.exit) { _, _ -> finish() }
+            .show()
     }
 
     companion object {
