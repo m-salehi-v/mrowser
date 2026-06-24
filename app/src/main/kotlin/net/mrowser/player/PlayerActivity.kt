@@ -38,7 +38,9 @@ class PlayerActivity : Activity() {
         val request = PlaybackRequest.fromJson(json)
 
         val trackSelector = DefaultTrackSelector(this).apply {
-            parameters = buildUponParameters().setPreferredTextLanguage("fa").build()
+            request.preferredTextLanguage?.let {
+                parameters = buildUponParameters().setPreferredTextLanguage(it).build()
+            }
         }
         // DefaultMediaSourceFactory (not HlsMediaSource.Factory) is what merges side-loaded
         // subtitles; it still builds an HlsMediaSource for the .m3u8.
@@ -118,7 +120,11 @@ class PlayerActivity : Activity() {
         MediaItem.Builder()
             .setUri(request.url)
             .setMimeType(MimeTypes.APPLICATION_M3U8)
-            .setSubtitleConfigurations(request.subtitles.mapIndexed { i, s -> s.toConfig(default = i == 0) })
+            .setSubtitleConfigurations(
+                request.subtitles.mapIndexed { i, s ->
+                    s.toConfig(default = i == 0 && request.preferredTextLanguage != null)
+                }
+            )
             .build()
 
     private fun SubtitleTrack.toConfig(default: Boolean): MediaItem.SubtitleConfiguration {
