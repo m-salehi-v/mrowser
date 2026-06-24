@@ -121,6 +121,8 @@ class PlayerActivity : Activity() {
             .setUri(request.url)
             .setMimeType(MimeTypes.APPLICATION_M3U8)
             .setSubtitleConfigurations(
+                // Mirrors SubtitlePlan: the first track is the preferred-language track, so it is
+                // the one marked default — and only when a preference is set (Off marks none).
                 request.subtitles.mapIndexed { i, s ->
                     s.toConfig(default = i == 0 && request.preferredTextLanguage != null)
                 }

@@ -17,6 +17,8 @@ object SubtitlePlan {
         val tracks = subs.mapIndexed { idx, c ->
             val isSrt = c.url.substringBefore('?').lowercase().endsWith(".srt")
             val mime = if (isSrt) "application/x-subrip" else "text/vtt"
+            // code != null implies trackLabel != null (PERSIAN/ENGLISH set both, OFF nulls both),
+            // so the "Subtitle 1" fallback is unreachable today — kept defensive for new enum values.
             if (idx == 0 && code != null) {
                 SubtitleTrack(c.url, mime, code, pref.trackLabel ?: "Subtitle 1")
             } else {

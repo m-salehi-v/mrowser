@@ -40,4 +40,20 @@ class SubtitlePlanTest {
         assertEquals("und", plan.tracks[1].language)
         assertEquals("Subtitle 2", plan.tracks[1].label)
     }
+
+    @Test fun `vtt url gets text vtt mime`() {
+        val plan = SubtitlePlan.build(listOf(sub("https://x/a.vtt", 1)), SubtitleLanguagePref.ENGLISH)
+        assertEquals("text/vtt", plan.tracks[0].mimeType)
+    }
+
+    @Test fun `srt mime is detected past a query string`() {
+        val plan = SubtitlePlan.build(listOf(sub("https://x/a.srt?token=abc", 1)), SubtitleLanguagePref.OFF)
+        assertEquals("application/x-subrip", plan.tracks[0].mimeType)
+    }
+
+    @Test fun `empty list keeps a non-null preference`() {
+        val plan = SubtitlePlan.build(emptyList(), SubtitleLanguagePref.ENGLISH)
+        assertEquals("en", plan.preferredLanguage)
+        assertEquals(emptyList<SubtitleTrack>(), plan.tracks)
+    }
 }
