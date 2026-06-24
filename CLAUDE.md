@@ -40,11 +40,13 @@ Note the Persian-default subtitle convention in `StreamSniffer.bestRequest` and 
 - `CursorLayout` (FrameLayout) is the input router: it intercepts key events in `dispatchKeyEvent` and dispatches D-pad/OK/BACK/MENU to the cursor or chrome, and paints the cursor dot. This is where the remote-control scheme lives — see the control tables in the Milestone A spec/plan under `docs/superpowers/`.
 - `CursorController` synthesizes `MotionEvent`s (hover/down/up) onto the WebView to emulate a mouse; geometry (acceleration, edge detection) is the **pure** `CursorGeometry`. OK long-press toggles CURSOR/FOCUS mode.
 - `ChromeController` / `ChromeVisibility` manage the auto-hiding address bar, summoned only with **MENU** (a passive on-load reveal shows the current URL without freezing the cursor — see `ChromeController.isActive`). `UrlNormalizer` turns bar text into a loadable URL, or null.
-- `BrowserWebChromeClient` handles HTML5 fullscreen video.
+- `BrowserWebChromeClient` handles HTML5 fullscreen video, and forwards page titles (`onReceivedTitle`) to record browsing history.
 
-### `home/` + `data/` — home screen and favorites
-- `HomeView` is the launch overlay (favorites grid + URL entry); `FavoriteDialog` edits entries.
+### `home/` + `data/` — home screen, favorites, history
+- `HomeView` is the launch overlay (favorites grid + URL entry); `FavoriteDialog` edits entries. `HistoryView` is the history overlay (a vertical list of visited sites; open / clear-all / long-press-to-favorite).
 - Favorites use the repository pattern: `FavoritesRepository` interface, `JsonFavoritesStore` implementation persisting to `filesDir/favorites.json`. The **pure** `FavoritesOps` (list transforms) and `FavoritesJson` (serialization) hold all the logic; the store is just file I/O.
+- History mirrors the same split: `HistoryRepository` / `JsonHistoryStore` (→ `filesDir/history.json`), with the **pure** `HistoryOps` (dedup-by-url, newest-first, cap 50) and `HistoryJson`. `RelativeTime` (pure) formats the "Nm ago" labels. Recording happens on **page finish** (resolved URL + real title) — not `onPageStarted`, whose pre-redirect URL would leave duplicate rows.
+- **Overlays are focus-modal:** only one of `homeView` / `historyView` is visible at a time. Android's D-pad `focusSearch` is window-global, so a second visible overlay behind the active one steals focus — `showHistory`/`showHome`/`openUrl` hide the others. Reachable from the home overlay **and** the chrome bar; BACK from history returns to its origin (home, or the page if opened mid-browse — tracked by `historyFromHome`).
 
 ## Conventions
 
