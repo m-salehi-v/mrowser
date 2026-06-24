@@ -43,6 +43,10 @@ class MainActivity : Activity() {
     private lateinit var favorites: JsonFavoritesStore
     private lateinit var history: JsonHistoryStore
     private lateinit var historyView: HistoryView
+
+    /** True when history was opened from the home overlay (BACK returns to home);
+     *  false when opened from the chrome bar mid-browse (BACK returns to the page). */
+    private var historyFromHome = false
     private lateinit var handoff: HandoffController
     private val uiHandler = Handler(Looper.getMainLooper())
     private val chipHideRunnable = Runnable { playChip.visibility = View.GONE }
@@ -110,7 +114,7 @@ class MainActivity : Activity() {
             onOpen = { openUrl(it.url) },
             onSubmitUrl = { openUrl(it) },
             onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { homeView.refresh() } },
-            onHistory = { showHistory() }
+            onHistory = { showHistory(fromHome = true) }
         )
         historyView.bind(
             repository = history,
@@ -134,7 +138,7 @@ class MainActivity : Activity() {
         }
         homeButton.setOnClickListener { showHome() }
         historyButton.setOnClickListener {
-            showHistory()
+            showHistory(fromHome = false)
             chrome.onInteracted()
         }
         favoriteButton.setOnClickListener {
@@ -165,7 +169,8 @@ class MainActivity : Activity() {
         homeView.show()
     }
 
-    private fun showHistory() {
+    private fun showHistory(fromHome: Boolean) {
+        historyFromHome = fromHome
         // Hide the home overlay first: leaving it visible behind the history
         // overlay keeps its favorites grid focusable, and window-global D-pad
         // focus search escapes into it (focus can't move past the first row).
@@ -212,7 +217,8 @@ class MainActivity : Activity() {
         when {
             historyView.visibility == View.VISIBLE -> {
                 historyView.hide()
-                showHome()
+                // Return to wherever history was opened from.
+                if (historyFromHome) showHome() else layout.requestFocus()
             }
             homeView.visibility == View.VISIBLE -> super.onBackPressed()
             else -> showHome()
