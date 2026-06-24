@@ -7,6 +7,7 @@ import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridLayout
@@ -30,6 +31,7 @@ class HomeView @JvmOverloads constructor(
     private var onOpen: (Favorite) -> Unit = {}
     private var onSubmitUrl: (String) -> Unit = {}
     private var onEdit: (Favorite) -> Unit = {}
+    private var onHistory: () -> Unit = {}
 
     init {
         LayoutInflater.from(context).inflate(R.layout.home_view, this, true)
@@ -44,18 +46,21 @@ class HomeView @JvmOverloads constructor(
                 false
             }
         }
+        findViewById<Button>(R.id.homeHistoryButton).setOnClickListener { onHistory() }
     }
 
     fun bind(
         repository: FavoritesRepository,
         onOpen: (Favorite) -> Unit,
         onSubmitUrl: (String) -> Unit,
-        onEdit: (Favorite) -> Unit
+        onEdit: (Favorite) -> Unit,
+        onHistory: () -> Unit
     ) {
         this.repository = repository
         this.onOpen = onOpen
         this.onSubmitUrl = onSubmitUrl
         this.onEdit = onEdit
+        this.onHistory = onHistory
     }
 
     fun show() {

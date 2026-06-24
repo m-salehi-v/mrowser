@@ -37,6 +37,17 @@
             android:inputType="textUri"
             android:textColor="@color/on_surface"
             android:textColorHint="@color/hint" />
+
+        <Button
+            android:id="@+id/homeHistoryButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:background="@drawable/focus_ring"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:text="@string/history"
+            android:textColor="@color/on_surface" />
     </LinearLayout>
 
     <ScrollView

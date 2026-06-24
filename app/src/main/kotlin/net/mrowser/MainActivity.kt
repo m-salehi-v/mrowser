@@ -15,9 +15,12 @@ import android.widget.TextView
 import android.widget.Toast
 import java.io.File
 import net.mrowser.data.Favorite
+import net.mrowser.data.HistoryEntry
 import net.mrowser.data.JsonFavoritesStore
+import net.mrowser.data.JsonHistoryStore
 import net.mrowser.handoff.HandoffController
 import net.mrowser.home.FavoriteDialog
+import net.mrowser.home.HistoryView
 import net.mrowser.home.HomeView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
@@ -38,6 +41,8 @@ class MainActivity : Activity() {
     private lateinit var playChip: TextView
     private lateinit var homeView: HomeView
     private lateinit var favorites: JsonFavoritesStore
+    private lateinit var history: JsonHistoryStore
+    private lateinit var historyView: HistoryView
     private lateinit var handoff: HandoffController
     private val uiHandler = Handler(Looper.getMainLooper())
     private val chipHideRunnable = Runnable { playChip.visibility = View.GONE }
@@ -52,13 +57,16 @@ class MainActivity : Activity() {
         urlInput = findViewById(R.id.urlInput)
         playChip = findViewById(R.id.playChip)
         homeView = findViewById(R.id.homeView)
+        historyView = findViewById(R.id.historyView)
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
         val favoriteButton = findViewById<ImageButton>(R.id.favoriteButton)
         val homeButton = findViewById<ImageButton>(R.id.homeButton)
+        val historyButton = findViewById<ImageButton>(R.id.historyButton)
 
         favorites = JsonFavoritesStore(File(filesDir, "favorites.json"))
+        history = JsonHistoryStore(File(filesDir, "history.json"))
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
@@ -67,12 +75,16 @@ class MainActivity : Activity() {
         )
         handoff = HandoffController(this, sniffer)
 
-        webView.webViewClient = SniffingWebViewClient(sniffer) { url -> updateUrlText(url) }
+        webView.webViewClient = SniffingWebViewClient(sniffer) { url ->
+            updateUrlText(url)
+            recordHistory(url, null)
+        }
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
             onEnter = { bar.visibility = View.GONE; playChip.visibility = View.GONE; layout.invalidate() },
-            onExit = { layout.invalidate() }
+            onExit = { layout.invalidate() },
+            onTitle = { url, title -> recordHistory(url, title) }
         )
         webView.webChromeClient = chromeClient
         webView.settings.apply {
@@ -96,7 +108,17 @@ class MainActivity : Activity() {
             repository = favorites,
             onOpen = { openUrl(it.url) },
             onSubmitUrl = { openUrl(it) },
-            onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { homeView.refresh() } }
+            onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { homeView.refresh() } },
+            onHistory = { showHistory() }
+        )
+        historyView.bind(
+            repository = history,
+            onOpen = { openUrl(it) },
+            onClear = { history.clear(); historyView.refresh() },
+            onAddFavorite = { entry ->
+                favorites.add(Favorite(entry.title, entry.url))
+                Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
+            }
         )
 
         layout.post { cursor.center(webView.width, webView.height) }
@@ -110,6 +132,10 @@ class MainActivity : Activity() {
             chrome.onInteracted()
         }
         homeButton.setOnClickListener { showHome() }
+        historyButton.setOnClickListener {
+            showHistory()
+            chrome.onInteracted()
+        }
         favoriteButton.setOnClickListener {
             addCurrentToFavorites()
             chrome.onInteracted()
@@ -128,6 +154,7 @@ class MainActivity : Activity() {
 
     private fun openUrl(url: String) {
         homeView.hide()
+        historyView.hide()
         layout.requestFocus()
         webView.loadUrl(url)
         chrome.onPageInteracted()
@@ -135,6 +162,16 @@ class MainActivity : Activity() {
 
     private fun showHome() {
         homeView.show()
+    }
+
+    private fun showHistory() {
+        historyView.show()
+    }
+
+    private fun recordHistory(url: String, title: String?) {
+        if (!url.startsWith("http")) return
+        val label = title?.takeIf { it.isNotBlank() } ?: (Uri.parse(url).host ?: url)
+        history.record(HistoryEntry(label, url, System.currentTimeMillis()))
     }
 
     private fun updateUrlText(url: String) {
@@ -167,10 +204,13 @@ class MainActivity : Activity() {
 
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
-        if (homeView.visibility == View.VISIBLE) {
-            super.onBackPressed()
-        } else {
-            showHome()
+        when {
+            historyView.visibility == View.VISIBLE -> {
+                historyView.hide()
+                showHome()
+            }
+            homeView.visibility == View.VISIBLE -> super.onBackPressed()
+            else -> showHome()
         }
     }
 
