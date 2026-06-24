@@ -9,7 +9,6 @@ object SettingsJson {
     fun toJson(settings: Settings): String =
         JSONObject()
             .put("autoOpenPlayer", settings.autoOpenPlayer)
-            .put("subtitleLanguage", settings.subtitleLanguage.name)
             .put("cursorSpeed", settings.cursorSpeed.name)
             .toString()
 
@@ -20,7 +19,6 @@ object SettingsJson {
             val defaults = Settings()
             Settings(
                 autoOpenPlayer = o.optBoolean("autoOpenPlayer", defaults.autoOpenPlayer),
-                subtitleLanguage = enumOrDefault(o.optString("subtitleLanguage"), defaults.subtitleLanguage),
                 cursorSpeed = enumOrDefault(o.optString("cursorSpeed"), defaults.cursorSpeed)
             )
         } catch (e: JSONException) {

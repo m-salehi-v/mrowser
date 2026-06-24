@@ -11,19 +11,16 @@ import net.mrowser.R
 import net.mrowser.data.CursorSpeed
 import net.mrowser.data.Settings
 import net.mrowser.data.SettingsRepository
-import net.mrowser.data.SubtitleLanguagePref
 
-/** Settings overlay: auto-open toggle + subtitle-language and cursor-speed pickers. */
+/** Settings overlay: auto-open toggle + cursor-speed picker. */
 class SettingsView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : FrameLayout(context, attrs) {
 
     private val autoOpenRow: View
-    private val subtitleRow: View
     private val cursorRow: View
     private val autoOpenValue: TextView
-    private val subtitleValue: TextView
     private val cursorValue: TextView
 
     private var repository: SettingsRepository? = null
@@ -31,14 +28,11 @@ class SettingsView @JvmOverloads constructor(
     init {
         LayoutInflater.from(context).inflate(R.layout.settings_view, this, true)
         autoOpenRow = findViewById(R.id.settingsAutoOpenRow)
-        subtitleRow = findViewById(R.id.settingsSubtitleRow)
         cursorRow = findViewById(R.id.settingsCursorRow)
         autoOpenValue = findViewById(R.id.settingsAutoOpenValue)
-        subtitleValue = findViewById(R.id.settingsSubtitleValue)
         cursorValue = findViewById(R.id.settingsCursorValue)
 
         autoOpenRow.setOnClickListener { toggleAutoOpen() }
-        subtitleRow.setOnClickListener { pickSubtitle() }
         cursorRow.setOnClickListener { pickCursor() }
     }
 
@@ -66,7 +60,6 @@ class SettingsView @JvmOverloads constructor(
     private fun render() {
         val s = current()
         autoOpenValue.setText(if (s.autoOpenPlayer) R.string.on else R.string.off)
-        subtitleValue.setText(subtitleLabelRes(s.subtitleLanguage))
         cursorValue.setText(cursorLabelRes(s.cursorSpeed))
     }
 
@@ -74,22 +67,6 @@ class SettingsView @JvmOverloads constructor(
         val s = current()
         repository?.update(s.copy(autoOpenPlayer = !s.autoOpenPlayer))
         render()
-    }
-
-    private fun pickSubtitle() {
-        val options = listOf(
-            SubtitleLanguagePref.PERSIAN,
-            SubtitleLanguagePref.ENGLISH,
-            SubtitleLanguagePref.OFF
-        )
-        val labels = options.map { context.getString(subtitleLabelRes(it)) }.toTypedArray()
-        AlertDialog.Builder(context)
-            .setTitle(R.string.subtitle_language_title)
-            .setItems(labels) { _, which ->
-                repository?.update(current().copy(subtitleLanguage = options[which]))
-                render()
-            }
-            .show()
     }
 
     private fun pickCursor() {
@@ -102,12 +79,6 @@ class SettingsView @JvmOverloads constructor(
                 render()
             }
             .show()
-    }
-
-    private fun subtitleLabelRes(p: SubtitleLanguagePref): Int = when (p) {
-        SubtitleLanguagePref.PERSIAN -> R.string.subtitle_persian
-        SubtitleLanguagePref.ENGLISH -> R.string.subtitle_english
-        SubtitleLanguagePref.OFF -> R.string.subtitle_off
     }
 
     private fun cursorLabelRes(c: CursorSpeed): Int = when (c) {

@@ -93,8 +93,7 @@ class MainActivity : Activity() {
                     if (settings.get().autoOpenPlayer) handoff.play()
                 }
             },
-            onCleared = { playChip.visibility = View.GONE },
-            subtitlePref = { settings.get().subtitleLanguage }
+            onCleared = { playChip.visibility = View.GONE }
         )
         handoff = HandoffController(this, sniffer)
 

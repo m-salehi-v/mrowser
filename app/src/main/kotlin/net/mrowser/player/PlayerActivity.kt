@@ -37,11 +37,7 @@ class PlayerActivity : Activity() {
         val json = intent.getStringExtra(EXTRA_REQUEST) ?: run { finish(); return }
         val request = PlaybackRequest.fromJson(json)
 
-        val trackSelector = DefaultTrackSelector(this).apply {
-            request.preferredTextLanguage?.let {
-                parameters = buildUponParameters().setPreferredTextLanguage(it).build()
-            }
-        }
+        val trackSelector = DefaultTrackSelector(this)
         // DefaultMediaSourceFactory (not HlsMediaSource.Factory) is what merges side-loaded
         // subtitles; it still builds an HlsMediaSource for the .m3u8.
         val dataSourceFactory = DefaultHttpDataSource.Factory()
@@ -121,11 +117,8 @@ class PlayerActivity : Activity() {
             .setUri(request.url)
             .setMimeType(MimeTypes.APPLICATION_M3U8)
             .setSubtitleConfigurations(
-                // Mirrors SubtitlePlan: the first track is the preferred-language track, so it is
-                // the one marked default — and only when a preference is set (Off marks none).
-                request.subtitles.mapIndexed { i, s ->
-                    s.toConfig(default = i == 0 && request.preferredTextLanguage != null)
-                }
+                // Auto-show the first sniffed subtitle; the rest are selectable via the CC button.
+                request.subtitles.mapIndexed { i, s -> s.toConfig(default = i == 0) }
             )
             .build()
 

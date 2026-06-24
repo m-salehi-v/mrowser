@@ -6,16 +6,7 @@ import org.junit.Test
 class SettingsJsonTest {
 
     @Test fun `round trips all fields`() {
-        val s = Settings(
-            autoOpenPlayer = false,
-            subtitleLanguage = SubtitleLanguagePref.PERSIAN,
-            cursorSpeed = CursorSpeed.FAST
-        )
-        assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
-    }
-
-    @Test fun `round trips the null-bearing OFF subtitle constant`() {
-        val s = Settings(subtitleLanguage = SubtitleLanguagePref.OFF)
+        val s = Settings(autoOpenPlayer = false, cursorSpeed = CursorSpeed.FAST)
         assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
     }
 
@@ -32,9 +23,7 @@ class SettingsJsonTest {
     }
 
     @Test fun `unknown enum name falls back to default`() {
-        val json = """{"autoOpenPlayer":true,"subtitleLanguage":"KLINGON","cursorSpeed":"WARP"}"""
-        val s = SettingsJson.fromJson(json)
-        assertEquals(SubtitleLanguagePref.ENGLISH, s.subtitleLanguage)
+        val s = SettingsJson.fromJson("""{"autoOpenPlayer":true,"cursorSpeed":"WARP"}""")
         assertEquals(CursorSpeed.NORMAL, s.cursorSpeed)
     }
 }

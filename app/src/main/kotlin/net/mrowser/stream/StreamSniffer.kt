@@ -1,7 +1,6 @@
 package net.mrowser.stream
 
 import android.webkit.CookieManager
-import net.mrowser.data.SubtitleLanguagePref
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -13,8 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class StreamSniffer(
     private val userAgent: () -> String,
     private val onStreamAvailable: () -> Unit,
-    private val onCleared: () -> Unit,
-    private val subtitlePref: () -> SubtitleLanguagePref = { SubtitleLanguagePref.ENGLISH }
+    private val onCleared: () -> Unit
 ) {
     private val candidates = CopyOnWriteArrayList<StreamCandidate>()
     private val seq = AtomicInteger(0)
@@ -50,7 +48,7 @@ class StreamSniffer(
             if (pageUrl.isNotEmpty()) put("Referer", pageUrl)
             CookieManager.getInstance().getCookie(best.url)?.let { put("Cookie", it) }
         }
-        val plan = SubtitlePlan.build(StreamCandidateSelector.selectSubtitles(candidates), subtitlePref())
-        return PlaybackRequest(best.url, headers, plan.tracks, pageUrl, plan.preferredLanguage)
+        val subtitles = SubtitlePlan.build(StreamCandidateSelector.selectSubtitles(candidates))
+        return PlaybackRequest(best.url, headers, subtitles, pageUrl)
     }
 }

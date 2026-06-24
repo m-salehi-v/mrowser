@@ -31,13 +31,9 @@
     <string name="close_tab_message">Return to the home screen.</string>
     <string name="close_tab">Close</string>
     <string name="auto_open_title">Auto-open synced player</string>
-    <string name="subtitle_language_title">Preferred subtitle language</string>
     <string name="cursor_speed_title">Cursor speed</string>
     <string name="on">On</string>
     <string name="off">Off</string>
-    <string name="subtitle_persian">Persian</string>
-    <string name="subtitle_english">English</string>
-    <string name="subtitle_off">Off</string>
     <string name="cursor_slow">Slow</string>
     <string name="cursor_normal">Normal</string>
     <string name="cursor_fast">Fast</string>
