@@ -188,10 +188,17 @@ class MainActivity : Activity() {
         showHome()
     }
 
-    private fun openUrl(url: String) {
+    /** Show exactly one overlay at a time: a second VISIBLE overlay steals window-global
+     *  D-pad focus (focus search can't move past it), so every transition hides all three
+     *  first, then the caller shows the one it wants (or none, for openUrl). */
+    private fun hideAllOverlays() {
         homeView.hide()
         historyView.hide()
         settingsView.hide()
+    }
+
+    private fun openUrl(url: String) {
+        hideAllOverlays()
         layout.requestFocus()
         clearHistoryOnLoad = true
         webView.loadUrl(url)
@@ -199,23 +206,18 @@ class MainActivity : Activity() {
     }
 
     private fun showHome() {
+        hideAllOverlays()
         homeView.show()
     }
 
     private fun showSettings() {
-        // Focus-modal: hide the other overlays so window-global D-pad focus search
-        // can't escape into them (same rule as showHistory).
-        homeView.hide()
-        historyView.hide()
+        hideAllOverlays()
         settingsView.show()
     }
 
     private fun showHistory(fromHome: Boolean) {
         historyFromHome = fromHome
-        // Hide the home overlay first: leaving it visible behind the history
-        // overlay keeps its favorites grid focusable, and window-global D-pad
-        // focus search escapes into it (focus can't move past the first row).
-        homeView.hide()
+        hideAllOverlays()
         historyView.show()
     }
 
