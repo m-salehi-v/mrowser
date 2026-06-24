@@ -43,10 +43,14 @@ object SubtitleCueParser {
 
     private fun parseTimeMs(token: String): Long? {
         val t = token.replace(',', '.')
-        val dot = t.split('.')
-        if (dot.size != 2) return null
-        val ms = dot[1].padEnd(3, '0').take(3).toLongOrNull() ?: return null
-        val hms = dot[0].split(':').map { it.toLongOrNull() ?: return null }
+        val fracParts = t.split('.')
+        val (hmsStr, msStr) = when (fracParts.size) {
+            2 -> fracParts[0] to fracParts[1]
+            1 -> fracParts[0] to "000"   // no fractional part — treat as .000
+            else -> return null
+        }
+        val ms = msStr.padEnd(3, '0').take(3).toLongOrNull() ?: return null  // truncates sub-ms precision (fine for subtitles)
+        val hms = hmsStr.split(':').map { it.toLongOrNull() ?: return null }  // non-local return from parseTimeMs, intentional
         val seconds = when (hms.size) {
             3 -> hms[0] * 3600 + hms[1] * 60 + hms[2]
             2 -> hms[0] * 60 + hms[1]

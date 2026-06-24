@@ -45,6 +45,27 @@ class SubtitleCueParserTest {
         assertEquals(listOf(SubtitleCue(30000, 32000, "Short")), cues)
     }
 
+    @Test fun `parses timestamps without milliseconds`() {
+        val vtt = "WEBVTT\n\n00:00:01 --> 00:00:02\nBare"
+        val cues = SubtitleCueParser.parse(vtt)
+        assertEquals(listOf(SubtitleCue(1000, 2000, "Bare")), cues)
+    }
+
+    @Test fun `skips REGION blocks`() {
+        val vtt = """
+            WEBVTT
+
+            REGION
+            id:speaker
+            width:40%
+
+            00:00:01.000 --> 00:00:02.000
+            Real cue
+        """.trimIndent()
+        val cues = SubtitleCueParser.parse(vtt)
+        assertEquals(listOf(SubtitleCue(1000, 2000, "Real cue")), cues)
+    }
+
     @Test fun `skips NOTE and STYLE blocks`() {
         val vtt = """
             WEBVTT
