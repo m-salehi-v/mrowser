@@ -13,6 +13,7 @@ import android.webkit.WebView
  */
 class CursorController(
     private val webView: WebView,
+    private val speedMultiplier: () -> Float = { 1f },
     private val invalidate: () -> Unit
 ) {
     enum class Mode { CURSOR, FOCUS }
@@ -35,7 +36,7 @@ class CursorController(
         override fun run() {
             if (dirX == 0 && dirY == 0) return
             val held = SystemClock.uptimeMillis() - holdStart
-            val speed = CursorGeometry.speedForHoldMs(held)
+            val speed = CursorGeometry.speedForHoldMs(held, speedMultiplier())
             val p = CursorGeometry.step(
                 CursorGeometry.Point(x, y), dirX, dirY, speed, webView.width, webView.height
             )
