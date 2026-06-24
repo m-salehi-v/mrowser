@@ -40,12 +40,14 @@ tests under `app/src/test/kotlin/net/mrowser/player/`.
 ### Pure modules (no Android imports, unit-tested)
 
 - **`SubtitleCue`** — `data class SubtitleCue(val startMs: Long, val endMs: Long, val text: String)`.
-- **`SubtitleCueParser`** — `parse(content: String, mimeType: String): List<SubtitleCue>`.
-  Parses both WebVTT and SubRip:
-  - Detects format from `mimeType` (`application/x-subrip` → SRT, else VTT).
-  - Timestamp `HH:MM:SS,mmm` (SRT) and `HH:MM:SS.mmm` / `MM:SS.mmm` (VTT) → ms.
+- **`SubtitleCueParser`** — `parse(content: String): List<SubtitleCue>`.
+  One unified parser handles both WebVTT and SubRip (no `mimeType` arg needed — it keys
+  on the `-->` line and normalizes `,`→`.` in timestamps, so format auto-detects):
+  - Timestamp `HH:MM:SS,mmm` (SRT) and `HH:MM:SS.mmm` / `MM:SS.mmm` (VTT) → ms;
+    a bare `HH:MM:SS` with no fractional part is treated as `.000`.
   - Joins multi-line cue text with `\n`; skips `WEBVTT` header, blank lines, SRT
-    numeric index lines, and VTT cue settings/`NOTE` blocks.
+    numeric index lines, and `NOTE`/`STYLE`/`REGION` blocks. VTT cue settings after the
+    end timestamp are stripped.
   - Returns cues sorted by `startMs`. Malformed cue blocks are skipped, not fatal.
 - **`ActiveCueFinder`** — `activeAt(cues: List<SubtitleCue>, timeMs: Long): List<SubtitleCue>`.
   Returns cues where `startMs <= timeMs < endMs`. Caller passes
@@ -133,6 +135,9 @@ CC button  → picker → controller.select(index)
   intentionally.
 - Only the **selected** track is fetched/parsed (lazy), so switching tracks may
   briefly show nothing while the new one downloads.
+- Inline VTT markup (`<i>`, `<b>`, `<v Speaker>`, karaoke timestamps) is rendered
+  verbatim, not as styling — cue text is pushed as-is to `Cue.setText`. Rare for
+  side-loaded streaming subs; acceptable.
 
 ## Out of scope (YAGNI)
 
