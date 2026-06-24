@@ -27,6 +27,7 @@ class SubtitleSyncController(
 ) {
     private val handler = Handler(Looper.getMainLooper())
     private val parsedCache = HashMap<Int, List<SubtitleCue>>()
+    private val inFlight = HashSet<Int>()
     private var selectedIndex = -1
     private var offsetMs = 0L
 
@@ -58,19 +59,26 @@ class SubtitleSyncController(
     /** index -1 = off; otherwise the track index. Fetches+parses on first use. */
     fun select(index: Int) {
         selectedIndex = index
-        if (index in tracks.indices && !parsedCache.containsKey(index)) {
+        if (index in tracks.indices && !parsedCache.containsKey(index) && inFlight.add(index)) {
             val track = tracks[index]
             Thread {
                 val text = SubtitleFetcher.fetch(track.url, headers)
                 val cues = if (text != null) SubtitleCueParser.parse(text) else emptyList()
-                handler.post { parsedCache[index] = cues }
+                handler.post {
+                    parsedCache[index] = cues
+                    inFlight.remove(index)
+                }
             }.start()
         }
     }
 
     private fun render() {
+        if (selectedIndex < 0) {
+            subtitleView?.setCues(emptyList())
+            return
+        }
         val cues = parsedCache[selectedIndex]
-        if (selectedIndex < 0 || cues == null) {
+        if (cues == null) {
             subtitleView?.setCues(emptyList())
             return
         }
