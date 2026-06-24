@@ -9,6 +9,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.TextView
@@ -48,7 +49,7 @@ class HomeView @JvmOverloads constructor(
             }
         }
         findViewById<Button>(R.id.homeHistoryButton).setOnClickListener { onHistory() }
-        findViewById<Button>(R.id.homeSettingsButton).setOnClickListener { onSettings() }
+        findViewById<ImageButton>(R.id.homeSettingsButton).setOnClickListener { onSettings() }
     }
 
     fun bind(
