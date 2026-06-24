@@ -3,6 +3,7 @@ package net.mrowser
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -41,6 +42,7 @@ class MainActivity : Activity() {
     private lateinit var chromeClient: BrowserWebChromeClient
     private lateinit var sniffer: StreamSniffer
     private lateinit var playChip: TextView
+    private lateinit var favoriteButton: ImageButton
     private lateinit var homeView: HomeView
     private lateinit var favorites: JsonFavoritesStore
     private lateinit var history: JsonHistoryStore
@@ -70,7 +72,7 @@ class MainActivity : Activity() {
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
-        val favoriteButton = findViewById<ImageButton>(R.id.favoriteButton)
+        favoriteButton = findViewById(R.id.favoriteButton)
         val homeButton = findViewById<ImageButton>(R.id.homeButton)
         val historyButton = findViewById<ImageButton>(R.id.historyButton)
 
@@ -157,7 +159,7 @@ class MainActivity : Activity() {
             chrome.onInteracted()
         }
         favoriteButton.setOnClickListener {
-            addCurrentToFavorites()
+            toggleCurrentFavorite()
             chrome.onInteracted()
         }
         urlInput.setOnEditorActionListener { _, actionId, _ ->
@@ -202,6 +204,7 @@ class MainActivity : Activity() {
 
     private fun updateUrlText(url: String) {
         urlInput.setText(url)
+        updateFavoriteIcon()
     }
 
     private fun showChip() {
@@ -210,11 +213,28 @@ class MainActivity : Activity() {
         uiHandler.postDelayed(chipHideRunnable, CHIP_TIMEOUT_MS)
     }
 
-    private fun addCurrentToFavorites() {
+    private fun isFavorite(url: String): Boolean = favorites.findAll().any { it.url == url }
+
+    /** Star button: add the current page if absent, remove it if already saved. */
+    private fun toggleCurrentFavorite() {
         val url = webView.url ?: return
-        val title = webView.title?.takeIf { it.isNotBlank() } ?: (Uri.parse(url).host ?: url)
-        favorites.add(Favorite(title, url))
-        Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
+        if (isFavorite(url)) {
+            favorites.remove(url)
+            Toast.makeText(this, R.string.remove_favorite, Toast.LENGTH_SHORT).show()
+        } else {
+            val title = webView.title?.takeIf { it.isNotBlank() } ?: (Uri.parse(url).host ?: url)
+            favorites.add(Favorite(title, url))
+            Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
+        }
+        updateFavoriteIcon()
+        homeView.refresh()
+    }
+
+    /** Tint the star accent (red) when the current page is a favorite, white otherwise. */
+    private fun updateFavoriteIcon() {
+        val saved = webView.url?.let { isFavorite(it) } ?: false
+        val color = getColor(if (saved) R.color.accent else R.color.on_surface)
+        favoriteButton.imageTintList = ColorStateList.valueOf(color)
     }
 
     override fun onPause() {
