@@ -63,6 +63,9 @@ class SubtitleSyncController(
 
     fun trackLabels(): List<String> = tracks.map { it.label }
 
+    /** True when a track is selected (subtitles render), false when off — drives the CC button icon. */
+    fun isShowing(): Boolean = selectedIndex >= 0
+
     /** index -1 = off; otherwise the track index. Fetches+parses on first use. */
     fun select(index: Int) {
         selectedIndex = index

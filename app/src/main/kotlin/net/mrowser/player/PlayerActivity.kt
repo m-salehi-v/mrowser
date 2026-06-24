@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -60,13 +61,7 @@ class PlayerActivity : Activity() {
             playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.setOnClickListener {
                 player?.let { showSettings(it) }
             }
-            // media3 disables the CC button when the player has no text track (it does not, by design),
-            // so force it back on each time we re-install — otherwise the disabled view won't dispatch clicks.
-            playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_subtitle)?.apply {
-                isEnabled = true
-                alpha = 1f
-                setOnClickListener { showSubtitlePicker() }
-            }
+            refreshSubtitleButton()
         }
         playerView.setControllerVisibilityListener(
             PlayerView.ControllerVisibilityListener { visibility ->
@@ -130,8 +125,30 @@ class PlayerActivity : Activity() {
         val labels = (listOf(getString(R.string.subtitle_off)) + c.trackLabels()).toTypedArray()
         AlertDialog.Builder(this)
             .setTitle(R.string.track_subtitles)
-            .setItems(labels) { _, which -> c.select(which - 1) } // entry 0 = Off -> index -1
+            .setItems(labels) { _, which ->
+                c.select(which - 1) // entry 0 = Off -> index -1
+                refreshSubtitleButton()
+            }
             .show()
+    }
+
+    // media3 derives the CC button's enabled state and on/off icon from the player's text-track
+    // selection — but the player has none by design (we render side-loaded subtitles ourselves via
+    // SubtitleSyncController). So own the button: keep it enabled and paint the on/off icon from our
+    // controller's state. Re-asserted on every controls-show (media3's updateAll() resets it) and
+    // right after the picker changes the selection.
+    private fun refreshSubtitleButton() {
+        val btn = findViewById<PlayerView>(R.id.playerView)
+            .findViewById<ImageView?>(androidx.media3.ui.R.id.exo_subtitle) ?: return
+        btn.isEnabled = true
+        btn.alpha = 1f
+        btn.setImageResource(
+            if (subtitleController?.isShowing() == true)
+                androidx.media3.ui.R.drawable.exo_styled_controls_subtitle_on
+            else
+                androidx.media3.ui.R.drawable.exo_styled_controls_subtitle_off
+        )
+        btn.setOnClickListener { showSubtitlePicker() }
     }
 
     private fun showSpeed(p: ExoPlayer) {
