@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.C
@@ -69,6 +70,17 @@ class PlayerActivity : Activity() {
             override fun onPlayerError(error: PlaybackException) {
                 Toast.makeText(this@PlayerActivity, "Stream error — back to web player", Toast.LENGTH_LONG).show()
                 finish()
+            }
+
+            // TV ignores D-pad/touch during playback, so without this the system
+            // sleep timeout fires mid-movie. Hold the wake lock only while actually
+            // playing — a paused stream should still let the screen sleep.
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
             }
         })
         exo.prepare()
