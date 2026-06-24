@@ -5,7 +5,6 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -55,13 +54,15 @@ class PlayerActivity : Activity() {
         // Replace the built-in control-bar gear's menu with ours, so video Quality sits
         // alongside Audio and Speed in the same gear. Re-applied whenever the controls
         // re-appear (the player can reset its own listeners).
+        // Subtitle on/off + track selection is NOT done via media3's CC button: with no player
+        // text track, media3 keeps re-disabling/greying it (its updateAll() wins the ordering),
+        // so it's hidden (show_subtitle_button=false) and we use our own button inside the sync box.
         val syncBox = findViewById<View>(R.id.subSyncBox)
         val hasSubtitles = request.subtitles.isNotEmpty()
         val installControls = {
             playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.setOnClickListener {
                 player?.let { showSettings(it) }
             }
-            refreshSubtitleButton()
         }
         playerView.setControllerVisibilityListener(
             PlayerView.ControllerVisibilityListener { visibility ->
@@ -96,9 +97,11 @@ class PlayerActivity : Activity() {
             syncValue.text = getString(R.string.sub_sync_value, off / 1000.0)
         }
         subtitleController = controller
+        findViewById<View>(R.id.subSyncSubs).setOnClickListener { showSubtitlePicker() }
         findViewById<View>(R.id.subSyncMinus).setOnClickListener { controller.adjust(-STEP_MS) }
         findViewById<View>(R.id.subSyncPlus).setOnClickListener { controller.adjust(STEP_MS) }
         controller.start()
+        updateSubsButton()
         exo.playWhenReady = true
     }
 
@@ -127,28 +130,16 @@ class PlayerActivity : Activity() {
             .setTitle(R.string.track_subtitles)
             .setItems(labels) { _, which ->
                 c.select(which - 1) // entry 0 = Off -> index -1
-                refreshSubtitleButton()
+                updateSubsButton()
             }
             .show()
     }
 
-    // media3 derives the CC button's enabled state and on/off icon from the player's text-track
-    // selection — but the player has none by design (we render side-loaded subtitles ourselves via
-    // SubtitleSyncController). So own the button: keep it enabled and paint the on/off icon from our
-    // controller's state. Re-asserted on every controls-show (media3's updateAll() resets it) and
-    // right after the picker changes the selection.
-    private fun refreshSubtitleButton() {
-        val btn = findViewById<PlayerView>(R.id.playerView)
-            .findViewById<ImageView?>(androidx.media3.ui.R.id.exo_subtitle) ?: return
-        btn.isEnabled = true
-        btn.alpha = 1f
-        btn.setImageResource(
-            if (subtitleController?.isShowing() == true)
-                androidx.media3.ui.R.drawable.exo_styled_controls_subtitle_on
-            else
-                androidx.media3.ui.R.drawable.exo_styled_controls_subtitle_off
-        )
-        btn.setOnClickListener { showSubtitlePicker() }
+    // Our own subtitle button (in the sync box) — tinted accent when a track is showing, dim when off.
+    private fun updateSubsButton() {
+        val on = subtitleController?.isShowing() == true
+        findViewById<TextView>(R.id.subSyncSubs)
+            .setTextColor(getColor(if (on) R.color.accent else R.color.hint))
     }
 
     private fun showSpeed(p: ExoPlayer) {

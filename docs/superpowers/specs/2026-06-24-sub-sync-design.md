@@ -77,10 +77,12 @@ tests under `app/src/test/kotlin/net/mrowser/player/`.
   has no text track, so it never fights our manual `setCues`.
 - After `prepare`, construct `SubtitleSyncController` with the playerView + request
   subtitles; auto-select track `0` (preserves today's "auto-show first track").
-- **CC button** click is overridden the same way the settings gear already is
-  (`playerView.findViewById(androidx.media3.ui.R.id.exo_subtitle)`): shows an
-  `AlertDialog` picker of `Off` + each track `label`, calling `controller.select`.
-  Re-installed from the `ControllerVisibilityListener` alongside the gear hook.
+- **Subtitle selection uses our own button**, not media3's CC button. With no player
+  text track, media3 keeps re-disabling/greying its CC button (its `updateAll()` wins the
+  re-install ordering), so it's hidden (`show_subtitle_button=false`) and a `CC` button
+  lives in the sync box instead. It shows an `AlertDialog` picker of `Off` + each track
+  `label`, calling `controller.select`, and is tinted `accent` when a track is showing
+  (`controller.isShowing()`), `hint` when off — updated after each pick.
 - The sync box's visibility is driven by the same `ControllerVisibilityListener`
   (VISIBLE with controls, GONE otherwise).
 

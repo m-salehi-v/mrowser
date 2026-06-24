@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:surface_type="surface_view"
-        app:show_subtitle_button="true"
+        app:show_subtitle_button="false"
         app:resize_mode="fit" />
 
     <LinearLayout
@@ -27,6 +27,27 @@
         android:visibility="gone">
 
         <Button
+            android:id="@+id/subSyncSubs"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="CC"
+            android:textColor="@color/hint"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:nextFocusRight="@id/subSyncMinus" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:layout_marginHorizontal="4dp"
+            android:background="@color/hint" />
+
+        <Button
             android:id="@+id/subSyncMinus"
             style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"
@@ -38,6 +59,7 @@
             android:text="−"
             android:textColor="@color/on_surface"
             android:textSize="16sp"
+            android:nextFocusLeft="@id/subSyncSubs"
             android:nextFocusRight="@id/subSyncPlus" />
 
         <TextView
