@@ -32,6 +32,7 @@ class HomeView @JvmOverloads constructor(
     private var onSubmitUrl: (String) -> Unit = {}
     private var onEdit: (Favorite) -> Unit = {}
     private var onHistory: () -> Unit = {}
+    private var onSettings: () -> Unit = {}
 
     init {
         LayoutInflater.from(context).inflate(R.layout.home_view, this, true)
@@ -47,6 +48,7 @@ class HomeView @JvmOverloads constructor(
             }
         }
         findViewById<Button>(R.id.homeHistoryButton).setOnClickListener { onHistory() }
+        findViewById<Button>(R.id.homeSettingsButton).setOnClickListener { onSettings() }
     }
 
     fun bind(
@@ -54,13 +56,15 @@ class HomeView @JvmOverloads constructor(
         onOpen: (Favorite) -> Unit,
         onSubmitUrl: (String) -> Unit,
         onEdit: (Favorite) -> Unit,
-        onHistory: () -> Unit
+        onHistory: () -> Unit,
+        onSettings: () -> Unit
     ) {
         this.repository = repository
         this.onOpen = onOpen
         this.onSubmitUrl = onSubmitUrl
         this.onEdit = onEdit
         this.onHistory = onHistory
+        this.onSettings = onSettings
     }
 
     fun show() {

@@ -21,10 +21,12 @@ import net.mrowser.data.Favorite
 import net.mrowser.data.HistoryEntry
 import net.mrowser.data.JsonFavoritesStore
 import net.mrowser.data.JsonHistoryStore
+import net.mrowser.data.JsonSettingsStore
 import net.mrowser.handoff.HandoffController
 import net.mrowser.home.FavoriteDialog
 import net.mrowser.home.HistoryView
 import net.mrowser.home.HomeView
+import net.mrowser.home.SettingsView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
 import net.mrowser.web.BrowserWebChromeClient
@@ -47,6 +49,8 @@ class MainActivity : Activity() {
     private lateinit var favorites: JsonFavoritesStore
     private lateinit var history: JsonHistoryStore
     private lateinit var historyView: HistoryView
+    private lateinit var settings: JsonSettingsStore
+    private lateinit var settingsView: SettingsView
 
     /** True when history was opened from the home overlay (BACK returns to home);
      *  false when opened from the chrome bar mid-browse (BACK returns to the page). */
@@ -69,6 +73,7 @@ class MainActivity : Activity() {
         playChip = findViewById(R.id.playChip)
         homeView = findViewById(R.id.homeView)
         historyView = findViewById(R.id.historyView)
+        settingsView = findViewById(R.id.settingsView)
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
@@ -78,11 +83,18 @@ class MainActivity : Activity() {
 
         favorites = JsonFavoritesStore(File(filesDir, "favorites.json"))
         history = JsonHistoryStore(File(filesDir, "history.json"))
+        settings = JsonSettingsStore(File(filesDir, "settings.json"))
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
-            onStreamAvailable = { runOnUiThread { showChip(); handoff.play() } },
-            onCleared = { playChip.visibility = View.GONE }
+            onStreamAvailable = {
+                runOnUiThread {
+                    showChip()
+                    if (settings.get().autoOpenPlayer) handoff.play()
+                }
+            },
+            onCleared = { playChip.visibility = View.GONE },
+            subtitlePref = { settings.get().subtitleLanguage }
         )
         handoff = HandoffController(this, sniffer)
 
@@ -117,7 +129,7 @@ class MainActivity : Activity() {
         }
 
         chrome = ChromeController(bar, urlInput, webView)
-        val cursor = CursorController(webView) { layout.invalidate() }
+        val cursor = CursorController(webView, { settings.get().cursorSpeed.multiplier }) { layout.invalidate() }
         layout.webView = webView
         layout.cursor = cursor
         layout.chrome = chrome
@@ -131,7 +143,8 @@ class MainActivity : Activity() {
             onOpen = { openUrl(it.url) },
             onSubmitUrl = { openUrl(it) },
             onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { homeView.refresh() } },
-            onHistory = { showHistory(fromHome = true) }
+            onHistory = { showHistory(fromHome = true) },
+            onSettings = { showSettings() }
         )
         historyView.bind(
             repository = history,
@@ -142,6 +155,7 @@ class MainActivity : Activity() {
                 Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
             }
         )
+        settingsView.bind(settings)
 
         layout.post { cursor.center(webView.width, webView.height) }
 
@@ -177,6 +191,7 @@ class MainActivity : Activity() {
     private fun openUrl(url: String) {
         homeView.hide()
         historyView.hide()
+        settingsView.hide()
         layout.requestFocus()
         clearHistoryOnLoad = true
         webView.loadUrl(url)
@@ -185,6 +200,14 @@ class MainActivity : Activity() {
 
     private fun showHome() {
         homeView.show()
+    }
+
+    private fun showSettings() {
+        // Focus-modal: hide the other overlays so window-global D-pad focus search
+        // can't escape into them (same rule as showHistory).
+        homeView.hide()
+        historyView.hide()
+        settingsView.show()
     }
 
     private fun showHistory(fromHome: Boolean) {
@@ -245,7 +268,8 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (::webView.isInitialized) webView.onResume()
-        if (::sniffer.isInitialized && sniffer.hasStream() && homeView.visibility != View.VISIBLE) showChip()
+        if (::sniffer.isInitialized && sniffer.hasStream() &&
+            homeView.visibility != View.VISIBLE && settingsView.visibility != View.VISIBLE) showChip()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -254,6 +278,7 @@ class MainActivity : Activity() {
         // whatever's on screen and swallow this one press.
         if (currentFocus == null && event.action == KeyEvent.ACTION_DOWN) {
             val recovered = when {
+                settingsView.visibility == View.VISIBLE -> settingsView.restoreFocus()
                 historyView.visibility == View.VISIBLE -> historyView.restoreFocus()
                 homeView.visibility == View.VISIBLE -> homeView.restoreFocus()
                 else -> layout.requestFocus()
@@ -266,6 +291,10 @@ class MainActivity : Activity() {
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         when {
+            settingsView.visibility == View.VISIBLE -> {
+                settingsView.hide()
+                showHome()
+            }
             historyView.visibility == View.VISIBLE -> {
                 historyView.hide()
                 // Return to wherever history was opened from.

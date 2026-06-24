@@ -48,6 +48,17 @@
             android:paddingEnd="20dp"
             android:text="@string/history"
             android:textColor="@color/on_surface" />
+
+        <Button
+            android:id="@+id/homeSettingsButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:background="@drawable/focus_ring"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:text="@string/settings"
+            android:textColor="@color/on_surface" />
     </LinearLayout>
 
     <ScrollView
