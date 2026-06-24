@@ -81,10 +81,8 @@ class HistoryView @JvmOverloads constructor(
         time.text = RelativeTime.format(nowMs - entry.visitedAt)
         v.setOnClickListener { onOpen(entry.url) }
         v.setOnLongClickListener { onAddFavorite(entry); true }
-        v.setOnFocusChangeListener { row, hasFocus ->
-            val s = if (hasFocus) 1.04f else 1f
-            row.animate().scaleX(s).scaleY(s).setDuration(120).start()
-        }
+        // Focus highlight comes from card_bg's state_focused (accent border).
+        // No scale: rows are full-width, so scaling overflows the screen edges.
         return v
     }
 
