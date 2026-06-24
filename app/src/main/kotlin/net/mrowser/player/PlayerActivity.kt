@@ -55,6 +55,7 @@ class PlayerActivity : Activity() {
         // alongside Audio and Speed in the same gear. Re-applied whenever the controls
         // re-appear (the player can reset its own listeners).
         val syncBox = findViewById<View>(R.id.subSyncBox)
+        val hasSubtitles = request.subtitles.isNotEmpty()
         val installControls = {
             playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.setOnClickListener {
                 player?.let { showSettings(it) }
@@ -67,7 +68,7 @@ class PlayerActivity : Activity() {
         playerView.setControllerVisibilityListener(
             PlayerView.ControllerVisibilityListener { visibility ->
                 installControls()
-                syncBox.visibility = visibility
+                syncBox.visibility = if (hasSubtitles) visibility else View.GONE
             }
         )
         playerView.post { installControls() }
@@ -144,6 +145,11 @@ class PlayerActivity : Activity() {
             .setUri(request.url)
             .setMimeType(MimeTypes.APPLICATION_M3U8)
             .build()
+
+    override fun onStart() {
+        super.onStart()
+        subtitleController?.resume()
+    }
 
     override fun onStop() {
         super.onStop()
