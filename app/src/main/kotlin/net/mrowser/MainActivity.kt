@@ -49,6 +49,9 @@ class MainActivity : Activity() {
     /** True when history was opened from the home overlay (BACK returns to home);
      *  false when opened from the chrome bar mid-browse (BACK returns to the page). */
     private var historyFromHome = false
+
+    /** Set when a page is opened from home; clears the back-stack on its first load. */
+    private var clearHistoryOnLoad = false
     private lateinit var handoff: HandoffController
     private val uiHandler = Handler(Looper.getMainLooper())
     private val chipHideRunnable = Runnable { playChip.visibility = View.GONE }
@@ -84,7 +87,16 @@ class MainActivity : Activity() {
         webView.webViewClient = SniffingWebViewClient(
             sniffer,
             onNavigate = { url -> updateUrlText(url) },
-            onLoaded = { url -> recordHistory(url, webView.title) }
+            onLoaded = { url ->
+                recordHistory(url, webView.title)
+                // Opening from home starts a fresh tab: drop any prior back-stack so
+                // BACK at this page reaches root (close-tab) instead of walking old
+                // pages / leftover about:blank entries from a previous tab.
+                if (clearHistoryOnLoad) {
+                    clearHistoryOnLoad = false
+                    webView.clearHistory()
+                }
+            }
         )
         chromeClient = BrowserWebChromeClient(
             activity = this,
@@ -110,6 +122,7 @@ class MainActivity : Activity() {
         layout.playChip = playChip
         layout.onChipClick = { handoff.play() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
+        layout.onExitPage = { confirmCloseTab() }
 
         homeView.bind(
             repository = favorites,
@@ -163,6 +176,7 @@ class MainActivity : Activity() {
         homeView.hide()
         historyView.hide()
         layout.requestFocus()
+        clearHistoryOnLoad = true
         webView.loadUrl(url)
         chrome.onPageInteracted()
     }
@@ -238,8 +252,21 @@ class MainActivity : Activity() {
                 if (historyFromHome) showHome() else layout.requestFocus()
             }
             homeView.visibility == View.VISIBLE -> confirmExit()
-            else -> showHome()
+            else -> confirmCloseTab()
         }
+    }
+
+    /** BACK at the first page in history: confirm before closing the page to home. */
+    private fun confirmCloseTab() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.close_tab_title)
+            .setMessage(R.string.close_tab_message)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.close_tab) { _, _ ->
+                webView.loadUrl("about:blank")
+                showHome()
+            }
+            .show()
     }
 
     /** BACK on the home overlay is the app's root: confirm before exiting to the launcher. */

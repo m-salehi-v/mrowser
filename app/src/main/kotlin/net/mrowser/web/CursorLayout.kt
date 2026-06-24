@@ -27,6 +27,9 @@ class CursorLayout @JvmOverloads constructor(
     /** Set by the Activity; returns true if it consumed BACK (e.g. exited fullscreen). */
     var onBack: () -> Boolean = { false }
 
+    /** Set by the Activity; fired when BACK is pressed at the first page (no history left). */
+    var onExitPage: () -> Unit = {}
+
     var playChip: android.view.View? = null
     var onChipClick: () -> Unit = {}
 
@@ -116,7 +119,10 @@ class CursorLayout @JvmOverloads constructor(
         if (onBack()) return true
         if (chrome.isVisible) { chrome.onPageInteracted(); return true }
         if (webView.canGoBack()) { webView.goBack(); return true }
-        return false
+        // Root of history. We consume BACK's ACTION_DOWN above without startTracking,
+        // so the Activity's back-tracking never fires onBackPressed — handle it here.
+        onExitPage()
+        return true
     }
 
     override fun dispatchDraw(canvas: Canvas) {

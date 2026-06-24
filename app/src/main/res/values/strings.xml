@@ -26,4 +26,7 @@
     <string name="exit_title">Exit mrowser?</string>
     <string name="exit_message">Close the browser and return to the home screen.</string>
     <string name="exit">Exit</string>
+    <string name="close_tab_title">Close this page?</string>
+    <string name="close_tab_message">Return to the home screen.</string>
+    <string name="close_tab">Close</string>
 </resources>
