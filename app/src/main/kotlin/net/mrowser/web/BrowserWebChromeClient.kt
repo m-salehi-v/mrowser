@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.WebChromeClient
+import android.webkit.WebView
 
 /**
  * Handles HTML5 fullscreen video: swaps the player to a fullscreen view over
@@ -14,13 +15,19 @@ class BrowserWebChromeClient(
     private val activity: Activity,
     private val container: ViewGroup,
     private val onEnter: () -> Unit,
-    private val onExit: () -> Unit
+    private val onExit: () -> Unit,
+    private val onTitle: (url: String, title: String) -> Unit = { _, _ -> }
 ) : WebChromeClient() {
 
     private var customView: View? = null
     private var callback: CustomViewCallback? = null
 
     val isFullscreen: Boolean get() = customView != null
+
+    override fun onReceivedTitle(view: WebView?, title: String?) {
+        val url = view?.url ?: return
+        if (!title.isNullOrBlank()) onTitle(url, title)
+    }
 
     override fun onShowCustomView(view: View, cb: CustomViewCallback) {
         if (customView != null) {
