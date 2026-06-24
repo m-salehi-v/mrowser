@@ -166,6 +166,10 @@ class MainActivity : Activity() {
     }
 
     private fun showHistory() {
+        // Hide the home overlay first: leaving it visible behind the history
+        // overlay keeps its favorites grid focusable, and window-global D-pad
+        // focus search escapes into it (focus can't move past the first row).
+        homeView.hide()
         historyView.show()
     }
 
