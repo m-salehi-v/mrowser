@@ -271,7 +271,8 @@ class MainActivity : Activity() {
         super.onResume()
         if (::webView.isInitialized) webView.onResume()
         if (::sniffer.isInitialized && sniffer.hasStream() &&
-            homeView.visibility != View.VISIBLE && settingsView.visibility != View.VISIBLE) showChip()
+            homeView.visibility != View.VISIBLE && historyView.visibility != View.VISIBLE &&
+            settingsView.visibility != View.VISIBLE) showChip()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
