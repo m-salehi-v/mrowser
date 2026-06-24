@@ -2,6 +2,7 @@ package net.mrowser.player
 
 import android.os.Handler
 import android.os.Looper
+import android.webkit.CookieManager
 import androidx.annotation.OptIn
 import androidx.media3.common.text.Cue
 import androidx.media3.common.util.UnstableApi
@@ -71,8 +72,15 @@ class SubtitleSyncController(
         selectedIndex = index
         if (index in tracks.indices && !parsedCache.containsKey(index) && inFlight.add(index)) {
             val track = tracks[index]
+            // The subtitle file is frequently on a different host than the manifest, so
+            // re-scope the Cookie header to the subtitle host rather than forwarding the
+            // manifest-host cookie (cross-host session-cookie leak).
+            val cookie = CookieManager.getInstance().getCookie(track.url)
+            val trackHeaders = headers.toMutableMap().apply {
+                if (cookie.isNullOrEmpty()) remove("Cookie") else put("Cookie", cookie)
+            }
             Thread {
-                val text = SubtitleFetcher.fetch(track.url, headers)
+                val text = SubtitleFetcher.fetch(track.url, trackHeaders)
                 val cues = if (text != null) SubtitleCueParser.parse(text) else emptyList()
                 handler.post {
                     parsedCache[index] = cues

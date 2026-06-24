@@ -2,6 +2,7 @@ package net.mrowser.stream
 
 import android.webkit.CookieManager
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -18,12 +19,15 @@ class StreamSniffer(
     private val seq = AtomicInteger(0)
 
     @Volatile private var pageUrl: String = ""
-    @Volatile private var announced = false
+
+    // onRequest runs on WebView worker threads; compareAndSet makes the "announce once"
+    // gate atomic so two concurrent manifest requests can't both fire the handoff.
+    private val announced = AtomicBoolean(false)
 
     fun onPageStarted(url: String) {
         pageUrl = url
         candidates.clear()
-        announced = false
+        announced.set(false)
         onCleared()
     }
 
@@ -31,8 +35,7 @@ class StreamSniffer(
         val kind = MediaUrlClassifier.classify(url)
         if (kind == MediaUrlClassifier.MediaKind.MANIFEST_HLS || kind == MediaUrlClassifier.MediaKind.SUBTITLE) {
             candidates.add(StreamCandidate(url, kind, seq.incrementAndGet()))
-            if (!announced && hasStream()) {
-                announced = true
+            if (hasStream() && announced.compareAndSet(false, true)) {
                 onStreamAvailable()
             }
         }

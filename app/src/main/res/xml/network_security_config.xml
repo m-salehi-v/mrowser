@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  mrowser is a general-purpose browser, so it must permit cleartext (http://) for
+  arbitrary user-chosen sites and streams — it can't be scoped to a fixed host list.
+  This makes that allowance explicit (instead of the blanket usesCleartextTraffic
+  attribute) and pins trust to system CAs only, so a user-installed CA can't
+  silently MITM the app's traffic.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

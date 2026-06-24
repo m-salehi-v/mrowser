@@ -5,6 +5,7 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.webkit.CookieManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
@@ -15,6 +16,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -41,9 +43,19 @@ class PlayerActivity : Activity() {
         val trackSelector = DefaultTrackSelector(this)
         // DefaultMediaSourceFactory builds an HlsMediaSource for the .m3u8. The player carries
         // no text track — side-loaded subtitles are rendered by SubtitleSyncController, not merged here.
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(request.headers)
+        // Cookie is re-resolved per request host (via CookieManager) instead of being sent
+        // blanket on every request: a session cookie scoped to the stream host must never
+        // ride along to a different CDN/key/redirect host (cross-host session-cookie leak).
+        val baseHeaders = request.headers.filterKeys { !it.equals("Cookie", ignoreCase = true) }
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setDefaultRequestProperties(baseHeaders)
             .setAllowCrossProtocolRedirects(true)
+        val cookieManager = CookieManager.getInstance()
+        val dataSourceFactory = ResolvingDataSource.Factory(httpFactory) { dataSpec ->
+            val cookie = cookieManager.getCookie(dataSpec.uri.toString())
+            if (cookie.isNullOrEmpty()) dataSpec
+            else dataSpec.withAdditionalHeaders(mapOf("Cookie" to cookie))
+        }
         val exo = ExoPlayer.Builder(this)
             .setTrackSelector(trackSelector)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))

@@ -125,6 +125,12 @@ class MainActivity : Activity() {
             mediaPlaybackRequiresUserGesture = false
             loadWithOverviewMode = true
             useWideViewPort = true
+            // Lock down file:// access (defaults to true on API 23-29): a malicious page
+            // must not be able to read the app's private files via a file:// URL.
+            allowFileAccess = false
+            allowFileAccessFromFileURLs = false
+            allowUniversalAccessFromFileURLs = false
+            allowContentAccess = false
         }
 
         chrome = ChromeController(bar, urlInput, webView)
