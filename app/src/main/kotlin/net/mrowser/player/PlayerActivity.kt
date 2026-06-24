@@ -2,10 +2,10 @@ package net.mrowser.player
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.C
@@ -19,15 +19,16 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.SubtitleView
 import androidx.media3.ui.TrackSelectionDialogBuilder
 import net.mrowser.R
 import net.mrowser.stream.PlaybackRequest
-import net.mrowser.stream.SubtitleTrack
 
 @OptIn(UnstableApi::class)
 class PlayerActivity : Activity() {
 
     private var player: ExoPlayer? = null
+    private var subtitleController: SubtitleSyncController? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,15 +54,23 @@ class PlayerActivity : Activity() {
         // Replace the built-in control-bar gear's menu with ours, so video Quality sits
         // alongside Audio and Speed in the same gear. Re-applied whenever the controls
         // re-appear (the player can reset its own listeners).
-        val installSettings = {
+        // Subtitle on/off + track selection is NOT done via media3's CC button: with no player
+        // text track, media3 keeps re-disabling/greying it (its updateAll() wins the ordering),
+        // so it's hidden (show_subtitle_button=false) and we use our own button inside the sync box.
+        val syncBox = findViewById<View>(R.id.subSyncBox)
+        val hasSubtitles = request.subtitles.isNotEmpty()
+        val installControls = {
             playerView.findViewById<View?>(androidx.media3.ui.R.id.exo_settings)?.setOnClickListener {
                 player?.let { showSettings(it) }
             }
         }
         playerView.setControllerVisibilityListener(
-            PlayerView.ControllerVisibilityListener { installSettings() }
+            PlayerView.ControllerVisibilityListener { visibility ->
+                installControls()
+                syncBox.visibility = if (hasSubtitles) visibility else View.GONE
+            }
         )
-        playerView.post { installSettings() }
+        playerView.post { installControls() }
 
         exo.setMediaItem(buildMediaItem(request))
         exo.addListener(object : Player.Listener {
@@ -82,6 +91,17 @@ class PlayerActivity : Activity() {
             }
         })
         exo.prepare()
+        val subtitleView = playerView.findViewById<SubtitleView>(androidx.media3.ui.R.id.exo_subtitles)
+        val syncValue = findViewById<TextView>(R.id.subSyncValue)
+        val controller = SubtitleSyncController(exo, subtitleView, request.subtitles, request.headers) { off ->
+            syncValue.text = getString(R.string.sub_sync_value, off / 1000.0)
+        }
+        subtitleController = controller
+        findViewById<View>(R.id.subSyncSubs).setOnClickListener { showSubtitlePicker() }
+        findViewById<View>(R.id.subSyncMinus).setOnClickListener { controller.adjust(-STEP_MS) }
+        findViewById<View>(R.id.subSyncPlus).setOnClickListener { controller.adjust(STEP_MS) }
+        controller.start()
+        updateSubsButton()
         exo.playWhenReady = true
     }
 
@@ -103,6 +123,25 @@ class PlayerActivity : Activity() {
             .show()
     }
 
+    private fun showSubtitlePicker() {
+        val c = subtitleController ?: return
+        val labels = (listOf(getString(R.string.subtitle_off)) + c.trackLabels()).toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(R.string.track_subtitles)
+            .setItems(labels) { _, which ->
+                c.select(which - 1) // entry 0 = Off -> index -1
+                updateSubsButton()
+            }
+            .show()
+    }
+
+    // Our own subtitle button (in the sync box) — tinted accent when a track is showing, dim when off.
+    private fun updateSubsButton() {
+        val on = subtitleController?.isShowing() == true
+        findViewById<TextView>(R.id.subSyncSubs)
+            .setTextColor(getColor(if (on) R.color.accent else R.color.hint))
+    }
+
     private fun showSpeed(p: ExoPlayer) {
         val speeds = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
         val labels = speeds.map { "${it}x" }.toTypedArray()
@@ -116,33 +155,29 @@ class PlayerActivity : Activity() {
         MediaItem.Builder()
             .setUri(request.url)
             .setMimeType(MimeTypes.APPLICATION_M3U8)
-            .setSubtitleConfigurations(
-                // Auto-show the first sniffed subtitle; the rest are selectable via the CC button.
-                request.subtitles.mapIndexed { i, s -> s.toConfig(default = i == 0) }
-            )
             .build()
 
-    private fun SubtitleTrack.toConfig(default: Boolean): MediaItem.SubtitleConfiguration {
-        val builder = MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
-            .setMimeType(if (mimeType == "application/x-subrip") MimeTypes.APPLICATION_SUBRIP else MimeTypes.TEXT_VTT)
-            .setLanguage(language)
-            .setLabel(label)
-        if (default) builder.setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-        return builder.build()
+    override fun onStart() {
+        super.onStart()
+        subtitleController?.resume()
     }
 
     override fun onStop() {
         super.onStop()
         player?.playWhenReady = false
+        subtitleController?.stop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        subtitleController?.stop()
+        subtitleController = null
         player?.release()
         player = null
     }
 
     companion object {
         const val EXTRA_REQUEST = "mrowser.request"
+        private const val STEP_MS = 500L
     }
 }

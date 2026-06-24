@@ -1,10 +1,88 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.media3.ui.PlayerView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/playerView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
-    app:surface_type="surface_view"
-    app:show_subtitle_button="true"
-    app:resize_mode="fit" />
+    android:background="@android:color/black">
+
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/playerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:surface_type="surface_view"
+        app:show_subtitle_button="false"
+        app:resize_mode="fit" />
+
+    <LinearLayout
+        android:id="@+id/subSyncBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="16dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/bar_frost"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/subSyncSubs"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="CC"
+            android:textColor="@color/hint"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:nextFocusRight="@id/subSyncMinus" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:layout_marginHorizontal="4dp"
+            android:background="@color/hint" />
+
+        <Button
+            android:id="@+id/subSyncMinus"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="−"
+            android:textColor="@color/on_surface"
+            android:textSize="16sp"
+            android:nextFocusLeft="@id/subSyncSubs"
+            android:nextFocusRight="@id/subSyncPlus" />
+
+        <TextView
+            android:id="@+id/subSyncValue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="6dp"
+            android:text="Sub Sync +0.0s"
+            android:textColor="@color/on_surface"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/subSyncPlus"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="4dp"
+            android:text="+"
+            android:textColor="@color/on_surface"
+            android:textSize="16sp"
+            android:nextFocusLeft="@id/subSyncMinus" />
+    </LinearLayout>
+</FrameLayout>
