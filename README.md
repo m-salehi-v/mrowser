@@ -40,6 +40,15 @@ mrowser fixes all three:
 
 ---
 
+## Screenshots
+
+| Home screen | Native player with live subtitle sync |
+| --- | --- |
+| ![mrowser home screen — address bar, History, Settings, and a favorites grid](docs/screenshots/home.png) | ![mrowser native player showing the sub-sync box (CC + Sub Sync offset) over a playing stream](docs/screenshots/player-sub-sync.png) |
+| D-pad-friendly launcher: address bar, favorites grid, History and Settings. | Stream handed off to Media3/ExoPlayer; the top-left **sub-sync box** toggles subtitles and nudges their timing (±0.5s) live — no rebuffer. |
+
+---
+
 ## Features
 
 - **D-pad mouse cursor** — a remote-driven virtual pointer (`CursorLayout` + `CursorController`) for sites a remote normally can't navigate; adjustable cursor speed.
