@@ -26,5 +26,8 @@ keystore.properties
 # Promotion drafts — local working notes, not part of the published project
 docs/marketing/
 
+# Browser-automation scratch output
+.playwright-mcp/
+
 # OS
 .DS_Store
