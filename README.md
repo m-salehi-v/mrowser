@@ -67,7 +67,8 @@ mrowser fixes all three:
 - **Smart subtitle labelling** — side-loaded tracks carry no language metadata, so mrowser infers a readable name (English, Persian, …) from the subtitle URL, else a generic `Subtitle N`.
 - **Home screen with favorites** — a favorites grid; add/remove the current page with the ★ button.
 - **Browsing history** — newest-first, deduplicated, with relative "Nm ago" labels; long-press to favorite.
-- **Global settings** — auto-open-player toggle and cursor-speed picker, applied live with no restart.
+- **Pop-up handling** — a window the page opens by itself is blocked; one you click opens in the current window, so `target="_blank"` links still work and BACK returns you.
+- **Global settings** — auto-open-player, block-pop-ups, and cursor-speed, applied live with no restart.
 - **Fullscreen HTML5 video** support in the WebView for sites that need it.
 - **D-pad chrome bar** — address bar summoned with **MENU**, with URL normalization.
 - **Netflix-style dark UI**, brand red `#E50914`.

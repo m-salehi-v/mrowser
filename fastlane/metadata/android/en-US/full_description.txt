@@ -21,6 +21,7 @@ Websites assume a mouse. mrowser gives you a virtual cursor driven by the D-pad,
 * Address bar opens on a held BACK, for the many remotes with no MENU key
 * Favourites grid and browsing history, both D-pad friendly
 * HTML5 fullscreen video support in the page itself
+* Pop-ups a page opens by itself are blocked; ones you click still open
 * Dark interface designed for a ten-foot viewing distance
 * Plain Kotlin, no Compose, a single module — it stays light on weak boxes
 
