@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.os.Message
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 
@@ -16,8 +17,30 @@ class BrowserWebChromeClient(
     private val container: ViewGroup,
     private val onEnter: () -> Unit,
     private val onExit: () -> Unit,
-    private val onTitle: (url: String, title: String) -> Unit = { _, _ -> }
+    private val onTitle: (url: String, title: String) -> Unit = { _, _ -> },
+    private val onPopupBlocked: () -> Unit = {},
+    private val blockPopups: () -> Boolean = { true }
 ) : WebChromeClient() {
+
+    /**
+     * Refuses every new window. Pages that wrap their video in a click handler use
+     * `window.open` / `target="_blank"` to turn a play click into an unrelated page; because the
+     * click is a real user gesture, a gesture-based filter cannot tell it apart from a link.
+     * Refusing the window is the precise fix, and it leaves ordinary same-window navigation alone.
+     *
+     * Returning false without acting on [resultMsg] means no window is created and the current
+     * page is left exactly where it was.
+     */
+    override fun onCreateWindow(
+        view: WebView?,
+        isDialog: Boolean,
+        isUserGesture: Boolean,
+        resultMsg: Message?
+    ): Boolean {
+        if (!blockPopups()) return super.onCreateWindow(view, isDialog, isUserGesture, resultMsg)
+        onPopupBlocked()
+        return false
+    }
 
     private var customView: View? = null
     private var callback: CustomViewCallback? = null

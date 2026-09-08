@@ -40,4 +40,6 @@
     <string name="cursor_slow">Slow</string>
     <string name="cursor_normal">Normal</string>
     <string name="cursor_fast">Fast</string>
+    <string name="popup_blocked">Pop-up blocked</string>
+    <string name="block_popups_title">Block pop-ups</string>
 </resources>
