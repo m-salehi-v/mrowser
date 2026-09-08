@@ -1,0 +1,37 @@
+mrowser turns an Android TV box into something the platform does not otherwise give you: a browser that opens a website your TV has no app for and actually plays its video properly, driven entirely by the remote.
+
+Streaming on a TV normally means whatever apps the store offers. Anything outside that catalogue is out of reach — and on the rare TV browser that can open the site at all, the video plays inside the WebView, where the audio slowly drifts out of step with the picture and never recovers. mrowser exists to close that gap.
+
+<b>Watch video from sites your TV has no app for</b>
+Open a site, start its video, and mrowser takes over. It watches the page's own network requests for the video stream (an HLS manifest) and, the moment one appears, hands it to a proper native player — carrying the session's User-Agent, Referer and cookies across so the stream keeps working. No catalogue, no app per site, no waiting for someone to build one.
+
+HLS is what most streaming sites use. Sites that stream only over DASH (YouTube among them), plain MP4 files, and DRM-protected content are not handed off — they still play in the browser, just without the native player.
+
+<b>Video that stays in sync</b>
+Playback runs in a native Media3 / ExoPlayer activity rather than the WebView, which is what keeps audio locked to the picture for a whole film. You get real quality selection, audio-track switching and playback speed. BACK drops you back on the page exactly where you left it, and the play chip takes you straight back into the video.
+
+<b>Subtitles you can fix while watching</b>
+Side-loaded subtitles are almost never quite in step. mrowser renders them itself (WebVTT and SubRip), so a press of the minus or plus button shifts their timing by half a second, up to thirty seconds either way, instantly and with no rebuffering — no reloading the stream, no restarting the film. Tracks that arrive with no language metadata get a readable name inferred from the subtitle URL.
+
+<b>Every site reachable from the remote</b>
+Websites assume a mouse. mrowser gives you a virtual cursor driven by the D-pad, with acceleration and edge detection, so hover menus, small controls and non-focusable links all become clickable from the couch. OK clicks, a long press switches to normal focus navigation, and cursor speed is adjustable.
+
+<b>Built for TV hardware and TV remotes</b>
+
+* Address bar opens on a held BACK, for the many remotes with no MENU key
+* Favourites grid and browsing history, both D-pad friendly
+* HTML5 fullscreen video support in the page itself
+* Dark interface designed for a ten-foot viewing distance
+* Plain Kotlin, no Compose, a single module — it stays light on weak boxes
+
+<b>Private and self-contained</b>
+
+* Requires only the INTERNET permission
+* No Google Play Services, no accounts, no analytics, no telemetry
+* Works on de-Googled and minimal Android TV builds
+* Android 6.0 (API 23) and newer; runs on phones and tablets in landscape too
+
+<b>Scope of use</b>
+mrowser is a general-purpose browser. It hosts, bundles, indexes and links to no content, and ships with no preset sites or bookmarks — every site you visit is one you type in yourself. It does not circumvent DRM or any technological protection measure, and it does not download, record or redistribute streams. Use it only to access content you are authorized to access, in compliance with applicable law and the rights of content owners.
+
+Free software, MIT licensed. Source, issues and releases: https://github.com/m-salehi-v/mrowser

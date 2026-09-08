@@ -1,0 +1,11 @@
+TV navigation and a living home screen.
+
+Fixed: scrolling past the top of a page no longer runs away. The cursor scrolled whenever it sat near an edge without checking the page could still scroll, opening blank space above the content.
+
+Added: hold BACK to open the address bar, for the many TV remotes with no MENU key. A short BACK press behaves as before, and a one-time hint points the gesture out on first use.
+
+Added: the home screen background drifts continuously through six dark palettes.
+
+Added: YouTube and Google appear as ordinary favourites on first launch. Edit or delete them like any other, and they stay deleted.
+
+Also: holding BACK inside a fullscreen video reliably exits fullscreen.

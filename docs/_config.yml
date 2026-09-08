@@ -1,0 +1,6 @@
+# GitHub Pages (Settings → Pages → branch: main, folder: /docs)
+title: mrowser
+description: D-pad web browser for Android TV with native HLS player and subtitle sync
+exclude:
+  - superpowers
+  - marketing
