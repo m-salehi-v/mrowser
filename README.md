@@ -41,6 +41,14 @@ mrowser fixes all three:
 
 ---
 
+## Demo
+
+![mrowser: opening an HLS page from the home screen, the stream being detected and handed to the native player, and app-rendered subtitles](docs/screenshots/demo.gif)
+
+*Home screen → an ordinary page with an HLS video → the stream is detected (note the **Play synced** chip) → automatic handoff to the native Media3 player, with subtitles rendered by the app. Recorded on the Android TV emulator against a local HLS test page (Big Buck Bunny, Creative Commons).*
+
+---
+
 ## Screenshots
 
 | Home screen | Native player with live subtitle sync |
