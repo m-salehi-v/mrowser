@@ -1,6 +1,6 @@
 # mrowser — Android TV Browser for Streaming Video
 
-> A sideload-only **Android TV web browser** that lets you browse any website with a **D-pad-driven virtual mouse cursor**, auto-detects the page's **HLS video stream**, and plays it in a proper native **Media3 / ExoPlayer** player with correct **A/V sync** and **live subtitle sync** — no Google Play Services required.
+> A sideload-only **Android TV browser** for **watching video from websites your TV has no app for**. It detects the page's **HLS stream** automatically and plays it in a proper native **Media3 / ExoPlayer** player — correct **A/V sync**, quality and audio-track selection, and **subtitles you can retime while watching** — with a **D-pad-driven virtual mouse cursor** to get you there from the remote. No Google Play Services required.
 
 <!-- Badges: update the owner/repo path once the repository is public. -->
 [![Build](https://github.com/m-salehi-v/mrowser/actions/workflows/build.yml/badge.svg)](https://github.com/m-salehi-v/mrowser/actions/workflows/build.yml)
@@ -12,30 +12,31 @@
 
 ## What is mrowser?
 
-**mrowser** (`net.mrowser`) is a lightweight, open-source **smart TV web browser** built specifically for **Android TV** and the **D-pad remote**. It turns a streaming box or TV into a general-purpose browser that can open arbitrary websites and play their video properly — something the platform handles poorly out of the box.
+**mrowser** (`net.mrowser`) is a lightweight, open-source **smart TV web browser** built specifically for **Android TV** and the **D-pad remote**. Its point is **streaming video from sites the TV has no app for**: open a site, start its video, and mrowser hands the stream to a real player instead of the WebView — so a whole film stays in sync. Everything else in the app exists to make that possible from a remote.
 
 > **mrowser hosts no content and breaks no DRM.** It ships with no preset sites or bookmarks, and it only replays standard HLS streams that the page you are visiting has already loaded in your own browser session — DRM/Widevine-protected content stays in the WebView. See [Scope of use & disclaimer](#scope-of-use--disclaimer).
 
 ### The problem it solves
 
-Android TV has **poor options for browsing arbitrary websites and streaming their video**:
+Watching video on Android TV means **whatever apps the store carries**. A site with the video you want and no app to match is effectively unreachable:
 
 - Most TV apps are walled gardens. There is no good way to just *open a website* and watch its video.
-- The handful of TV browsers that exist try to play video **inside the WebView**, whose built-in player gives **poor audio/video sync** — lips drift, audio lags, subtitles slip.
+- The handful of TV browsers that exist play video **inside the WebView**, whose built-in player gives **poor audio/video sync** — lips drift, audio lags, subtitles slip.
 - Websites assume a mouse and a touchscreen. A **D-pad remote** can't click links, hover menus, or hit a tiny play button.
 
 mrowser fixes all three:
 
-1. **Browse anything with a D-pad.** A **virtual mouse cursor** is driven entirely by the remote's directional pad and OK button, so any mouse-and-pointer website becomes navigable from the couch.
-2. **Find the real stream automatically.** As you browse, mrowser **sniffs the page's network traffic for an HLS manifest** (`.m3u8`) — an in-app **HLS sniffer** — and surfaces a play chip the moment a video stream appears.
-3. **Play it properly.** The detected stream is handed off to a **native Media3 / ExoPlayer** activity for **correct A/V sync**, quality / audio-track selection, and **live, nudgeable subtitle timing** — not the WebView's player.
+1. **Find the real stream automatically.** As you browse, mrowser **sniffs the page's network traffic for an HLS manifest** (`.m3u8`) — an in-app **HLS sniffer** — and surfaces a play chip the moment a video stream appears. HLS is what most streaming sites use; see the [FAQ](#faq) for what is not covered.
+2. **Play it properly.** The stream is handed to a **native Media3 / ExoPlayer** activity — with the session's User-Agent, Referer and cookies attached so it keeps working — for **correct A/V sync**, quality / audio-track selection, and **live, nudgeable subtitle timing**. Not the WebView's player.
+3. **Get there with a D-pad.** A **virtual mouse cursor** is driven entirely by the remote's directional pad and OK button, so any mouse-and-pointer website becomes navigable from the couch.
 
 ### What it is optimized for
 
+- **Streaming video from ordinary websites** — the whole pipeline, from sniffing the page's HLS manifest to native playback, exists for this.
+- **Correct A/V sync** via native ExoPlayer instead of the WebView player, so a two-hour film does not drift.
+- **Side-loaded subtitle support** (VTT and SRT) with a **live timing nudge** (±0.5s per press) — fix out-of-sync subtitles without rebuffering.
 - **Android TV and D-pad remotes** — no touchscreen, no mouse, no keyboard assumed.
 - **Low-power TV hardware** — plain Kotlin, framework `Activity` + XML layouts, **no AndroidX/Compose** beyond Media3, single Gradle module.
-- **Video streaming with correct A/V sync** via native ExoPlayer instead of the WebView player.
-- **Side-loaded subtitle support** (VTT and SRT) with a **live timing nudge** (±0.5s per press) — fix out-of-sync subtitles without rebuffering.
 - **No Google Play Services** — fully sideload-only; works on de-Googled and minimal Android TV builds.
 
 ---
@@ -111,19 +112,27 @@ mrowser is **sideload-only** — it is not on the Play Store and needs no Google
 
 No ADB is strictly required — copying the APK to the device and opening it works.
 
+### Automatic updates with Obtainium
+
+[Obtainium](https://github.com/ImranR98/Obtainium) installs apps directly from GitHub Releases and keeps them updated — no store account, no Play Services. Add mrowser as an app source with this URL:
+
+```
+https://github.com/m-salehi-v/mrowser
+```
+
 ---
 
 ## Usage / remote controls
 
-mrowser is driven entirely by a standard **D-pad remote** (directional pad + OK + BACK + MENU).
+mrowser is driven entirely by a standard **D-pad remote** (directional pad + OK + BACK, plus MENU where the remote has one).
 
 | Control | Action |
 | --- | --- |
 | **D-pad arrows** | Move the virtual mouse cursor (with acceleration and edge detection) |
 | **OK / Center** | Click at the cursor position |
 | **OK long-press** | Toggle between **CURSOR** mode (free pointer) and **FOCUS** mode |
-| **MENU** | Open the chrome / address bar to type or navigate a URL |
-| **BACK** | Step back: chrome bar → WebView history → "Close this page?" → home |
+| **MENU** *or* **BACK long-press** | Open the chrome / address bar to type or navigate a URL. Many TV remotes (e.g. the Mi Box 4K) have no MENU key — hold BACK for 500ms instead. |
+| **BACK** (tap) | Step back: chrome bar → WebView history → "Close this page?" → home |
 | **★ (favorite button)** | Add/remove the current page to favorites |
 
 In the **native player**:
@@ -192,6 +201,9 @@ Android TV WebViews play video with **poor A/V sync** — audio drifts out of st
 
 **How do I move the cursor on Android TV without a mouse?**
 mrowser provides a **D-pad virtual mouse cursor**: the remote's arrow keys move an on-screen pointer and OK clicks. This makes pointer-and-mouse websites usable from a TV remote.
+
+**Does it work on every site?**
+It works on sites that stream over **HLS** (`.m3u8`), which is most of the streaming web. Three things are out of scope: **DASH-only sites** (YouTube among them) are not handed off, **progressive MP4** files are not detected, and **DRM/Widevine** content stays in the WebView by design. In all three cases the page still loads and its video still plays in the browser — you just do not get the native player, and so not the A/V-sync fix.
 
 **What is the "HLS sniffer"?**
 As you browse, mrowser inspects the page's network requests and recognizes HLS manifests (`.m3u8`) and subtitle files (`.vtt`, `.srt`). When it sees a video stream it offers to hand it off to the native player.

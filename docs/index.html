@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mrowser — watch web video on your Android TV, in sync</title>
+<meta name="description" content="Open-source Android TV browser for watching video from sites your TV has no app for. It detects the page's HLS stream and plays it in a real native player — correct A/V sync, quality and audio-track selection, subtitles you can retime while watching, and a D-pad mouse cursor to get there.">
+<link rel="canonical" href="https://m-salehi-v.github.io/mrowser/">
+<meta property="og:title" content="mrowser — watch web video on your Android TV, in sync">
+<meta property="og:description" content="The page's video, handed to a real player instead of the WebView — in sync for a whole film, with subtitles you can retime mid-scene.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://m-salehi-v.github.io/mrowser/">
+<meta property="og:image" content="https://m-salehi-v.github.io/mrowser/screenshots/player-sub-sync.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --bg:#0b0b0b; --panel:#141414; --line:#262626;
+    --ink:#f5f5f5; --muted:#a3a3a3; --dim:#737373;
+    --red:#e50914; --radius:10px;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 var(--sans);
+       -webkit-font-smoothing:antialiased}
+  a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--red)}
+  a:hover{color:var(--red)}
+  .wrap{max-width:920px;margin:0 auto;padding:0 24px}
+  section{padding:64px 0;border-top:1px solid var(--line)}
+  h1,h2,h3{line-height:1.2;letter-spacing:-.02em;margin:0}
+  h2{font-size:26px;margin-bottom:28px}
+  h3{font-size:17px;margin-bottom:6px}
+  p{margin:0 0 16px}
+  code{font-family:var(--mono);font-size:.88em;background:var(--panel);
+       border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+  pre{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+      padding:16px;overflow-x:auto;margin:0 0 16px}
+  pre code{background:none;border:0;padding:0;font-size:13px;line-height:1.6}
+
+  /* hero */
+  header{padding:88px 0 64px;text-align:center}
+  .mark{width:74px;height:74px;border-radius:16px;background:#111;display:grid;
+        place-items:center;margin:0 auto 28px;border:1px solid var(--line)}
+  .mark svg{display:block}
+  header h1{font-size:clamp(34px,6vw,54px);font-weight:800}
+  .tag{color:var(--muted);font-size:clamp(16px,2.4vw,20px);max-width:34ch;
+       margin:16px auto 0;line-height:1.5}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
+  .btn{display:inline-block;padding:11px 22px;border-radius:var(--radius);font-weight:600;
+       font-size:15px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+  .btn:hover{border-color:var(--dim);color:var(--ink)}
+  .btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+  .btn.primary:hover{background:#c40812;border-color:#c40812;color:#fff}
+  .meta{margin-top:22px;color:var(--dim);font-size:13px}
+  .meta span{white-space:nowrap}
+  .meta span + span::before{content:"·";margin:0 10px;color:var(--line)}
+
+  /* problem list */
+  .problem{display:grid;gap:2px;background:var(--line);border:1px solid var(--line);
+           border-radius:var(--radius);overflow:hidden}
+  .problem div{background:var(--bg);padding:20px 22px}
+  .problem b{display:block;color:var(--red);font-size:13px;letter-spacing:.08em;
+             text-transform:uppercase;margin-bottom:6px}
+  .problem p{margin:0;color:var(--muted);font-size:15px}
+
+  /* features */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1px;
+        background:var(--line);border:1px solid var(--line);border-radius:var(--radius);
+        overflow:hidden}
+  .grid > div{background:var(--bg);padding:22px}
+  .grid p{margin:0;color:var(--muted);font-size:14.5px}
+
+  /* shots */
+  figure{margin:0}
+  .shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px}
+  .shots img{width:100%;display:block;border-radius:var(--radius);border:1px solid var(--line)}
+  figcaption{color:var(--dim);font-size:13.5px;margin-top:10px;line-height:1.5}
+
+  /* controls */
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th,td{text-align:left;padding:11px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  td:first-child{width:38%;padding-right:20px;font-weight:600}
+  td:last-child{color:var(--muted)}
+
+  ol{margin:0 0 16px;padding-left:20px;color:var(--muted)}
+  ol li{margin-bottom:8px}
+  .note{color:var(--dim);font-size:14px;border-left:2px solid var(--line);
+        padding-left:16px;margin-top:28px}
+  footer{border-top:1px solid var(--line);padding:36px 0 56px;color:var(--dim);font-size:13.5px}
+  footer p{margin:0 0 8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="mark" aria-hidden="true">
+      <svg width="38" height="38" viewBox="0 0 108 108"><path fill="#e50914" d="M40 30 L78 54 L40 78 Z"/></svg>
+    </div>
+    <h1>mrowser</h1>
+    <p class="tag">Watch video from websites your TV has no app for — in a real player, properly in sync.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/m-salehi-v/mrowser/releases/latest">Download the APK</a>
+      <a class="btn" href="https://github.com/m-salehi-v/mrowser">Source on GitHub</a>
+    </div>
+    <p class="meta"><span>MIT licensed</span><span>Android 6.0+</span><span>No Play Services</span><span>One permission: INTERNET</span></p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>Streaming on a TV should not mean a catalog</h2>
+    <div class="problem">
+      <div>
+        <b>The web is off limits</b>
+        <p>Watching anything on a TV box means whatever apps the store happens to carry. A site with the video you want, and no app to match, is simply out of reach.</p>
+      </div>
+      <div>
+        <b>And when you do get there, it drifts</b>
+        <p>The rare TV browser that opens the site plays the video inside the WebView, whose player slowly loses A/V sync. Lips lead the sound, and it never recovers.</p>
+      </div>
+      <div>
+        <b>Nothing on the page is clickable</b>
+        <p>Websites assume a mouse. A D-pad cannot hover a menu, reach a small control, or click a link that was never made focusable.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What mrowser does about it</h2>
+    <div class="grid">
+      <div>
+        <h3>The page's video, played properly</h3>
+        <p>Open a site, start its video, and mrowser takes over. It watches the page's own requests for the HLS stream and hands it off the moment one appears — carrying the session's User-Agent, Referer and cookies across so it keeps working. No catalog, no app per site.</p>
+      </div>
+      <div>
+        <h3>In sync for a whole film</h3>
+        <p>Playback moves to a native Media3 / ExoPlayer activity instead of the WebView, which is what keeps audio locked to picture end to end. Real quality selection, audio-track switching and playback speed come with it.</p>
+      </div>
+      <div>
+        <h3>Subtitles you can fix mid-scene</h3>
+        <p>Side-loaded subtitles are rarely quite in step. mrowser renders VTT and SRT itself, so one press shifts their timing by half a second — up to thirty — instantly, with no rebuffer and no restarting the film.</p>
+      </div>
+      <div>
+        <h3>Every site reachable from the remote</h3>
+        <p>A virtual cursor driven by the D-pad, with acceleration and edge detection. Hover menus, small controls and non-focusable links all become clickable. OK clicks, a long press switches to focus navigation, and speed is adjustable.</p>
+      </div>
+      <div>
+        <h3>It leaves and comes back cleanly</h3>
+        <p>BACK drops you onto the page exactly where you left it, and the play chip takes you straight back into the video. Favourites grid, browsing history, HTML5 fullscreen, and an address bar that opens on a held BACK for remotes with no MENU key.</p>
+      </div>
+      <div>
+        <h3>Small, quiet, and yours</h3>
+        <p>One permission: INTERNET. No Play Services, no accounts, no analytics, no telemetry. Plain Kotlin, no Compose beyond Media3, a single module — light enough for weak TV boxes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Screenshots</h2>
+    <div class="shots">
+      <figure>
+        <img src="screenshots/home.png" alt="mrowser home screen: address bar, History and Settings buttons, and a favourites grid" loading="lazy" width="1280" height="720">
+        <figcaption>The launcher: address bar, favourites grid, History and Settings — all D-pad reachable.</figcaption>
+      </figure>
+      <figure>
+        <img src="screenshots/player-sub-sync.png" alt="mrowser native player with the sub-sync box showing CC and subtitle offset controls over a playing stream" loading="lazy" width="1280" height="720">
+        <figcaption>The native player. Top-left, the sub-sync box toggles subtitles and shifts their timing live.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Remote controls</h2>
+    <table>
+      <thead><tr><th>Key</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td>D-pad arrows</td><td>Move the cursor, with acceleration and edge detection</td></tr>
+        <tr><td>OK</td><td>Click at the cursor</td></tr>
+        <tr><td>OK long-press</td><td>Switch between cursor mode and focus mode</td></tr>
+        <tr><td>MENU <em>or</em> BACK held</td><td>Open the address bar — the hold is for remotes with no MENU key</td></tr>
+        <tr><td>BACK tapped</td><td>Address bar → page history → close page → home</td></tr>
+        <tr><td>− / + in the player</td><td>Shift subtitle timing by 0.5s, live, with no rebuffer</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Install</h2>
+    <ol>
+      <li>Download <code>app-release.apk</code> from the <a href="https://github.com/m-salehi-v/mrowser/releases/latest">latest release</a>.</li>
+      <li>Get it onto the TV with a USB stick, a sideload helper such as Downloader or “Send files to TV”, or <code>adb install</code>.</li>
+      <li>Allow installs from unknown sources for whichever app you used.</li>
+      <li>Launch mrowser from the Android TV launcher — it registers as a Leanback app.</li>
+    </ol>
+    <p>For automatic updates, add the repository to <a href="https://github.com/ImranR98/Obtainium">Obtainium</a> as an app source:</p>
+    <pre><code>https://github.com/m-salehi-v/mrowser</code></pre>
+    <p class="note"><b>What it covers:</b> sites that stream over HLS, which is most of the streaming web. DASH-only sites (YouTube among them), progressive MP4 files, and DRM/Widevine content are not handed off — those still play in the browser, just without the native player.</p>
+    <p class="note">mrowser hosts, bundles, indexes and links to no content. It ships with no preset sites or bookmarks, and it does not circumvent DRM — Widevine streams stay in the WebView. Use it only to access content you are authorised to access.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>MIT licensed. Built on AndroidX Media3 / ExoPlayer.</p>
+    <p><a href="https://github.com/m-salehi-v/mrowser">GitHub</a> · <a href="https://github.com/m-salehi-v/mrowser/issues">Issues</a> · <a href="https://github.com/m-salehi-v/mrowser/discussions">Discussions</a> · <a href="https://github.com/m-salehi-v/mrowser/releases">Releases</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

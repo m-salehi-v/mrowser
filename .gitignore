@@ -23,5 +23,8 @@ keystore.properties
 # Agent scratch (ledgers, task briefs, review packages)
 .superpowers/
 
+# Promotion drafts — local working notes, not part of the published project
+docs/marketing/
+
 # OS
 .DS_Store
