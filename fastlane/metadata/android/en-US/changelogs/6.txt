@@ -1,0 +1,9 @@
+Pop-up handling.
+
+Some sites turn a click on their video into an unrelated page. With no tabs to put it in, the page you were reading was simply replaced. Windows a page opens by itself are now refused.
+
+Windows you actually click still open, in the window you are already in — so target="_blank" links, a poster opening full size, a trailer, an external link, all work as before, and BACK returns you.
+
+A "Block pop-ups" switch in Settings, on by default, turns this off if you prefer the old behaviour.
+
+This is pop-up handling, not ad blocking: nothing is filtered from the page and no list of domains is consulted.
