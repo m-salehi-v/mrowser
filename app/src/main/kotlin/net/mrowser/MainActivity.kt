@@ -111,8 +111,7 @@ class MainActivity : Activity() {
                     clearHistoryOnLoad = false
                     webView.clearHistory()
                 }
-            },
-            onBlockedNavigation = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() }
+            }
         )
         chromeClient = BrowserWebChromeClient(
             activity = this,
