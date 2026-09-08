@@ -12,15 +12,17 @@ import net.mrowser.data.CursorSpeed
 import net.mrowser.data.Settings
 import net.mrowser.data.SettingsRepository
 
-/** Settings overlay: auto-open toggle + cursor-speed picker. */
+/** Settings overlay: auto-open toggle, pop-up blocker toggle, cursor-speed picker. */
 class SettingsView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : FrameLayout(context, attrs) {
 
     private val autoOpenRow: View
+    private val popupRow: View
     private val cursorRow: View
     private val autoOpenValue: TextView
+    private val popupValue: TextView
     private val cursorValue: TextView
 
     private var repository: SettingsRepository? = null
@@ -28,11 +30,14 @@ class SettingsView @JvmOverloads constructor(
     init {
         LayoutInflater.from(context).inflate(R.layout.settings_view, this, true)
         autoOpenRow = findViewById(R.id.settingsAutoOpenRow)
+        popupRow = findViewById(R.id.settingsPopupRow)
         cursorRow = findViewById(R.id.settingsCursorRow)
         autoOpenValue = findViewById(R.id.settingsAutoOpenValue)
+        popupValue = findViewById(R.id.settingsPopupValue)
         cursorValue = findViewById(R.id.settingsCursorValue)
 
         autoOpenRow.setOnClickListener { toggleAutoOpen() }
+        popupRow.setOnClickListener { toggleBlockPopups() }
         cursorRow.setOnClickListener { pickCursor() }
     }
 
@@ -60,12 +65,19 @@ class SettingsView @JvmOverloads constructor(
     private fun render() {
         val s = current()
         autoOpenValue.setText(if (s.autoOpenPlayer) R.string.on else R.string.off)
+        popupValue.setText(if (s.blockPopups) R.string.on else R.string.off)
         cursorValue.setText(cursorLabelRes(s.cursorSpeed))
     }
 
     private fun toggleAutoOpen() {
         val s = current()
         repository?.update(s.copy(autoOpenPlayer = !s.autoOpenPlayer))
+        render()
+    }
+
+    private fun toggleBlockPopups() {
+        val s = current()
+        repository?.update(s.copy(blockPopups = !s.blockPopups))
         render()
     }
 

@@ -118,13 +118,20 @@ class MainActivity : Activity() {
             container = layout,
             onEnter = { bar.visibility = View.GONE; playChip.visibility = View.GONE; layout.invalidate() },
             onExit = { layout.invalidate() },
-            onTitle = { url, title -> recordHistory(url, title) }
+            onTitle = { url, title -> recordHistory(url, title) },
+            onPopupBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() },
+            blockPopups = { settings.get().blockPopups }
         )
         webView.webChromeClient = chromeClient
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false
+            // Route window.open / target="_blank" through onCreateWindow so it can be refused.
+            // Left at the default false, the WebView silently loads the pop-up over the current
+            // page instead, which is the behaviour being fixed.
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = false
             loadWithOverviewMode = true
             useWideViewPort = true
             // Lock down file:// access (defaults to true on API 23-29): a malicious page

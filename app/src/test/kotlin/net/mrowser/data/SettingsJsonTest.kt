@@ -2,6 +2,7 @@ package net.mrowser.data
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsJsonTest {
@@ -9,6 +10,15 @@ class SettingsJsonTest {
     @Test fun `round trips all fields`() {
         val s = Settings(autoOpenPlayer = false, cursorSpeed = CursorSpeed.FAST)
         assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
+    }
+
+    @Test fun `round trips the pop-up blocker`() {
+        val s = Settings(blockPopups = false)
+        assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
+    }
+
+    @Test fun `the pop-up blocker is on when the field is absent`() {
+        assertTrue(SettingsJson.fromJson("{\"autoOpenPlayer\":true}").blockPopups)
     }
 
     @Test fun `missing fields fall back to defaults`() {

@@ -10,6 +10,7 @@ object SettingsJson {
         JSONObject()
             .put("autoOpenPlayer", settings.autoOpenPlayer)
             .put("cursorSpeed", settings.cursorSpeed.name)
+            .put("blockPopups", settings.blockPopups)
             .put("seeded", settings.seeded)
             .put("navHintShown", settings.navHintShown)
             .toString()
@@ -22,6 +23,7 @@ object SettingsJson {
             Settings(
                 autoOpenPlayer = o.optBoolean("autoOpenPlayer", defaults.autoOpenPlayer),
                 cursorSpeed = enumOrDefault(o.optString("cursorSpeed"), defaults.cursorSpeed),
+                blockPopups = o.optBoolean("blockPopups", defaults.blockPopups),
                 seeded = o.optBoolean("seeded", defaults.seeded),
                 navHintShown = o.optBoolean("navHintShown", defaults.navHintShown)
             )
