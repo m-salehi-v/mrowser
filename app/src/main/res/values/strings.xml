@@ -42,4 +42,5 @@
     <string name="cursor_fast">Fast</string>
     <string name="popup_blocked">Pop-up blocked</string>
     <string name="block_popups_title">Block pop-ups</string>
+    <string name="no_app_for_link">No app on this device can open that link</string>
 </resources>
