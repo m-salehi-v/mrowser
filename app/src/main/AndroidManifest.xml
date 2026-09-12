@@ -16,11 +16,24 @@
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden"
-            android:screenOrientation="landscape">
+            android:screenOrientation="landscape"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                <!-- Lists mrowser under the system's "browser" app category. -->
+                <category android:name="android.intent.category.APP_BROWSER" />
+            </intent-filter>
+            <!-- Registers mrowser as a browser: any web link from another app offers it in the
+                 chooser. No host filter (it handles every site) and no autoVerify (these are
+                 not app links — the user picks). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
             </intent-filter>
         </activity>
         <activity

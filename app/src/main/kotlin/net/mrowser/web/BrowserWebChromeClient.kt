@@ -1,6 +1,7 @@
 package net.mrowser.web
 
 import android.app.Activity
+import android.net.Uri
 import android.os.Message
 import android.view.View
 import android.view.ViewGroup
@@ -22,7 +23,9 @@ class BrowserWebChromeClient(
     private val onExit: () -> Unit,
     private val onTitle: (url: String, title: String) -> Unit = { _, _ -> },
     private val onPopupBlocked: () -> Unit = {},
-    private val blockPopups: () -> Boolean = { true }
+    private val blockPopups: () -> Boolean = { true },
+    /** Hand a non-web URL a pop-up aimed at to the system; see [ExternalSchemePolicy]. */
+    private val launchExternal: (String) -> Unit = {}
 ) : WebChromeClient() {
 
     private var customView: View? = null
@@ -78,7 +81,7 @@ class BrowserWebChromeClient(
                 adopt(view, url)
 
             private fun adopt(relayView: WebView?, url: String?): Boolean {
-                if (url != null) host.loadUrl(url)
+                if (url != null) loadOrLaunch(host, url)
                 // Destroying from inside the relay's own callback is not safe; post it.
                 relayView?.post { relayView.destroy() }
                 return true
@@ -87,6 +90,18 @@ class BrowserWebChromeClient(
         transport.webView = relay
         resultMsg.sendToTarget()
         return true
+    }
+
+    /**
+     * A pop-up can aim at an app link (`obtainium://`, `market://`) as easily as a page.
+     * `loadUrl` would dead-end those on the WebView's unknown-scheme error page, so send them
+     * the same way a clicked link goes. Only user-opened windows reach here, so the gesture is
+     * a given.
+     */
+    private fun loadOrLaunch(host: WebView, url: String) {
+        val decision = ExternalSchemePolicy.decide(Uri.parse(url).scheme, isUserGesture = true)
+        if (decision == ExternalSchemePolicy.Decision.LetWebViewLoad) host.loadUrl(url)
+        else launchExternal(url)
     }
 
     override fun onShowCustomView(view: View, cb: CustomViewCallback) {
