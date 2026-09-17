@@ -33,22 +33,18 @@ object CursorGeometry {
     fun isAtBottomEdge(y: Float, height: Int, zonePx: Float): Boolean = y >= height - zonePx
 
     /**
-     * Vertical page-scroll delta for one frame, or 0 when the page must not move.
-     * [canScrollUp] / [canScrollDown] are the clamp: the cursor pins to y=0, which
-     * keeps it inside the top edge zone forever, so without the gate the caller
-     * scrolls the page up without bound and blank space opens above it.
+     * Wheel ticks to send at the cursor for one frame, or 0 when nothing should
+     * scroll. Positive scrolls up, matching `MotionEvent.AXIS_VSCROLL`.
+     *
+     * Unlike the `scrollBy` this replaced there is no "can the page still scroll"
+     * gate: the wheel is aimed at the cursor, and what sits under it may be a fixed
+     * overlay or a cross-origin iframe the document knows nothing about (#31).
+     * Chromium clamps each scroller at its own end, so the cursor pinned against a
+     * screen edge simply keeps asking, and nothing overshoots.
      */
-    fun scrollStep(
-        dirY: Int,
-        y: Float,
-        height: Int,
-        zonePx: Float,
-        stepPx: Int,
-        canScrollUp: Boolean,
-        canScrollDown: Boolean
-    ): Int = when {
-        dirY < 0 && canScrollUp && isAtTopEdge(y, zonePx) -> -stepPx
-        dirY > 0 && canScrollDown && isAtBottomEdge(y, height, zonePx) -> stepPx
-        else -> 0
+    fun wheelStep(dirY: Int, y: Float, height: Int, zonePx: Float, ticksPerFrame: Float): Float = when {
+        dirY < 0 && isAtTopEdge(y, zonePx) -> ticksPerFrame
+        dirY > 0 && isAtBottomEdge(y, height, zonePx) -> -ticksPerFrame
+        else -> 0f
     }
 }
