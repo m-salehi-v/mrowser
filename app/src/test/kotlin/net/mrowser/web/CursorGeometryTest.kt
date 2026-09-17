@@ -45,29 +45,38 @@ class CursorGeometryTest {
         assertFalse(CursorGeometry.isAtBottomEdge(900f, 1000, 48f))
     }
 
-    @Test fun `no scroll up when the page is already at the top`() {
-        assertEquals(0, CursorGeometry.scrollStep(-1, 0f, 1000, 48f, 24, canScrollUp = false, canScrollDown = true))
+    @Test fun `wheels up at the top edge`() {
+        assertEquals(0.2f, CursorGeometry.wheelStep(-1, 10f, 1000, 48f, 0.2f), 0.0001f)
     }
 
-    @Test fun `scrolls up at the top edge while the page can still scroll`() {
-        assertEquals(-24, CursorGeometry.scrollStep(-1, 10f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    @Test fun `wheels down at the bottom edge`() {
+        assertEquals(-0.2f, CursorGeometry.wheelStep(1, 990f, 1000, 48f, 0.2f), 0.0001f)
     }
 
-    @Test fun `no scroll down when the page is already at the bottom`() {
-        assertEquals(0, CursorGeometry.scrollStep(1, 1000f, 1000, 48f, 24, canScrollUp = true, canScrollDown = false))
+    @Test fun `no wheel away from either edge`() {
+        assertEquals(0f, CursorGeometry.wheelStep(-1, 500f, 1000, 48f, 0.2f), 0.0001f)
+        assertEquals(0f, CursorGeometry.wheelStep(1, 500f, 1000, 48f, 0.2f), 0.0001f)
     }
 
-    @Test fun `scrolls down at the bottom edge while the page can still scroll`() {
-        assertEquals(24, CursorGeometry.scrollStep(1, 990f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    @Test fun `no wheel when moving away from the edge the cursor sits in`() {
+        assertEquals(0f, CursorGeometry.wheelStep(1, 10f, 1000, 48f, 0.2f), 0.0001f)
+        assertEquals(0f, CursorGeometry.wheelStep(-1, 990f, 1000, 48f, 0.2f), 0.0001f)
     }
 
-    @Test fun `no scroll away from either edge`() {
-        assertEquals(0, CursorGeometry.scrollStep(-1, 500f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
-        assertEquals(0, CursorGeometry.scrollStep(1, 500f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    @Test fun `no wheel for horizontal or idle movement`() {
+        assertEquals(0f, CursorGeometry.wheelStep(0, 0f, 1000, 48f, 0.2f), 0.0001f)
+        assertEquals(0f, CursorGeometry.wheelStep(0, 1000f, 1000, 48f, 0.2f), 0.0001f)
     }
 
-    @Test fun `no scroll for horizontal or idle movement`() {
-        assertEquals(0, CursorGeometry.scrollStep(0, 0f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    /**
+     * The page's own limits are Chromium's business now: a wheel is clamped by
+     * whatever it lands on, so unlike scrollBy there is no canScroll gate here and
+     * no overshoot to pin. Pinning to the cursor is the point — the scroller under
+     * it may be a fixed overlay the document knows nothing about (#31).
+     */
+    @Test fun `the cursor pinned at an edge keeps wheeling`() {
+        assertEquals(0.2f, CursorGeometry.wheelStep(-1, 0f, 1000, 48f, 0.2f), 0.0001f)
+        assertEquals(-0.2f, CursorGeometry.wheelStep(1, 1000f, 1000, 48f, 0.2f), 0.0001f)
     }
 
     @Test fun `multiplier scales the base speed`() {

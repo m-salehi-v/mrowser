@@ -3,6 +3,7 @@ package net.mrowser.web
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.InputDevice
 import android.view.MotionEvent
 import android.webkit.WebView
 
@@ -41,17 +42,10 @@ class CursorController(
                 CursorGeometry.Point(x, y), dirX, dirY, speed, webView.width, webView.height
             )
             x = p.x; y = p.y
-            val scroll = CursorGeometry.scrollStep(
-                dirY, y, webView.height, edgeZonePx, SCROLL_STEP_PX,
-                canScrollUp = webView.canScrollVertically(-1),
-                canScrollDown = webView.canScrollVertically(1)
+            val ticks = CursorGeometry.wheelStep(
+                dirY, y, webView.height, edgeZonePx, WHEEL_TICKS_PER_FRAME
             )
-            if (scroll != 0) {
-                webView.scrollBy(0, scroll)
-                // The boolean gate can't stop the final step overshooting the top by
-                // up to SCROLL_STEP_PX; pin it so no blank strip opens above the page.
-                if (webView.scrollY < 0) webView.scrollTo(0, 0)
-            }
+            if (ticks != 0f) wheel(ticks)
             invalidate()
             handler.postDelayed(this, FRAME_MS)
         }
@@ -84,6 +78,37 @@ class CursorController(
         invalidate()
     }
 
+    /**
+     * A mouse wheel at the cursor: positive [ticks] scroll up, negative down.
+     *
+     * The page, not the WebView, decides what moves. `scrollBy` only ever scrolled
+     * the document, so a cookie dialog with its own scroller — fixed, and often in a
+     * cross-origin iframe — could not be reached at all (#31). A wheel is hit-tested
+     * at the pointer and walks the scroll chain outwards from whatever is under it,
+     * exactly as a desktop mouse does, and Chromium clamps it at each end for us.
+     */
+    private fun wheel(ticks: Float) {
+        val t = SystemClock.uptimeMillis()
+        // The cursor only hovers on tap, so tell Chromium where the pointer is first:
+        // the wheel is hit-tested at that position.
+        dispatch(MotionEvent.ACTION_HOVER_MOVE, t, t)
+        val props = arrayOf(MotionEvent.PointerProperties().apply {
+            id = 0
+            toolType = MotionEvent.TOOL_TYPE_MOUSE
+        })
+        val coords = arrayOf(MotionEvent.PointerCoords().apply {
+            this.x = this@CursorController.x
+            this.y = this@CursorController.y
+            setAxisValue(MotionEvent.AXIS_VSCROLL, ticks)
+        })
+        val e = MotionEvent.obtain(
+            t, t, MotionEvent.ACTION_SCROLL, 1, props, coords,
+            0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0
+        )
+        webView.dispatchGenericMotionEvent(e)
+        e.recycle()
+    }
+
     private fun dispatch(action: Int, down: Long, event: Long) {
         val e = MotionEvent.obtain(down, event, action, x, y, 0)
         if (action == MotionEvent.ACTION_HOVER_MOVE) webView.dispatchGenericMotionEvent(e)
@@ -93,6 +118,14 @@ class CursorController(
 
     companion object {
         const val FRAME_MS = 16L
+
+        /** What the page scrolled per frame back when this moved the document itself. */
         const val SCROLL_STEP_PX = 24
+
+        /** One wheel tick is 128 CSS px in this WebView (measured on the TV box). */
+        const val WHEEL_TICK_PX = 128f
+
+        /** Fractional ticks are honoured, so the old per-frame distance is kept. */
+        const val WHEEL_TICKS_PER_FRAME = SCROLL_STEP_PX / WHEEL_TICK_PX
     }
 }
