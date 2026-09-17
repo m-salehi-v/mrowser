@@ -28,6 +28,7 @@ import net.mrowser.handoff.HandoffController
 import net.mrowser.home.FavoriteDialog
 import net.mrowser.home.HistoryView
 import net.mrowser.home.HomeView
+import net.mrowser.home.OverlayFocus
 import net.mrowser.home.SettingsView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
@@ -338,19 +339,43 @@ class MainActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // Recovery: if focus was lost (intermittent on the overlays), D-pad keys have
-        // no anchor for focus search and the user is stuck. Re-seat focus into
-        // whatever's on screen and swallow this one press.
-        if (currentFocus == null && event.action == KeyEvent.ACTION_DOWN) {
-            val recovered = when {
-                settingsView.visibility == View.VISIBLE -> settingsView.restoreFocus()
-                historyView.visibility == View.VISIBLE -> historyView.restoreFocus()
-                homeView.visibility == View.VISIBLE -> homeView.restoreFocus()
-                else -> layout.requestFocus()
+        // Recovery: focus can be lost outright (intermittent on the overlays), or land
+        // in the wrong subtree — destroying the focused view sends the window's fallback
+        // to the root's first focusable, CursorLayout, which sits *behind* a visible
+        // overlay and turns the D-pad into the hidden cursor. Either way the user is
+        // stuck, so re-seat focus where it belongs and swallow this one press.
+        if (event.action == KeyEvent.ACTION_DOWN) {
+            val target = OverlayFocus.recoveryTarget(
+                settingsVisible = settingsView.visibility == View.VISIBLE,
+                historyVisible = historyView.visibility == View.VISIBLE,
+                homeVisible = homeView.visibility == View.VISIBLE,
+                focus = focusZone()
+            )
+            val recovered = when (target) {
+                OverlayFocus.Zone.SETTINGS -> settingsView.restoreFocus()
+                OverlayFocus.Zone.HISTORY -> historyView.restoreFocus()
+                OverlayFocus.Zone.HOME -> homeView.restoreFocus()
+                OverlayFocus.Zone.PAGE -> layout.requestFocus()
+                else -> false
             }
             if (recovered) return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    /** Which of the four subtrees currently holds D-pad focus, for [OverlayFocus]. */
+    private fun focusZone(): OverlayFocus.Zone {
+        var v: View? = currentFocus
+        while (v != null) {
+            when (v) {
+                settingsView -> return OverlayFocus.Zone.SETTINGS
+                historyView -> return OverlayFocus.Zone.HISTORY
+                homeView -> return OverlayFocus.Zone.HOME
+                layout -> return OverlayFocus.Zone.PAGE
+            }
+            v = v.parent as? View
+        }
+        return OverlayFocus.Zone.NONE
     }
 
     @Suppress("DEPRECATION")

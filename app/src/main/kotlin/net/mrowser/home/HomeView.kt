@@ -144,10 +144,17 @@ class HomeView @JvmOverloads constructor(
     }
 
     fun refresh() {
+        // Rebuilding destroys the focused card — an edit or delete from its long-press
+        // dialog lands here — and the window's fallback then hands focus to the page
+        // behind this overlay, where the D-pad drives the hidden cursor (#32). Only
+        // when focus was ours to begin with: a refresh from the chrome bar's star
+        // button runs while this overlay is hidden and must not steal it.
+        val hadFocus = findFocus() != null
         val items = repository?.findAll().orEmpty()
         grid.removeAllViews()
         emptyHint.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
         items.forEach { grid.addView(card(it)) }
+        if (hadFocus && findFocus() == null) restoreFocus()
     }
 
     private fun card(fav: Favorite): View {
