@@ -17,6 +17,10 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          # The action's default is "tools platform-tools"; the obsolete `tools`
+          # package is gone from the SDK repository and now fails the whole step.
+          packages: platform-tools
       - name: Install SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Unit tests
@@ -40,6 +44,10 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4
+        with:
+          # The action's default is "tools platform-tools"; the obsolete `tools`
+          # package is gone from the SDK repository and now fails the whole step.
+          packages: platform-tools
       - name: Install SDK packages
         run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Restore keystore from secrets
