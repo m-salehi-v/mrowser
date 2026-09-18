@@ -44,6 +44,8 @@ import net.mrowser.web.CursorController
 import net.mrowser.web.CursorLayout
 import net.mrowser.web.ExternalIntentLauncher
 import net.mrowser.web.IncomingUrl
+import net.mrowser.web.RegistrableDomain
+import net.mrowser.web.UrlHost
 import net.mrowser.web.UrlNormalizer
 
 class MainActivity : Activity() {
@@ -57,6 +59,7 @@ class MainActivity : Activity() {
     private lateinit var adBlocker: AdBlocker
     private lateinit var playChip: TextView
     private lateinit var favoriteButton: ImageButton
+    private lateinit var adBlockButton: TextView
     private lateinit var homeView: HomeView
     private lateinit var favorites: JsonFavoritesStore
     private lateinit var history: JsonHistoryStore
@@ -91,6 +94,7 @@ class MainActivity : Activity() {
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
         favoriteButton = findViewById(R.id.favoriteButton)
+        adBlockButton = findViewById(R.id.adBlockButton)
         val homeButton = findViewById<ImageButton>(R.id.homeButton)
         val historyButton = findViewById<ImageButton>(R.id.historyButton)
 
@@ -103,7 +107,7 @@ class MainActivity : Activity() {
             blockAds = { settings.get().blockAds },
             blockPopups = { settings.get().blockPopups },
             allowedSites = { settings.get().adsAllowedOn },
-            onCountChanged = { }
+            onCountChanged = { n -> adBlockButton.text = if (n == 0) "" else n.toString() }
         )
         adBlocker.load { resources.openRawResource(R.raw.blocklist) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -233,6 +237,10 @@ class MainActivity : Activity() {
             toggleCurrentFavorite()
             chrome.onInteracted()
         }
+        adBlockButton.setOnClickListener {
+            toggleAdsForSite()
+            chrome.onInteracted()
+        }
         urlInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) {
                 UrlNormalizer.normalize(urlInput.text.toString())?.let { openUrl(it) }
@@ -317,6 +325,7 @@ class MainActivity : Activity() {
     private fun updateUrlText(url: String) {
         urlInput.setText(url)
         updateFavoriteIcon()
+        updateShieldIcon()
     }
 
     private fun showChip() {
@@ -347,6 +356,30 @@ class MainActivity : Activity() {
         val saved = webView.url?.let { isFavorite(it) } ?: false
         val color = getColor(if (saved) R.color.accent else R.color.on_surface)
         favoriteButton.imageTintList = ColorStateList.valueOf(color)
+    }
+
+    /** Shield button: allow ads on the current site if blocked, block them if allowed. Reloads. */
+    private fun toggleAdsForSite() {
+        val host = webView.url?.let { UrlHost.of(it) } ?: return
+        val site = RegistrableDomain.of(host)
+        val s = settings.get()
+        val wasAllowed = site in s.adsAllowedOn
+        settings.update(s.copy(adsAllowedOn = if (wasAllowed) s.adsAllowedOn - site else s.adsAllowedOn + site))
+        Toast.makeText(
+            this,
+            if (wasAllowed) R.string.ads_blocked_here else R.string.ads_allowed_here,
+            Toast.LENGTH_SHORT
+        ).show()
+        updateShieldIcon()
+        webView.reload()
+    }
+
+    /** Tint the shield accent (red) when ads are allowed on the current site, white otherwise. */
+    private fun updateShieldIcon() {
+        val allowed = adBlocker.isAllowlisted(webView.url?.let { UrlHost.of(it) })
+        val color = getColor(if (allowed) R.color.accent else R.color.on_surface)
+        adBlockButton.compoundDrawableTintList = ColorStateList.valueOf(color)
+        adBlockButton.setTextColor(color)
     }
 
     override fun onPause() {
