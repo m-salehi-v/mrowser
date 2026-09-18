@@ -222,6 +222,9 @@ As you browse, mrowser inspects the page's network requests and recognizes HLS m
 **Does the ad blocker block everything?**
 No. It blocks by **host**: requests to ~90k known ad and pop-under domains are dropped, and being sent to one of them by a click-hijack is refused. It does not hide empty ad slots (no cosmetic filtering) and cannot block ads served from the same host as the content, as YouTube does. The page's own video stream is never touched. Turn it off per site with the shield in the chrome bar, or globally in Settings.
 
+**Why do online ad-blocker tests score mrowser badly?**
+Because they infer "blocked" from a request *failing*. mrowser answers a blocked request with an empty stand-in (a 1×1 GIF, an empty script) and HTTP 200, so the page sees a successful load rather than an error — that is deliberate, since an outright failure fires a page's `onerror` handlers and breaks iframe layouts. The same property keeps anti-adblock detectors quiet. The blocked counter on the shield is the real measure of what was stopped.
+
 **My subtitles are out of sync — can I fix that?**
 Yes. mrowser renders side-loaded subtitles itself, so the **sub-sync box** in the player lets you nudge subtitle timing by ±0.5s per press (up to ±30s), applied **instantly without rebuffering** — true **ExoPlayer subtitle sync** that the underlying player can't do on its own.
 
