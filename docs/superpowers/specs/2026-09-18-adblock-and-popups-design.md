@@ -101,12 +101,16 @@ res/raw/blocklist.txt ──(bg thread, onCreate)──▶ BlockList (@Volatile 
   that OISD small missed). Measured 2026-09-18: union 92,643 domains, 729 KB gzipped, no
   video-CDN apex present.
 
-### Pure engine (`adblock/`, no Android imports, unit-tested)
+### Pure engine (no Android imports, unit-tested)
 
-- **`UrlHost`** — `of(url: String): String?`: lowercase host from an absolute URL string
-  (strip scheme, userinfo, port, path/query). Lifted from the private `hostOf` in
+`UrlHost` and `RegistrableDomain` live in `web/` next to `UrlNormalizer` (so `stream/` can use
+`UrlHost` without depending on `adblock/`, which itself depends on `stream/`); the rest is in
+`adblock/`.
+
+- **`UrlHost`** (`web/`) — `of(url: String): String?`: lowercase host from an absolute URL
+  string (strip scheme, userinfo, port, path/query). Lifted from the private `hostOf` in
   `MediaUrlClassifier`, which then delegates to it.
-- **`RegistrableDomain`** — `of(host: String): String`: last two labels, or last three when
+- **`RegistrableDomain`** (`web/`) — `of(host: String): String`: last two labels, or last three when
   the last two are in a small built-in set of two-label public suffixes (`co.uk`, `org.uk`,
   `com.au`, `co.jp`, `com.br`, `co.in`, `co.za`, `com.mx`, `com.tr`, `co.kr`, … ~30).
   IP literals and single-label hosts return themselves. No full public suffix list.
@@ -152,10 +156,13 @@ res/raw/blocklist.txt ──(bg thread, onCreate)──▶ BlockList (@Volatile 
   `EMPTY`. Each kind carries `mimeType` and `body: ByteArray` (1×1 transparent GIF, empty
   document, empty script, empty text). Typed stand-ins avoid `onerror` cascades from images
   and broken iframe layouts (Fulguris lesson).
-- **`PopupPolicy`** — simplified to `decide(blockingEnabled): AllowNewWindow |
-  OpenInCurrentWindow`. The gestureless `Block` branch is removed with a doc comment citing
-  `AwContentBrowserClient::CanCreateWindow` for why it was unreachable. The `isUserGesture`
-  parameter is dropped; `onCreateWindow` ignores the flag.
+- **`PopupPolicy`** — **deleted** (with its test). Its gestureless `Block` branch was
+  unreachable (`AwContentBrowserClient::CanCreateWindow`), and its `AllowNewWindow` branch
+  called `super.onCreateWindow`, which returns `false` and silently dropped every window — the
+  opposite of what "Block pop-ups: Off" promised. `onCreateWindow` now always relays, ignores
+  `isUserGesture`, and the **Block pop-ups** setting gates only the list check on the relayed
+  destination: On refuses a listed host, Off opens whatever was clicked. The doc comment on
+  `onCreateWindow` records the Chromium reasoning.
 
 ### Android glue
 
@@ -175,8 +182,9 @@ res/raw/blocklist.txt ──(bg thread, onCreate)──▶ BlockList (@Volatile 
     runs `AdBlockPolicy.decide`; on BLOCK increments the counter and returns a
     `WebResourceResponse(kind.mimeType, "utf-8", 200, "OK", mapOf("Cache-Control" to
     "no-store"), ByteArrayInputStream(kind.body))`. Otherwise `null`.
-  - `isBlockedNavigation(url: String): Boolean` — `NavigationPolicy.decide`; on BLOCK
-    increments the counter.
+  - `isBlockedNavigation(url: String): Boolean` (gated by `blockAds`) and
+    `isBlockedPopup(url: String): Boolean` (gated by `blockPopups`) — both run
+    `NavigationPolicy.decide` and increment the counter on BLOCK.
   - `isAllowlisted(host: String?)` — `RegistrableDomain.of(host) in allowedSites()`.
 - **`SniffingWebViewClient`** gains `adBlocker: AdBlocker`.
   - `onPageStarted`: `adBlocker.resetForPage()`, `adBlocker.pageHost = UrlHost.of(url)`
@@ -189,10 +197,11 @@ res/raw/blocklist.txt ──(bg thread, onCreate)──▶ BlockList (@Volatile 
     `if (adBlocker.isBlockedNavigation(url)) { onNavigationBlocked(); return true }`. The
     pre-24 overload has no frame flag and treats the navigation as main-frame.
   - New callback `onNavigationBlocked: () -> Unit` (toast "Pop-up blocked").
-- **`BrowserWebChromeClient`** gains `isBlockedNavigation: (String) -> Boolean`. In the
-  relay's `adopt`: `if (url != null) { if (isBlockedNavigation(url)) onPopupBlocked() else
-  loadOrLaunch(host, url) }`; the relay is destroyed either way. `onCreateWindow` no longer
-  reads `isUserGesture`.
+- **`BrowserWebChromeClient`** gains `isBlockedPopup: (String) -> Boolean` (bound to
+  `AdBlocker.isBlockedPopup`, gated by **Block pop-ups**). In the relay's `adopt`: `if (url !=
+  null) { if (isBlockedPopup(url)) onPopupBlocked() else loadOrLaunch(host, url) }`; the relay
+  is destroyed either way. `onCreateWindow` always relays and no longer reads `isUserGesture`;
+  the `blockPopups` constructor parameter goes.
 - **Service workers** — `MainActivity.onCreate`, guarded by `Build.VERSION.SDK_INT >= 24`:
   `ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient()
   { override fun shouldInterceptRequest(request) = adBlocker.interceptServiceWorker(request) })`
@@ -258,7 +267,7 @@ free sideload-only app.
 
 ## Testing
 
-Pure, under `app/src/test/kotlin/net/mrowser/adblock/`:
+Pure, under `app/src/test/kotlin/net/mrowser/adblock/` (`web/` for the two helpers):
 - `UrlHostTest` — scheme/userinfo/port/path stripping, IPv6 literal, relative/blank → null.
 - `RegistrableDomainTest` — `www.example.com` → `example.com`; `a.b.example.co.uk` →
   `example.co.uk`; IP and single label unchanged.
@@ -280,7 +289,7 @@ Pure, under `app/src/test/kotlin/net/mrowser/adblock/`:
   `cloudfront.net`, `akamaized.net`, `akamaihd.net`, `fastly.net`, `cdn77.org`, `b-cdn.net`,
   `jwpcdn.com`, `cloudflarestream.com`, `vimeocdn.com`, `youtube.com`, `googlevideo.com`,
   `google.com`, `github.com`.
-- Updated: `PopupPolicyTest` (new signature), `SettingsJsonTest` (round-trip of the two new
+- Deleted: `PopupPolicyTest`. Updated: `SettingsJsonTest` (round-trip of the two new
   fields, malformed array element skipped, missing → defaults), `MediaUrlClassifierTest`
   unchanged behaviour after `hostOf` delegates to `UrlHost`.
 
