@@ -7,6 +7,12 @@ import java.util.concurrent.Executors
 /** SettingsRepository backed by a JSON file; pure logic delegated to SettingsJson. */
 class JsonSettingsStore(private val file: File) : SettingsRepository {
 
+    // Volatile: AdBlocker's settings-provider lambdas call get() from WebView worker threads on
+    // every intercepted request, while the UI thread writes via update() (SettingsView,
+    // toggleAdsForSite). The Settings record itself is an immutable snapshot, but the *reference*
+    // still needs a JMM guarantee to be visible across threads, or a toggle could go unseen
+    // until relaunch.
+    @Volatile
     private var current: Settings =
         if (file.exists()) SettingsJson.fromJson(file.readText()) else Settings()
 

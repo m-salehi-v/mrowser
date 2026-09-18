@@ -2,6 +2,8 @@ package net.mrowser.web
 
 import android.app.Activity
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.Message
 import android.view.View
 import android.view.ViewGroup
@@ -32,6 +34,7 @@ class BrowserWebChromeClient(
 
     private var customView: View? = null
     private var callback: CustomViewCallback? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     val isFullscreen: Boolean get() = customView != null
 
@@ -69,6 +72,20 @@ class BrowserWebChromeClient(
     private fun openInCurrentWindow(host: WebView, resultMsg: Message?): Boolean {
         val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
         val relay = WebView(host.context)
+        var relayDestroyed = false
+        fun destroyRelayOnce() {
+            if (relayDestroyed) return
+            relayDestroyed = true
+            relay.destroy()
+        }
+        // window.open() with no argument, followed later by document.write() into the handle, is
+        // a standard pop-under idiom: it never navigates, so `adopt` below — the only other place
+        // this relay is destroyed — never runs, and the relay leaks (one per attempt, on the
+        // pop-under-heavy sites this feature targets). This timeout is the backstop; `adopt`
+        // cancels it the moment a real navigation arrives, so a relay that does navigate is still
+        // destroyed exactly once, promptly, via the existing post().
+        val timeoutDestroy = Runnable { destroyRelayOnce() }
+        mainHandler.postDelayed(timeoutDestroy, RELAY_ADOPT_TIMEOUT_MS)
         relay.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean =
                 adopt(view, request?.url?.toString())
@@ -79,11 +96,12 @@ class BrowserWebChromeClient(
                 adopt(view, url)
 
             private fun adopt(relayView: WebView?, url: String?): Boolean {
+                mainHandler.removeCallbacks(timeoutDestroy)
                 if (url != null) {
                     if (isBlockedPopup(url)) onPopupBlocked() else loadOrLaunch(host, url)
                 }
                 // Destroying from inside the relay's own callback is not safe; post it.
-                relayView?.post { relayView.destroy() }
+                relayView?.post { destroyRelayOnce() }
                 return true
             }
         }
@@ -134,5 +152,11 @@ class BrowserWebChromeClient(
         if (customView == null) return false
         onHideCustomView()
         return true
+    }
+
+    private companion object {
+        /** Generous headroom past any legitimate delay before a relay with no navigation yet is
+         *  assumed to be a leaked pop-under handle rather than just a slow one. */
+        const val RELAY_ADOPT_TIMEOUT_MS = 5_000L
     }
 }

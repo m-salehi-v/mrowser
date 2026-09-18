@@ -110,13 +110,12 @@ class MainActivity : Activity() {
             onCountChanged = { n -> adBlockButton.text = if (n == 0) "" else n.toString() }
         )
         adBlocker.load { resources.openRawResource(R.raw.blocklist) }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // Service-worker fetches bypass WebViewClient.shouldInterceptRequest entirely.
-            ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
-                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
-                    adBlocker.interceptServiceWorker(request)
-            })
-        }
+        // Extracted to its own method (rather than inlined here) so ART on API 23 (minSdk) does
+        // not have to resolve ServiceWorkerController/ServiceWorkerClient while verifying
+        // onCreate itself — those classes don't exist below API 24, and a method ART can't fully
+        // resolve gets verified interpreted-with-checks instead of fast, which would otherwise
+        // apply to the whole of onCreate.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) registerServiceWorkerAdBlock()
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
@@ -151,7 +150,7 @@ class MainActivity : Activity() {
                 }
             },
             onExternalScheme = { url -> externalLinks.launch(url) },
-            onNavigationBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() }
+            onNavigationBlocked = { Toast.makeText(this, R.string.navigation_blocked, Toast.LENGTH_SHORT).show() }
         )
         chromeClient = BrowserWebChromeClient(
             activity = this,
@@ -393,6 +392,30 @@ class MainActivity : Activity() {
         if (::sniffer.isInitialized && sniffer.hasStream() &&
             homeView.visibility != View.VISIBLE && historyView.visibility != View.VISIBLE &&
             settingsView.visibility != View.VISIBLE) showChip()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // ServiceWorkerController is process-scoped, not Activity-scoped: its client keeps this
+        // Activity reachable (client -> adBlocker -> onCountChanged -> adBlockButton -> this)
+        // after finish(), along with the WebView and the ~740 KB BlockList. Clearing it here
+        // also stops a recreated Activity's service-worker fetches from being filtered by this
+        // now-stale AdBlocker (stale pageHost, stale settings cache).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) unregisterServiceWorkerAdBlock()
+    }
+
+    /** Service-worker fetches bypass WebViewClient.shouldInterceptRequest entirely, so they need
+     *  their own intercept hook. Kept out of onCreate — see the call site there. */
+    private fun registerServiceWorkerAdBlock() {
+        ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
+            override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
+                adBlocker.interceptServiceWorker(request)
+        })
+    }
+
+    /** Counterpart to [registerServiceWorkerAdBlock]; see [onDestroy]. */
+    private fun unregisterServiceWorkerAdBlock() {
+        ServiceWorkerController.getInstance().setServiceWorkerClient(null)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

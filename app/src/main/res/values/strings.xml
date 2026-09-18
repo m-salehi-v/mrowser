@@ -41,6 +41,7 @@
     <string name="cursor_normal">Normal</string>
     <string name="cursor_fast">Fast</string>
     <string name="popup_blocked">Pop-up blocked</string>
+    <string name="navigation_blocked">Ad page blocked</string>
     <string name="block_popups_title">Block pop-ups</string>
     <string name="no_app_for_link">No app on this device can open that link</string>
     <string name="block_ads_title">Block ads</string>

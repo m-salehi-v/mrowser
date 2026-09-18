@@ -31,11 +31,10 @@ class AdBlocker(
 
     /** Host of the page being shown; set from the main-frame request and onPageStarted. */
     @Volatile var pageHost: String? = null
+        private set
 
     private val count = AtomicInteger(0)
     private val ui = Handler(Looper.getMainLooper())
-
-    val blockedCount: Int get() = count.get()
 
     /** Reads and hashes the list on a background thread; a failure leaves [BlockList.EMPTY]. */
     fun load(source: () -> InputStream) {
