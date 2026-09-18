@@ -7,9 +7,10 @@ package net.mrowser.web
  * `intent://`, `market://`, `mailto:`, `tel:` — is an app's, and left alone it dead-ends on
  * `net::ERR_UNKNOWN_URL_SCHEME`. Turning those into an `Intent` is the app's job.
  *
- * The gesture check mirrors [PopupPolicy]: handing another app a link is something the user
- * asked for by clicking. A page that fires one by itself is not asking on the user's behalf,
- * and gets nothing — quietly, since an error page for a link nobody clicked is just noise.
+ * The gesture check mirrors the one for pop-ups (see [net.mrowser.web.BrowserWebChromeClient.onCreateWindow]):
+ * handing another app a link is something the user asked for by clicking. A page that fires one
+ * by itself is not asking on the user's behalf, and gets nothing — quietly, since an error page
+ * for a link nobody clicked is just noise.
  */
 object ExternalSchemePolicy {
 

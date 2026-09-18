@@ -13,8 +13,9 @@ import android.webkit.WebViewClient
 
 /**
  * Handles HTML5 fullscreen video — swaps the player to a fullscreen view over everything, hides
- * chrome + cursor, keeps the screen on, and restores on exit — and decides what happens when a
- * page asks for a new window (see [onCreateWindow]).
+ * chrome + cursor, keeps the screen on, and restores on exit — and routes a page's request for a
+ * new window into the current one, refusing it when its destination is a listed ad host (see
+ * [onCreateWindow]).
  */
 class BrowserWebChromeClient(
     private val activity: Activity,
@@ -23,7 +24,8 @@ class BrowserWebChromeClient(
     private val onExit: () -> Unit,
     private val onTitle: (url: String, title: String) -> Unit = { _, _ -> },
     private val onPopupBlocked: () -> Unit = {},
-    private val blockPopups: () -> Boolean = { true },
+    /** True when a pop-up's destination is on the block list; see [AdBlocker.isBlockedPopup]. */
+    private val isBlockedPopup: (String) -> Boolean = { false },
     /** Hand a non-web URL a pop-up aimed at to the system; see [ExternalSchemePolicy]. */
     private val launchExternal: (String) -> Unit = {}
 ) : WebChromeClient() {
@@ -39,11 +41,15 @@ class BrowserWebChromeClient(
     }
 
     /**
-     * Decides what to do when a page asks for a new window; see [PopupPolicy].
+     * A page asked for a new window. mrowser has no tabs, so the only place it can go is the
+     * window the user is already looking at — a poster, a trailer or an external link opens
+     * there and BACK returns.
      *
-     * mrowser has no tabs, so a user-opened window is loaded in the window the user is already
-     * looking at — a poster, a trailer or an external link opens as expected and BACK returns.
-     * Only a window the page opened by itself is refused.
+     * The `isUserGesture` flag is ignored on purpose. With `javaScriptCanOpenWindowsAutomatically`
+     * false, Chromium refuses every gestureless open before this is called
+     * (`AwContentBrowserClient::CanCreateWindow`), so the flag is always true here; and a
+     * click-hijack script fires inside the user's click anyway. What can be judged is the
+     * destination, which is only known once the relay below starts loading it.
      */
     override fun onCreateWindow(
         view: WebView?,
@@ -52,15 +58,7 @@ class BrowserWebChromeClient(
         resultMsg: Message?
     ): Boolean {
         val host = view ?: return false
-        return when (PopupPolicy.decide(isUserGesture, blockPopups())) {
-            PopupPolicy.Decision.AllowNewWindow ->
-                super.onCreateWindow(view, isDialog, isUserGesture, resultMsg)
-            PopupPolicy.Decision.Block -> {
-                onPopupBlocked()
-                false
-            }
-            PopupPolicy.Decision.OpenInCurrentWindow -> openInCurrentWindow(host, resultMsg)
-        }
+        return openInCurrentWindow(host, resultMsg)
     }
 
     /**
@@ -81,7 +79,9 @@ class BrowserWebChromeClient(
                 adopt(view, url)
 
             private fun adopt(relayView: WebView?, url: String?): Boolean {
-                if (url != null) loadOrLaunch(host, url)
+                if (url != null) {
+                    if (isBlockedPopup(url)) onPopupBlocked() else loadOrLaunch(host, url)
+                }
                 // Destroying from inside the relay's own callback is not safe; post it.
                 relayView?.post { relayView.destroy() }
                 return true

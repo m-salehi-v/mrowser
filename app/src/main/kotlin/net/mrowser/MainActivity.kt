@@ -6,18 +6,24 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.webkit.ServiceWorkerClient
+import android.webkit.ServiceWorkerController
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import net.mrowser.adblock.AdBlocker
 import net.mrowser.data.DefaultFavorites
 import net.mrowser.data.Favorite
 import net.mrowser.data.HistoryEntry
@@ -48,6 +54,7 @@ class MainActivity : Activity() {
     private lateinit var chrome: ChromeController
     private lateinit var chromeClient: BrowserWebChromeClient
     private lateinit var sniffer: StreamSniffer
+    private lateinit var adBlocker: AdBlocker
     private lateinit var playChip: TextView
     private lateinit var favoriteButton: ImageButton
     private lateinit var homeView: HomeView
@@ -92,6 +99,21 @@ class MainActivity : Activity() {
         settings = JsonSettingsStore(File(filesDir, "settings.json"))
         seedDefaultFavorites()
 
+        adBlocker = AdBlocker(
+            blockAds = { settings.get().blockAds },
+            blockPopups = { settings.get().blockPopups },
+            allowedSites = { settings.get().adsAllowedOn },
+            onCountChanged = { }
+        )
+        adBlocker.load { resources.openRawResource(R.raw.blocklist) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            // Service-worker fetches bypass WebViewClient.shouldInterceptRequest entirely.
+            ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
+                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
+                    adBlocker.interceptServiceWorker(request)
+            })
+        }
+
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
             onStreamAvailable = {
@@ -112,6 +134,7 @@ class MainActivity : Activity() {
 
         webView.webViewClient = SniffingWebViewClient(
             sniffer,
+            adBlocker,
             onNavigate = { url -> updateUrlText(url) },
             onLoaded = { url ->
                 recordHistory(url, webView.title)
@@ -123,7 +146,8 @@ class MainActivity : Activity() {
                     webView.clearHistory()
                 }
             },
-            onExternalScheme = { url -> externalLinks.launch(url) }
+            onExternalScheme = { url -> externalLinks.launch(url) },
+            onNavigationBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() }
         )
         chromeClient = BrowserWebChromeClient(
             activity = this,
@@ -132,7 +156,7 @@ class MainActivity : Activity() {
             onExit = { layout.invalidate() },
             onTitle = { url, title -> recordHistory(url, title) },
             onPopupBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() },
-            blockPopups = { settings.get().blockPopups },
+            isBlockedPopup = { url -> adBlocker.isBlockedPopup(url) },
             launchExternal = { url -> externalLinks.launch(url) }
         )
         webView.webChromeClient = chromeClient
