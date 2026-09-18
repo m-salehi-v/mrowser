@@ -67,8 +67,9 @@ mrowser fixes all three:
 - **Smart subtitle labelling** — side-loaded tracks carry no language metadata, so mrowser infers a readable name (English, Persian, …) from the subtitle URL, else a generic `Subtitle N`.
 - **Home screen with favorites** — a favorites grid; add/remove the current page with the ★ button.
 - **Browsing history** — newest-first, deduplicated, with relative "Nm ago" labels; long-press to favorite.
-- **Pop-up handling** — a window the page opens by itself is blocked; one you click opens in the current window, so `target="_blank"` links still work and BACK returns you.
-- **Global settings** — auto-open-player, block-pop-ups, and cursor-speed, applied live with no restart.
+- **Ad blocking** — requests to ~90k known ad and pop-under hosts (OISD small + HaGeZi Pop-Up Ads, bundled and refreshed weekly) are answered with an empty stand-in, and a `window.open` or in-page redirect to one of them is refused while the page stays put. Per-site allow from the chrome bar, blocked counter, never touches the video stream itself.
+- **Pop-up handling** — a window the user opens loads in the current window (there are no tabs) unless its destination is a known ad host; `target="_blank"` links still work and BACK returns you.
+- **Global settings** — auto-open-player, block-pop-ups, block-ads, and cursor-speed, applied live with no restart.
 - **Fullscreen HTML5 video** support in the WebView for sites that need it.
 - **D-pad chrome bar** — address bar summoned with **MENU**, with URL normalization.
 - **Netflix-style dark UI**, brand red `#E50914`.
@@ -217,6 +218,9 @@ It works on sites that stream over **HLS** (`.m3u8`), which is most of the strea
 **What is the "HLS sniffer"?**
 As you browse, mrowser inspects the page's network requests and recognizes HLS manifests (`.m3u8`) and subtitle files (`.vtt`, `.srt`). When it sees a video stream it offers to hand it off to the native player.
 
+**Does the ad blocker block everything?**
+No. It blocks by **host**: requests to ~90k known ad and pop-under domains are dropped, and being sent to one of them by a click-hijack is refused. It does not hide empty ad slots (no cosmetic filtering) and cannot block ads served from the same host as the content, as YouTube does. The page's own video stream is never touched. Turn it off per site with the shield in the chrome bar, or globally in Settings.
+
 **My subtitles are out of sync — can I fix that?**
 Yes. mrowser renders side-loaded subtitles itself, so the **sub-sync box** in the player lets you nudge subtitle timing by ±0.5s per press (up to ±30s), applied **instantly without rebuffering** — true **ExoPlayer subtitle sync** that the underlying player can't do on its own.
 
@@ -259,7 +263,7 @@ Use mrowser **only to access content you are authorized to access**, and in comp
 
 ## License
 
-Released under the **MIT License** — see [LICENSE](LICENSE).
+Released under the **MIT License** — see [LICENSE](LICENSE). Bundled block lists are GPL-3.0; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ---
 
