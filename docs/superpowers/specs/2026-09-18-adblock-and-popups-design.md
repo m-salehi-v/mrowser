@@ -146,10 +146,27 @@ res/raw/blocklist.txt ──(bg thread, onCreate)──▶ BlockList (@Volatile 
 - **`NavigationPolicy`** — top-level navigation / pop-up destination decision:
 
   ```kotlin
-  fun decide(targetUrl: String, enabled: Boolean, allowlisted: Boolean, list: BlockList): Decision // LOAD | BLOCK
+  fun decide(
+      targetUrl: String, pageHost: String?, userInitiated: Boolean,
+      enabled: Boolean, allowlisted: Boolean, list: BlockList
+  ): Decision // LOAD | BLOCK
   ```
-  BLOCK iff `enabled && !allowlisted && scheme is http/https && list.contains(host)`.
-  First-party is **not** exempt: the user is being sent to a listed host, whoever sent them.
+  Evaluated in this order, first hit wins:
+  1. `!enabled || allowlisted || userInitiated` → LOAD
+  2. scheme is not http/https → LOAD
+  3. `UrlHost.of(targetUrl)` is null → LOAD
+  4. `pageHost != null && RegistrableDomain.of(host) == RegistrableDomain.of(pageHost)` → LOAD
+  5. `list.contains(host)` → BLOCK
+  6. else LOAD
+
+  Hardware testing found the original destination-only rule over-refused two real cases: a
+  listed host that redirects (apex→www, geo/landing — the user asked for it by name, but every
+  redirect hop is a fresh `shouldOverrideUrlLoading`) and ordinary same-site link clicks while
+  already on a listed page (every one is a main-frame navigation to a listed host). Both are
+  now exempt — `userInitiated` for the former, same-registrable-domain for the latter — but
+  neither exempts a *third-party* destination: a script-initiated navigation to a listed host
+  reached from somewhere else is still refused, whoever sent the user there. That is the
+  feature; see `AdBlocker` below for how `userInitiated` and `pageHost` are supplied.
 - **`BlockedResponse`** — `kindFor(url: String, accept: String?): Kind` where `Kind` is
   `IMAGE` (Accept starts with `image/` or path ends in `.gif/.png/.jpg/.jpeg/.webp/.svg`),
   `HTML` (Accept contains `text/html`), `SCRIPT` (path ends in `.js` or `.mjs`), else
@@ -182,9 +199,18 @@ res/raw/blocklist.txt ──(bg thread, onCreate)──▶ BlockList (@Volatile 
     runs `AdBlockPolicy.decide`; on BLOCK increments the counter and returns a
     `WebResourceResponse(kind.mimeType, "utf-8", 200, "OK", mapOf("Cache-Control" to
     "no-store"), ByteArrayInputStream(kind.body))`. Otherwise `null`.
-  - `isBlockedNavigation(url: String): Boolean` (gated by `blockAds`) and
-    `isBlockedPopup(url: String): Boolean` (gated by `blockPopups`) — both run
-    `NavigationPolicy.decide` and increment the counter on BLOCK.
+  - `isBlockedNavigation(url: String): Boolean` (gated by `blockAds`, `userInitiated` from the
+    `userNavigation` flag below) and `isBlockedPopup(url: String): Boolean` (gated by
+    `blockPopups`, always `userInitiated = false` — a pop-up is never a URL the user typed) —
+    both pass `pageHost`, run `NavigationPolicy.decide`, and increment the counter on BLOCK.
+  - `@Volatile private var userNavigation: Boolean` — set by `onUserNavigation()`, called from
+    `MainActivity.openUrl` (the one place every user entry point funnels through: URL bar, home,
+    favorites, incoming `ACTION_VIEW`) right before `webView.loadUrl`. Cleared by
+    `onPageStarted` (a redirect hop inherits the flag; the navigation *after* the one that
+    commits does not) and, as a backstop, by `onPageLoaded()` from `onPageFinished` (so a load
+    that never commits can't leave the flag set for the user's next navigation). Not set from
+    the `intent://` fallback in `ExternalIntentLauncher`'s `onFallback` — that URL is
+    page-supplied, not user-typed.
   - `isAllowlisted(host: String?)` — `RegistrableDomain.of(host) in allowedSites()`.
 - **`SniffingWebViewClient`** gains `adBlocker: AdBlocker`.
   - `onPageStarted`: `adBlocker.resetForPage()`, `adBlocker.pageHost = UrlHost.of(url)`
@@ -277,8 +303,10 @@ Pure, under `app/src/test/kotlin/net/mrowser/adblock/` (`web/` for the two helpe
 - `AdBlockPolicyTest` — one test per branch in order: disabled, allowlisted, main frame,
   each media kind, first-party (incl. `cdn.example.com` vs page `www.example.com`), listed
   third-party → BLOCK, unlisted → ALLOW.
-- `NavigationPolicyTest` — listed → BLOCK, first-party listed → BLOCK, disabled/allowlisted
-  → LOAD, non-http scheme → LOAD.
+- `NavigationPolicyTest` — listed third-party → BLOCK (from an unlisted page and from a
+  different listed page), disabled/allowlisted/`userInitiated` → LOAD, non-http scheme → LOAD,
+  same-registrable-domain navigation on a listed site → LOAD (incl. across subdomains), a null
+  `pageHost` still applies the list.
 - `BlockedResponseTest` — kind by Accept header, by extension, fallback; bodies non-null;
   GIF header bytes.
 - `BlockListCanaryTest` — loads `app/src/main/res/raw/blocklist.txt` relative to the test
