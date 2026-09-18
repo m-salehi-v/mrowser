@@ -33,6 +33,9 @@ class AdBlocker(
     @Volatile var pageHost: String? = null
         private set
 
+    /** The user asked for the in-flight load by name (URL bar, home, favorite, incoming intent). */
+    @Volatile private var userNavigation = false
+
     private val count = AtomicInteger(0)
     private val ui = Handler(Looper.getMainLooper())
 
@@ -51,12 +54,23 @@ class AdBlocker(
 
     fun onPageStarted(url: String) {
         pageHost = UrlHost.of(url)
+        userNavigation = false
         count.set(0)
         ui.post { onCountChanged(0) }
     }
 
     fun onMainFrameRequest(url: String) {
         pageHost = UrlHost.of(url)
+    }
+
+    /** The user asked for this URL by name (URL bar, home, favorite, incoming intent). */
+    fun onUserNavigation() {
+        userNavigation = true
+    }
+
+    /** Backstop for a load that never commits; see [onPageStarted]. */
+    fun onPageLoaded() {
+        userNavigation = false
     }
 
     fun isAllowlisted(host: String? = pageHost): Boolean =
@@ -89,14 +103,16 @@ class AdBlocker(
         )
     }
 
-    /** A `window.open` destination seen through the relay. Counts when refused. */
-    fun isBlockedPopup(url: String): Boolean = gate(url, blockPopups())
+    /** A `window.open` destination seen through the relay. Never user-initiated. Counts when refused. */
+    fun isBlockedPopup(url: String): Boolean = gate(url, userInitiated = false, blockPopups())
 
     /** An in-page top-level navigation. Counts when refused. */
-    fun isBlockedNavigation(url: String): Boolean = gate(url, blockAds())
+    fun isBlockedNavigation(url: String): Boolean = gate(url, userInitiated = userNavigation, blockAds())
 
-    private fun gate(url: String, enabled: Boolean): Boolean {
-        val blocked = NavigationPolicy.decide(url, enabled, isAllowlisted(), list) == NavigationPolicy.Decision.BLOCK
+    private fun gate(url: String, userInitiated: Boolean, enabled: Boolean): Boolean {
+        val blocked = NavigationPolicy.decide(
+            url, pageHost, userInitiated, enabled, isAllowlisted(), list
+        ) == NavigationPolicy.Decision.BLOCK
         if (blocked) bump()
         return blocked
     }

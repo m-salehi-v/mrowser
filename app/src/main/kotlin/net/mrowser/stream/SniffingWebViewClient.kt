@@ -36,6 +36,7 @@ class SniffingWebViewClient(
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
+        adBlocker.onPageLoaded()
         if (url != null) onLoaded(url)
     }
 

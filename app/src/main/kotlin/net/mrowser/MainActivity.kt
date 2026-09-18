@@ -276,6 +276,7 @@ class MainActivity : Activity() {
         hideAllOverlays()
         layout.requestFocus()
         clearHistoryOnLoad = true
+        adBlocker.onUserNavigation()
         webView.loadUrl(url)
         chrome.onPageInteracted()
         showNavHintOnce()
