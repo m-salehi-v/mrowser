@@ -17,6 +17,10 @@ import net.mrowser.web.UrlHost
  *    never cost the user the stream
  * 5. first-party (same registrable domain as the page) → allow
  * 6. host on the list → block
+ *
+ * Accepted trade-off: check 4 is extension-based and runs before the host lookup, so a listed
+ * host can dodge the blocker entirely by serving its payload at a `.m3u8`/`.ts`/`.vtt` path.
+ * That is the deliberate price of never costing the user their stream, not an oversight.
  */
 object AdBlockPolicy {
 

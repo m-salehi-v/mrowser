@@ -13,7 +13,7 @@
 **Refinements vs spec (intentional):**
 1. **`PopupPolicy` is deleted, not simplified.** Its only reachable branch would be a constant. Today "Block pop-ups: Off" calls `super.onCreateWindow`, which returns `false` and silently drops every window, which is the opposite of what the setting's doc comment promises. In this plan Off means "open the clicked window in the current WebView without the list check", On means "refuse it when its destination is on the list". The relay is used in both cases.
 2. **`UrlHost` and `RegistrableDomain` live in `net.mrowser.web`**, not `adblock/`, so that `MediaUrlClassifier` (in `stream/`) can delegate to `UrlHost` without `stream/` importing `adblock/` while `adblock/` imports `stream/`.
-3. **The counter resets on the main-frame request** as well as on `onPageStarted`, because the main-frame request is the earliest signal and sub-resource requests can start before `onPageStarted` fires.
+3. **The counter resets only on `onPageStarted`** — `AdBlocker.onMainFrameRequest` just records the page host, it does not reset the count. That's fine: a main-frame request always precedes its own `onPageStarted` (main-frame request → `onPageStarted` → sub-resources), so no block is ever counted before the reset it belongs after.
 
 **Compile-green strategy:** every task ends with `./gradlew test` (or `assembleDebug` for Android-only tasks) passing. New constructor parameters are added in the same task as their call sites, so nothing is left dangling between tasks.
 

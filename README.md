@@ -71,7 +71,7 @@ mrowser fixes all three:
 - **Pop-up handling** — a window the user opens loads in the current window (there are no tabs) unless its destination is a known ad host; `target="_blank"` links still work and BACK returns you.
 - **Global settings** — auto-open-player, block-pop-ups, block-ads, and cursor-speed, applied live with no restart.
 - **Fullscreen HTML5 video** support in the WebView for sites that need it.
-- **D-pad chrome bar** — address bar summoned with **MENU**, with URL normalization.
+- **D-pad chrome bar** — address bar summoned with **MENU**, with URL normalization, plus a ★ favorite toggle and a shield button that allows/blocks ads per site and shows a blocked-request count.
 - **Netflix-style dark UI**, brand red `#E50914`.
 - **Sideload-only, no Google Play Services**, `minSdk 23`.
 
@@ -144,6 +144,7 @@ mrowser is driven entirely by a standard **D-pad remote** (directional pad + OK 
 | **MENU** *or* **BACK long-press** | Open the chrome / address bar to type or navigate a URL. Many TV remotes (e.g. the Mi Box 4K) have no MENU key — hold BACK for 500ms instead. |
 | **BACK** (tap) | Step back: chrome bar → WebView history → "Close this page?" → home |
 | **★ (favorite button)** | Add/remove the current page to favorites |
+| **Shield button** | Allow/block ads on the current site (shows a blocked-request count) |
 
 In the **native player**:
 
@@ -154,7 +155,7 @@ In the **native player**:
 | **CC button** (sub-sync box, top-left) | Toggle subtitles on/off and pick a track |
 | **`[−]` / `[+]`** (sub-sync box) | Nudge subtitle timing by ±0.5s (live, no rebuffer) |
 
-The **home screen** offers a favorites grid, a URL entry, browsing **History**, and **Settings** (auto-open-player toggle, cursor speed).
+The **home screen** offers a favorites grid, a URL entry, browsing **History**, and **Settings** (auto-open-player toggle, block-pop-ups toggle, block-ads toggle, cursor speed, and an ad-block-lists attribution row).
 
 > For the full, authoritative control scheme and edge cases, see the milestone specs and plans in [`docs/superpowers/`](docs/superpowers/).
 
