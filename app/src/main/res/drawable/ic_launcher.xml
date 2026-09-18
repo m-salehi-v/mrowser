@@ -4,5 +4,6 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path android:fillColor="#111111" android:pathData="M0,0 H108 V108 H0 Z" />
-    <path android:fillColor="#E50914" android:pathData="M44,38 L70,54 L44,70 Z" />
+    <!-- Play triangle, optically centred (a right-pointing triangle reads left-heavy when box-centred). -->
+    <path android:fillColor="#E50914" android:pathData="M37,32 L74,54 L37,76 Z" />
 </vector>
