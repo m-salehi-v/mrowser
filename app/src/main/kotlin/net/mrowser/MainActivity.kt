@@ -216,7 +216,7 @@ class MainActivity : Activity() {
                 Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
             }
         )
-        settingsView.bind(settings)
+        settingsView.bind(settings) { adBlocker.list }
 
         layout.post { cursor.center(webView.width, webView.height) }
 
