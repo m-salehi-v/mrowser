@@ -1,5 +1,7 @@
 package net.mrowser.stream
 
+import net.mrowser.web.UrlHost
+
 /** Pure classification of a network URL by media role. */
 object MediaUrlClassifier {
 
@@ -27,10 +29,5 @@ object MediaUrlClassifier {
         return denylist.any { host == it || host.endsWith(".$it") }
     }
 
-    private fun hostOf(url: String): String? {
-        val afterScheme = url.substringAfter("://", "")
-        if (afterScheme.isEmpty()) return null
-        val authority = afterScheme.substringBefore('/').substringBefore('?')
-        return authority.substringAfter('@', authority).substringBefore(':').lowercase().ifEmpty { null }
-    }
+    private fun hostOf(url: String): String? = UrlHost.of(url)
 }
