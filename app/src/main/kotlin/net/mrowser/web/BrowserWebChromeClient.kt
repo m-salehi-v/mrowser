@@ -2,6 +2,8 @@ package net.mrowser.web
 
 import android.app.Activity
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.os.Message
 import android.view.View
 import android.view.ViewGroup
@@ -13,8 +15,9 @@ import android.webkit.WebViewClient
 
 /**
  * Handles HTML5 fullscreen video — swaps the player to a fullscreen view over everything, hides
- * chrome + cursor, keeps the screen on, and restores on exit — and decides what happens when a
- * page asks for a new window (see [onCreateWindow]).
+ * chrome + cursor, keeps the screen on, and restores on exit — and routes a page's request for a
+ * new window into the current one, refusing it when its destination is a listed ad host (see
+ * [onCreateWindow]).
  */
 class BrowserWebChromeClient(
     private val activity: Activity,
@@ -23,13 +26,15 @@ class BrowserWebChromeClient(
     private val onExit: () -> Unit,
     private val onTitle: (url: String, title: String) -> Unit = { _, _ -> },
     private val onPopupBlocked: () -> Unit = {},
-    private val blockPopups: () -> Boolean = { true },
+    /** True when a pop-up's destination is on the block list; see [AdBlocker.isBlockedPopup]. */
+    private val isBlockedPopup: (String) -> Boolean = { false },
     /** Hand a non-web URL a pop-up aimed at to the system; see [ExternalSchemePolicy]. */
     private val launchExternal: (String) -> Unit = {}
 ) : WebChromeClient() {
 
     private var customView: View? = null
     private var callback: CustomViewCallback? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     val isFullscreen: Boolean get() = customView != null
 
@@ -39,11 +44,15 @@ class BrowserWebChromeClient(
     }
 
     /**
-     * Decides what to do when a page asks for a new window; see [PopupPolicy].
+     * A page asked for a new window. mrowser has no tabs, so the only place it can go is the
+     * window the user is already looking at — a poster, a trailer or an external link opens
+     * there and BACK returns.
      *
-     * mrowser has no tabs, so a user-opened window is loaded in the window the user is already
-     * looking at — a poster, a trailer or an external link opens as expected and BACK returns.
-     * Only a window the page opened by itself is refused.
+     * The `isUserGesture` flag is ignored on purpose. With `javaScriptCanOpenWindowsAutomatically`
+     * false, Chromium refuses every gestureless open before this is called
+     * (`AwContentBrowserClient::CanCreateWindow`), so the flag is always true here; and a
+     * click-hijack script fires inside the user's click anyway. What can be judged is the
+     * destination, which is only known once the relay below starts loading it.
      */
     override fun onCreateWindow(
         view: WebView?,
@@ -52,15 +61,7 @@ class BrowserWebChromeClient(
         resultMsg: Message?
     ): Boolean {
         val host = view ?: return false
-        return when (PopupPolicy.decide(isUserGesture, blockPopups())) {
-            PopupPolicy.Decision.AllowNewWindow ->
-                super.onCreateWindow(view, isDialog, isUserGesture, resultMsg)
-            PopupPolicy.Decision.Block -> {
-                onPopupBlocked()
-                false
-            }
-            PopupPolicy.Decision.OpenInCurrentWindow -> openInCurrentWindow(host, resultMsg)
-        }
+        return openInCurrentWindow(host, resultMsg)
     }
 
     /**
@@ -71,6 +72,20 @@ class BrowserWebChromeClient(
     private fun openInCurrentWindow(host: WebView, resultMsg: Message?): Boolean {
         val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
         val relay = WebView(host.context)
+        var relayDestroyed = false
+        fun destroyRelayOnce() {
+            if (relayDestroyed) return
+            relayDestroyed = true
+            relay.destroy()
+        }
+        // window.open() with no argument, followed later by document.write() into the handle, is
+        // a standard pop-under idiom: it never navigates, so `adopt` below — the only other place
+        // this relay is destroyed — never runs, and the relay leaks (one per attempt, on the
+        // pop-under-heavy sites this feature targets). This timeout is the backstop; `adopt`
+        // cancels it the moment a real navigation arrives, so a relay that does navigate is still
+        // destroyed exactly once, promptly, via the existing post().
+        val timeoutDestroy = Runnable { destroyRelayOnce() }
+        mainHandler.postDelayed(timeoutDestroy, RELAY_ADOPT_TIMEOUT_MS)
         relay.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean =
                 adopt(view, request?.url?.toString())
@@ -81,9 +96,12 @@ class BrowserWebChromeClient(
                 adopt(view, url)
 
             private fun adopt(relayView: WebView?, url: String?): Boolean {
-                if (url != null) loadOrLaunch(host, url)
+                mainHandler.removeCallbacks(timeoutDestroy)
+                if (url != null) {
+                    if (isBlockedPopup(url)) onPopupBlocked() else loadOrLaunch(host, url)
+                }
                 // Destroying from inside the relay's own callback is not safe; post it.
-                relayView?.post { relayView.destroy() }
+                relayView?.post { destroyRelayOnce() }
                 return true
             }
         }
@@ -134,5 +152,11 @@ class BrowserWebChromeClient(
         if (customView == null) return false
         onHideCustomView()
         return true
+    }
+
+    private companion object {
+        /** Generous headroom past any legitimate delay before a relay with no navigation yet is
+         *  assumed to be a leaked pop-under handle rather than just a slow one. */
+        const val RELAY_ADOPT_TIMEOUT_MS = 5_000L
     }
 }

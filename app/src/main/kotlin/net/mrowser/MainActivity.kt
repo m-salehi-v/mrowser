@@ -6,18 +6,24 @@ import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.webkit.ServiceWorkerClient
+import android.webkit.ServiceWorkerController
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import net.mrowser.adblock.AdBlocker
 import net.mrowser.data.DefaultFavorites
 import net.mrowser.data.Favorite
 import net.mrowser.data.HistoryEntry
@@ -38,6 +44,8 @@ import net.mrowser.web.CursorController
 import net.mrowser.web.CursorLayout
 import net.mrowser.web.ExternalIntentLauncher
 import net.mrowser.web.IncomingUrl
+import net.mrowser.web.RegistrableDomain
+import net.mrowser.web.UrlHost
 import net.mrowser.web.UrlNormalizer
 
 class MainActivity : Activity() {
@@ -48,8 +56,10 @@ class MainActivity : Activity() {
     private lateinit var chrome: ChromeController
     private lateinit var chromeClient: BrowserWebChromeClient
     private lateinit var sniffer: StreamSniffer
+    private lateinit var adBlocker: AdBlocker
     private lateinit var playChip: TextView
     private lateinit var favoriteButton: ImageButton
+    private lateinit var adBlockButton: TextView
     private lateinit var homeView: HomeView
     private lateinit var favorites: JsonFavoritesStore
     private lateinit var history: JsonHistoryStore
@@ -84,6 +94,7 @@ class MainActivity : Activity() {
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
         favoriteButton = findViewById(R.id.favoriteButton)
+        adBlockButton = findViewById(R.id.adBlockButton)
         val homeButton = findViewById<ImageButton>(R.id.homeButton)
         val historyButton = findViewById<ImageButton>(R.id.historyButton)
 
@@ -91,6 +102,20 @@ class MainActivity : Activity() {
         history = JsonHistoryStore(File(filesDir, "history.json"))
         settings = JsonSettingsStore(File(filesDir, "settings.json"))
         seedDefaultFavorites()
+
+        adBlocker = AdBlocker(
+            blockAds = { settings.get().blockAds },
+            blockPopups = { settings.get().blockPopups },
+            allowedSites = { settings.get().adsAllowedOn },
+            onCountChanged = { n -> adBlockButton.text = if (n == 0) "" else n.toString() }
+        )
+        adBlocker.load { resources.openRawResource(R.raw.blocklist) }
+        // Extracted to its own method (rather than inlined here) so ART on API 23 (minSdk) does
+        // not have to resolve ServiceWorkerController/ServiceWorkerClient while verifying
+        // onCreate itself — those classes don't exist below API 24, and a method ART can't fully
+        // resolve gets verified interpreted-with-checks instead of fast, which would otherwise
+        // apply to the whole of onCreate.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) registerServiceWorkerAdBlock()
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
@@ -112,6 +137,7 @@ class MainActivity : Activity() {
 
         webView.webViewClient = SniffingWebViewClient(
             sniffer,
+            adBlocker,
             onNavigate = { url -> updateUrlText(url) },
             onLoaded = { url ->
                 recordHistory(url, webView.title)
@@ -123,7 +149,8 @@ class MainActivity : Activity() {
                     webView.clearHistory()
                 }
             },
-            onExternalScheme = { url -> externalLinks.launch(url) }
+            onExternalScheme = { url -> externalLinks.launch(url) },
+            onNavigationBlocked = { Toast.makeText(this, R.string.navigation_blocked, Toast.LENGTH_SHORT).show() }
         )
         chromeClient = BrowserWebChromeClient(
             activity = this,
@@ -132,7 +159,7 @@ class MainActivity : Activity() {
             onExit = { layout.invalidate() },
             onTitle = { url, title -> recordHistory(url, title) },
             onPopupBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() },
-            blockPopups = { settings.get().blockPopups },
+            isBlockedPopup = { url -> adBlocker.isBlockedPopup(url) },
             launchExternal = { url -> externalLinks.launch(url) }
         )
         webView.webChromeClient = chromeClient
@@ -188,7 +215,7 @@ class MainActivity : Activity() {
                 Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
             }
         )
-        settingsView.bind(settings)
+        settingsView.bind(settings) { adBlocker.list }
 
         layout.post { cursor.center(webView.width, webView.height) }
 
@@ -207,6 +234,10 @@ class MainActivity : Activity() {
         }
         favoriteButton.setOnClickListener {
             toggleCurrentFavorite()
+            chrome.onInteracted()
+        }
+        adBlockButton.setOnClickListener {
+            toggleAdsForSite()
             chrome.onInteracted()
         }
         urlInput.setOnEditorActionListener { _, actionId, _ ->
@@ -245,6 +276,7 @@ class MainActivity : Activity() {
         hideAllOverlays()
         layout.requestFocus()
         clearHistoryOnLoad = true
+        adBlocker.onUserNavigation()
         webView.loadUrl(url)
         chrome.onPageInteracted()
         showNavHintOnce()
@@ -293,6 +325,7 @@ class MainActivity : Activity() {
     private fun updateUrlText(url: String) {
         urlInput.setText(url)
         updateFavoriteIcon()
+        updateShieldIcon()
     }
 
     private fun showChip() {
@@ -325,6 +358,30 @@ class MainActivity : Activity() {
         favoriteButton.imageTintList = ColorStateList.valueOf(color)
     }
 
+    /** Shield button: allow ads on the current site if blocked, block them if allowed. Reloads. */
+    private fun toggleAdsForSite() {
+        val host = webView.url?.let { UrlHost.of(it) } ?: return
+        val site = RegistrableDomain.of(host)
+        val s = settings.get()
+        val wasAllowed = site in s.adsAllowedOn
+        settings.update(s.copy(adsAllowedOn = if (wasAllowed) s.adsAllowedOn - site else s.adsAllowedOn + site))
+        Toast.makeText(
+            this,
+            if (wasAllowed) R.string.ads_blocked_here else R.string.ads_allowed_here,
+            Toast.LENGTH_SHORT
+        ).show()
+        updateShieldIcon()
+        webView.reload()
+    }
+
+    /** Tint the shield accent (red) when ads are allowed on the current site, white otherwise. */
+    private fun updateShieldIcon() {
+        val allowed = adBlocker.isAllowlisted(webView.url?.let { UrlHost.of(it) })
+        val color = getColor(if (allowed) R.color.accent else R.color.on_surface)
+        adBlockButton.compoundDrawableTintList = ColorStateList.valueOf(color)
+        adBlockButton.setTextColor(color)
+    }
+
     override fun onPause() {
         super.onPause()
         if (::webView.isInitialized) webView.onPause()
@@ -336,6 +393,30 @@ class MainActivity : Activity() {
         if (::sniffer.isInitialized && sniffer.hasStream() &&
             homeView.visibility != View.VISIBLE && historyView.visibility != View.VISIBLE &&
             settingsView.visibility != View.VISIBLE) showChip()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // ServiceWorkerController is process-scoped, not Activity-scoped: its client keeps this
+        // Activity reachable (client -> adBlocker -> onCountChanged -> adBlockButton -> this)
+        // after finish(), along with the WebView and the ~740 KB BlockList. Clearing it here
+        // also stops a recreated Activity's service-worker fetches from being filtered by this
+        // now-stale AdBlocker (stale pageHost, stale settings cache).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) unregisterServiceWorkerAdBlock()
+    }
+
+    /** Service-worker fetches bypass WebViewClient.shouldInterceptRequest entirely, so they need
+     *  their own intercept hook. Kept out of onCreate — see the call site there. */
+    private fun registerServiceWorkerAdBlock() {
+        ServiceWorkerController.getInstance().setServiceWorkerClient(object : ServiceWorkerClient() {
+            override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
+                adBlocker.interceptServiceWorker(request)
+        })
+    }
+
+    /** Counterpart to [registerServiceWorkerAdBlock]; see [onDestroy]. */
+    private fun unregisterServiceWorkerAdBlock() {
+        ServiceWorkerController.getInstance().setServiceWorkerClient(null)
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

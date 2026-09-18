@@ -67,10 +67,11 @@ mrowser fixes all three:
 - **Smart subtitle labelling** — side-loaded tracks carry no language metadata, so mrowser infers a readable name (English, Persian, …) from the subtitle URL, else a generic `Subtitle N`.
 - **Home screen with favorites** — a favorites grid; add/remove the current page with the ★ button.
 - **Browsing history** — newest-first, deduplicated, with relative "Nm ago" labels; long-press to favorite.
-- **Pop-up handling** — a window the page opens by itself is blocked; one you click opens in the current window, so `target="_blank"` links still work and BACK returns you.
-- **Global settings** — auto-open-player, block-pop-ups, and cursor-speed, applied live with no restart.
+- **Ad blocking** — requests to ~90k known ad and pop-under hosts (OISD small + HaGeZi Pop-Up Ads, bundled and refreshed weekly) are answered with an empty stand-in, and a `window.open` or in-page redirect to one of them is refused while the page stays put. Per-site allow from the chrome bar, blocked counter, never touches the video stream itself.
+- **Pop-up handling** — a window the user opens loads in the current window (there are no tabs) unless its destination is a known ad host; `target="_blank"` links still work and BACK returns you.
+- **Global settings** — auto-open-player, block-pop-ups, block-ads, and cursor-speed, applied live with no restart.
 - **Fullscreen HTML5 video** support in the WebView for sites that need it.
-- **D-pad chrome bar** — address bar summoned with **MENU**, with URL normalization.
+- **D-pad chrome bar** — address bar summoned with **MENU**, with URL normalization, plus a ★ favorite toggle and a shield button that allows/blocks ads per site and shows a blocked-request count.
 - **Netflix-style dark UI**, brand red `#E50914`.
 - **Sideload-only, no Google Play Services**, `minSdk 23`.
 
@@ -143,6 +144,7 @@ mrowser is driven entirely by a standard **D-pad remote** (directional pad + OK 
 | **MENU** *or* **BACK long-press** | Open the chrome / address bar to type or navigate a URL. Many TV remotes (e.g. the Mi Box 4K) have no MENU key — hold BACK for 500ms instead. |
 | **BACK** (tap) | Step back: chrome bar → WebView history → "Close this page?" → home |
 | **★ (favorite button)** | Add/remove the current page to favorites |
+| **Shield button** | Allow/block ads on the current site (shows a blocked-request count) |
 
 In the **native player**:
 
@@ -153,7 +155,7 @@ In the **native player**:
 | **CC button** (sub-sync box, top-left) | Toggle subtitles on/off and pick a track |
 | **`[−]` / `[+]`** (sub-sync box) | Nudge subtitle timing by ±0.5s (live, no rebuffer) |
 
-The **home screen** offers a favorites grid, a URL entry, browsing **History**, and **Settings** (auto-open-player toggle, cursor speed).
+The **home screen** offers a favorites grid, a URL entry, browsing **History**, and **Settings** (auto-open-player toggle, block-pop-ups toggle, block-ads toggle, cursor speed, and an ad-block-lists attribution row).
 
 > For the full, authoritative control scheme and edge cases, see the milestone specs and plans in [`docs/superpowers/`](docs/superpowers/).
 
@@ -217,6 +219,12 @@ It works on sites that stream over **HLS** (`.m3u8`), which is most of the strea
 **What is the "HLS sniffer"?**
 As you browse, mrowser inspects the page's network requests and recognizes HLS manifests (`.m3u8`) and subtitle files (`.vtt`, `.srt`). When it sees a video stream it offers to hand it off to the native player.
 
+**Does the ad blocker block everything?**
+No. It blocks by **host**: requests to ~90k known ad and pop-under domains are dropped, and being sent to one of them by a click-hijack is refused. It does not hide empty ad slots (no cosmetic filtering) and cannot block ads served from the same host as the content, as YouTube does. The page's own video stream is never touched. Turn it off per site with the shield in the chrome bar, or globally in Settings.
+
+**Why do online ad-blocker tests score mrowser badly?**
+Because they infer "blocked" from a request *failing*. mrowser answers a blocked request with an empty stand-in (a 1×1 GIF, an empty script) and HTTP 200, so the page sees a successful load rather than an error — that is deliberate, since an outright failure fires a page's `onerror` handlers and breaks iframe layouts. The same property keeps anti-adblock detectors quiet. The blocked counter on the shield is the real measure of what was stopped.
+
 **My subtitles are out of sync — can I fix that?**
 Yes. mrowser renders side-loaded subtitles itself, so the **sub-sync box** in the player lets you nudge subtitle timing by ±0.5s per press (up to ±30s), applied **instantly without rebuffering** — true **ExoPlayer subtitle sync** that the underlying player can't do on its own.
 
@@ -259,7 +267,7 @@ Use mrowser **only to access content you are authorized to access**, and in comp
 
 ## License
 
-Released under the **MIT License** — see [LICENSE](LICENSE).
+Released under the **MIT License** — see [LICENSE](LICENSE). Bundled block lists are GPL-3.0; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ---
 
