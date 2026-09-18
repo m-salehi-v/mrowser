@@ -9,6 +9,8 @@ class StreamCandidateSelectorTest {
 
     private fun hls(url: String, seq: Int) = StreamCandidate(url, MediaKind.MANIFEST_HLS, seq)
     private fun sub(url: String, seq: Int) = StreamCandidate(url, MediaKind.SUBTITLE, seq)
+    private fun dash(url: String, seq: Int) = StreamCandidate(url, MediaKind.MANIFEST_DASH, seq)
+    private fun mp4(url: String, seq: Int) = StreamCandidate(url, MediaKind.PROGRESSIVE, seq)
 
     @Test fun `prefers the master playlist over variants`() {
         val list = listOf(
@@ -43,6 +45,42 @@ class StreamCandidateSelectorTest {
             hls("https://cdn.net/real/i.m3u8", 2)
         )
         assertEquals("https://cdn.net/real/i.m3u8", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
+    @Test fun `prefers an hls manifest over dash and a progressive file seen earlier`() {
+        val list = listOf(
+            mp4("https://cdn.net/preview.mp4", 1),
+            dash("https://cdn.net/manifest.mpd", 2),
+            hls("https://cdn.net/i.m3u8", 3)
+        )
+        assertEquals("https://cdn.net/i.m3u8", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
+    @Test fun `prefers a dash manifest over a progressive file seen earlier`() {
+        val list = listOf(
+            mp4("https://cdn.net/preview.mp4", 1),
+            dash("https://cdn.net/manifest.mpd", 2)
+        )
+        assertEquals("https://cdn.net/manifest.mpd", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
+    @Test fun `falls back to the earliest dash manifest`() {
+        val list = listOf(dash("https://cdn.net/b.mpd", 2), dash("https://cdn.net/a.mpd", 1))
+        assertEquals("https://cdn.net/a.mpd", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
+    @Test fun `falls back to the earliest progressive file`() {
+        val list = listOf(mp4("https://cdn.net/b.mp4", 2), mp4("https://cdn.net/a.mp4", 1))
+        assertEquals("https://cdn.net/a.mp4", StreamCandidateSelector.selectBest(list)?.url)
+    }
+
+    @Test fun `ignores ad-host dash and progressive candidates`() {
+        val list = listOf(
+            dash("https://pubads.g.doubleclick.net/ad.mpd", 1),
+            mp4("https://amazon-adsystem.com/ad.mp4", 2),
+            mp4("https://cdn.net/real.mp4", 3)
+        )
+        assertEquals("https://cdn.net/real.mp4", StreamCandidateSelector.selectBest(list)?.url)
     }
 
     @Test fun `returns null when there is no manifest`() {

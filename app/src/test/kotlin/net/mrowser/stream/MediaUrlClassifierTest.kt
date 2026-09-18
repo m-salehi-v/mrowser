@@ -20,6 +20,31 @@ class MediaUrlClassifierTest {
         assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/seg1.m4s"))
     }
 
+    @Test fun `classifies progressive video files`() {
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/v/movie.mp4"))
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/v/movie.m4v"))
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/v/movie.webm"))
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/v/movie.mkv"))
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/v/movie.MP4?token=abc"))
+    }
+
+    @Test fun `classifies fragmented-mp4 segments as segments not progressive`() {
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/init.mp4"))
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/video-dashinit.mp4"))
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/seg-12.mp4"))
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/segment_3.m4v"))
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/chunk-0001.mp4"))
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/frag5.mp4"))
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/0001.mp4"))
+        assertEquals(MediaKind.SEGMENT, MediaUrlClassifier.classify("https://x.net/v/1080p_00042.mp4"))
+    }
+
+    @Test fun `keeps ordinary movie filenames progressive`() {
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/Solaris.1972.1080p.mp4"))
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/initiation-rites.mp4"))
+        assertEquals(MediaKind.PROGRESSIVE, MediaUrlClassifier.classify("https://x.net/the-fragile.webm"))
+    }
+
     @Test fun `classifies everything else as other`() {
         assertEquals(MediaKind.OTHER, MediaUrlClassifier.classify("https://x.net/page.html"))
     }
