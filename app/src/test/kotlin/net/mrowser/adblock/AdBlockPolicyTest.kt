@@ -43,6 +43,8 @@ class AdBlockPolicyTest {
         assertEquals(Decision.ALLOW, decide("https://video.example/seg-01.m4s"))
         assertEquals(Decision.ALLOW, decide("https://video.example/en.vtt"))
         assertEquals(Decision.ALLOW, decide("https://video.example/en.srt"))
+        assertEquals(Decision.ALLOW, decide("https://video.example/movie.mp4?token=1"))
+        assertEquals(Decision.ALLOW, decide("https://video.example/movie.mkv"))
     }
 
     @Test fun `a first-party request is never blocked even when listed`() {

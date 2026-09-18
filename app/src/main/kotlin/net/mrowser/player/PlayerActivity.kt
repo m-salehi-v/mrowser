@@ -11,7 +11,6 @@ import android.widget.Toast
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -24,6 +23,7 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import androidx.media3.ui.TrackSelectionDialogBuilder
 import net.mrowser.R
+import net.mrowser.stream.MediaMimeType
 import net.mrowser.stream.PlaybackRequest
 
 @OptIn(UnstableApi::class)
@@ -41,7 +41,8 @@ class PlayerActivity : Activity() {
         val request = PlaybackRequest.fromJson(json)
 
         val trackSelector = DefaultTrackSelector(this)
-        // DefaultMediaSourceFactory builds an HlsMediaSource for the .m3u8. The player carries
+        // DefaultMediaSourceFactory builds the source the request's MIME type asks for — HLS for
+        // an .m3u8, DASH for an .mpd, progressive for a plain file. The player carries
         // no text track — side-loaded subtitles are rendered by SubtitleSyncController, not merged here.
         // Cookie is re-resolved per request host (via CookieManager) instead of being sent
         // blanket on every request: a session cookie scoped to the stream host must never
@@ -166,7 +167,9 @@ class PlayerActivity : Activity() {
     private fun buildMediaItem(request: PlaybackRequest): MediaItem =
         MediaItem.Builder()
             .setUri(request.url)
-            .setMimeType(MimeTypes.APPLICATION_M3U8)
+            // Null for a progressive file: the factory reads the container itself, and a query
+            // string can hide the extension it would otherwise guess a manifest from.
+            .setMimeType(MediaMimeType.of(request.url))
             .build()
 
     override fun onStart() {

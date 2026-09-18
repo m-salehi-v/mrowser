@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-mrowser is a sideload-only Android TV browser (`net.mrowser`) for streaming video. It browses any site with a D-pad-driven virtual mouse cursor, sniffs the page's network traffic for an HLS manifest, and hands that stream off to a native Media3/ExoPlayer activity — because the WebView's built-in player gives poor A/V sync. No Google Play Services; single Gradle module `:app`, all Kotlin.
+mrowser is a sideload-only Android TV browser (`net.mrowser`) for streaming video. It browses any site with a D-pad-driven virtual mouse cursor, sniffs the page's network traffic for a stream (HLS, DASH, or a plain progressive file), and hands it off to a native Media3/ExoPlayer activity — because the WebView's built-in player gives poor A/V sync. No Google Play Services; single Gradle module `:app`, all Kotlin.
 
 ## Commands
 
@@ -26,13 +26,13 @@ Two activities (`AndroidManifest.xml`), wired in `MainActivity.onCreate`:
 
 Code is split by domain under `net.mrowser.*`, and within each domain **pure logic is separated from Android-dependent code so it can be unit-tested without a device**. The pure pieces are the ones with tests in `app/src/test/`. When adding logic, follow this split: put decision/parsing/geometry in a plain object/class and keep the Android glue thin.
 
-### `stream/` — HLS detection and handoff
+### `stream/` — stream detection and handoff
 The core pipeline:
 1. `SniffingWebViewClient` forwards every `WebView` resource request to `StreamSniffer`. It also overrides `shouldOverrideUrlLoading` to route non-web navigations out of the WebView — see `ExternalSchemePolicy` under `web/`.
-2. `StreamSniffer` (thread-safe; called off the UI thread) classifies each URL via the **pure** `MediaUrlClassifier` (extension-based: `.m3u8`→HLS, `.vtt`/`.srt`→subtitle, etc.) and accumulates `StreamCandidate`s.
-3. On the first HLS manifest it fires `onStreamAvailable`, which shows the play chip and triggers handoff.
-4. `bestRequest()` uses the **pure** `StreamCandidateSelector` to pick the manifest + subtitle tracks, attaches headers (User-Agent, Referer, Cookie from `CookieManager`), and returns a `PlaybackRequest`.
-5. `HandoffController` serializes the `PlaybackRequest` to JSON and starts `PlayerActivity`.
+2. `StreamSniffer` (thread-safe; called off the UI thread) classifies each URL via the **pure** `MediaUrlClassifier` (extension-based: `.m3u8`→HLS, `.mpd`→DASH, `.mp4`/`.m4v`/`.webm`/`.mkv`→progressive, `.vtt`/`.srt`→subtitle, etc.) and accumulates `StreamCandidate`s. `.mp4` is **both** a whole file and the segment container of fMP4 HLS/DASH, and a resource request carries no Content-Type, so the filename decides: a role name (`init`, `seg`, `chunk`, `frag`, `dashinit`), a bare number, or a zero-padded trailing number is a `SEGMENT`; anything else (`Solaris.1972.1080p.mp4`) is `PROGRESSIVE`.
+3. A manifest fires `onStreamAvailable` at once (shows the play chip, triggers handoff). A progressive file is the **weakest** signal — a page that also serves a manifest may request a preview clip first — so it announces only after a 1.5s grace window, scheduled through the injected `schedule` lambda (a main-looper `Handler` in `MainActivity`, so the sniffer itself stays Android-free) and dropped if the page changed meanwhile. The announce-once gate makes a manifest arriving inside that window win the handoff for free.
+4. `bestRequest()` uses the **pure** `StreamCandidateSelector` to pick the stream + subtitle tracks, attaches headers (User-Agent, Referer, Cookie from `CookieManager`), and returns a `PlaybackRequest`. Selection is tiered — HLS (master playlist preferred) → DASH → progressive — so an `.mp4` is only ever the fallback for a page that serves no manifest at all; ad hosts are filtered out of every tier.
+5. `HandoffController` serializes the `PlaybackRequest` to JSON and starts `PlayerActivity`, which declares the container via the **pure** `MediaMimeType` (`.m3u8`→`application/x-mpegURL`, `.mpd`→`application/dash+xml`, else null so `DefaultMediaSourceFactory` reads the file itself) — a MIME type rather than the URL, because a query string can hide the extension the factory would otherwise guess from.
 
 Side-loaded subtitles carry no language metadata, so the **pure** `SubtitlePlan` labels each sniffed track from its URL via the **pure** `SubtitleLang` (a real name like English/Persian when a language token is found in the path/query/filename — host ignored — else a generic `Subtitle N`). There is intentionally **no** preferred-language setting — a side-loaded track's language can't be known reliably across sites.
 

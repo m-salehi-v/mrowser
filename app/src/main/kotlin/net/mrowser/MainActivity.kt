@@ -125,7 +125,8 @@ class MainActivity : Activity() {
                     if (settings.get().autoOpenPlayer) handoff.play()
                 }
             },
-            onCleared = { playChip.visibility = View.GONE }
+            onCleared = { playChip.visibility = View.GONE },
+            schedule = { delayMs, task -> uiHandler.postDelayed(task, delayMs) }
         )
         handoff = HandoffController(this, sniffer)
 

@@ -19,7 +19,7 @@ import net.mrowser.web.UrlHost
  * 6. host on the list → block
  *
  * Accepted trade-off: check 4 is extension-based and runs before the host lookup, so a listed
- * host can dodge the blocker entirely by serving its payload at a `.m3u8`/`.ts`/`.vtt` path.
+ * host can dodge the blocker entirely by serving its payload at a `.m3u8`/`.ts`/`.vtt`/`.mp4` path.
  * That is the deliberate price of never costing the user their stream, not an oversight.
  */
 object AdBlockPolicy {
@@ -27,7 +27,8 @@ object AdBlockPolicy {
     enum class Decision { ALLOW, BLOCK }
 
     private val PROTECTED_MEDIA = setOf(
-        MediaKind.MANIFEST_HLS, MediaKind.MANIFEST_DASH, MediaKind.SEGMENT, MediaKind.SUBTITLE
+        MediaKind.MANIFEST_HLS, MediaKind.MANIFEST_DASH, MediaKind.PROGRESSIVE,
+        MediaKind.SEGMENT, MediaKind.SUBTITLE
     )
 
     fun decide(
