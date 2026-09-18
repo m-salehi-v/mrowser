@@ -48,4 +48,24 @@ class SettingsJsonTest {
         assertFalse(s.seeded)
         assertFalse(s.navHintShown)
     }
+
+    @Test fun `round trips the ad blocker fields`() {
+        val s = Settings(blockAds = false, adsAllowedOn = setOf("site.example", "other.example"))
+        assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
+    }
+
+    @Test fun `ad blocking is on and the allowlist empty when the fields are absent`() {
+        val s = SettingsJson.fromJson("""{"autoOpenPlayer":true}""")
+        assertTrue(s.blockAds)
+        assertTrue(s.adsAllowedOn.isEmpty())
+    }
+
+    @Test fun `non-string allowlist entries are skipped`() {
+        val s = SettingsJson.fromJson("""{"adsAllowedOn":["site.example", 5, null, "", "b.example"]}""")
+        assertEquals(setOf("site.example", "b.example"), s.adsAllowedOn)
+    }
+
+    @Test fun `a malformed allowlist falls back to empty`() {
+        assertTrue(SettingsJson.fromJson("""{"adsAllowedOn":"nope"}""").adsAllowedOn.isEmpty())
+    }
 }
