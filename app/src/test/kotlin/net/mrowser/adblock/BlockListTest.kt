@@ -27,8 +27,13 @@ class BlockListTest {
         assertFalse(l.contains("ads.example.org"))
     }
 
-    @Test fun `never matches on the bare tld`() {
-        // "com" as an entry must not make every .com host blocked: the walk stops before it.
+    @Test fun `dotless entries are rejected at parse time`() {
+        // "com" has no dot, so `normalise` drops it before it ever reaches the hash set — the
+        // list built from just this line is empty, which is what's actually pinned here (not
+        // contains()'s suffix walk: with an empty list, `contains` short-circuits on
+        // hashes.isEmpty() before it ever walks anything). Defense in depth regardless: even a
+        // non-empty list's `contains` stops one level short of the bare TLD on its own, so a
+        // TLD-only entry that somehow reached the hash set still couldn't mass-block it.
         val l = list("com")
         assertFalse(l.contains("example.com"))
         assertEquals(0, l.size)

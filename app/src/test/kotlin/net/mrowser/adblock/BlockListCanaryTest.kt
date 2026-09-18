@@ -33,6 +33,17 @@ class BlockListCanaryTest {
         "youtube.com", "googlevideo.com", "google.com", "github.com"
     )
 
+    /**
+     * A representative slice of `RegistrableDomain.TWO_LABEL_SUFFIXES` (kept private there, so
+     * mirrored rather than referenced). `BlockList.contains` has no public-suffix awareness — it
+     * just walks a host's suffixes down to but excluding the bare TLD — so a single upstream
+     * entry like "co.uk" or "com.br" would silently mass-block an entire ccTLD's worth of sites.
+     * This is the only quality gate the weekly `blocklist.yml` refresh runs before opening its PR.
+     */
+    private val publicSuffixesMustNeverBeListed = listOf(
+        "co.uk", "org.uk", "com.au", "co.jp", "com.br", "co.in", "co.za", "com.mx", "com.tr", "co.kr"
+    )
+
     @Test fun `list is big enough to be real`() {
         assertTrue("only ${list.size} entries", list.size >= 50_000)
     }
@@ -53,6 +64,15 @@ class BlockListCanaryTest {
     @Test fun `video cdn apexes and first-party staples are not listed`() {
         val listed = mustNeverBeListed.filter { list.contains(it) }
         assertTrue("must not be listed: $listed", listed.isEmpty())
+    }
+
+    @Test fun `public suffixes are never listed as a bare entry`() {
+        val listed = publicSuffixesMustNeverBeListed.filter { list.contains(it) }
+        assertTrue(
+            "a refresh listed a public suffix directly, which mass-blocks its entire ccTLD " +
+                "(e.g. a bare 'co.uk' entry blocks every *.co.uk site): $listed",
+            listed.isEmpty()
+        )
     }
 
     @Test fun `every body line is a plain lowercase domain`() {
