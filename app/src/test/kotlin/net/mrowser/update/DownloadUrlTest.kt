@@ -27,6 +27,7 @@ class DownloadUrlTest {
     @Test fun `a lookalike host is refused`() {
         assertFalse(DownloadUrl.isAllowed("https://github.com.evil.test/app-release.apk"))
         assertFalse(DownloadUrl.isAllowed("https://evilgithubusercontent.com/app-release.apk"))
+        assertFalse(DownloadUrl.isAllowed("https://objects.githubusercontent.com.evil.test/x.apk"))
     }
 
     @Test fun `a host in the userinfo is refused`() {
@@ -40,5 +41,16 @@ class DownloadUrlTest {
 
     @Test fun `the scheme check ignores case`() {
         assertTrue(DownloadUrl.isAllowed("HTTPS://github.com/a/b.apk"))
+    }
+
+    @Test fun `host normalization is transparent`() {
+        assertTrue(DownloadUrl.isAllowed("https://github.com./x.apk"))
+        assertTrue(DownloadUrl.isAllowed("https://GITHUB.COM/x.apk"))
+        assertTrue(DownloadUrl.isAllowed("https://github.com:443/x.apk"))
+    }
+
+    @Test fun `only the https scheme is allowed`() {
+        assertFalse(DownloadUrl.isAllowed("//github.com/x.apk"))
+        assertFalse(DownloadUrl.isAllowed("javascript://github.com/x.apk"))
     }
 }
