@@ -50,4 +50,5 @@
     <string name="ads_allowed_here">Ads allowed on this site</string>
     <string name="ads_blocked_here">Ads blocked on this site</string>
     <string name="ad_block_button">Ad blocker</string>
+    <string name="update_download_title">mrowser %1$s</string>
 </resources>
