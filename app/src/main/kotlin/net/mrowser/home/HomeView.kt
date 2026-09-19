@@ -171,10 +171,15 @@ class HomeView @JvmOverloads constructor(
      */
     fun showUpdate(release: Release?) {
         pendingUpdate = release
+        // GONE on a focused view hands the window's focus fallback to CursorLayout, behind
+        // this overlay (#32's failure mode) — reachable here when the daily check clears a
+        // banner the user has D-padded onto. Re-seat focus if the button held it.
+        val hadFocus = updateButton.hasFocus()
         updateButton.visibility = if (release == null) View.GONE else View.VISIBLE
         if (release != null) {
             updateButton.text = context.getString(R.string.update_available, release.version)
         }
+        if (release == null && hadFocus) restoreFocus()
     }
 
     private fun card(fav: Favorite): View {

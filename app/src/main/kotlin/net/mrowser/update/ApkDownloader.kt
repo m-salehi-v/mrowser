@@ -49,6 +49,15 @@ object ApkDownloader {
             Log.w(TAG, "refusing an apk url that is not on a GitHub host")
             return null
         }
+        // Defence in depth, not a live hole: release.version feeds the destination filename
+        // below, and UpdateCheckPolicy.bannerFor already refuses any version VersionCompare
+        // can't read as digits-and-dots. But that invariant lives three modules away with no
+        // test pinning the coupling, and this function is documented as the reusable core a
+        // future general download manager will generalise — so it guards its own input too.
+        if (release.version.any { !it.isDigit() && it != '.' }) {
+            Log.w(TAG, "refusing a release version with unexpected characters")
+            return null
+        }
         if (!hasStoragePermission(activity)) return null
         val dm = activity.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
             ?: return null
@@ -73,7 +82,7 @@ object ApkDownloader {
         }
     }
 
-    fun progress(activity: Activity, id: Long): Progress {
+    fun progress(activity: Activity, id: Long): Progress = try {
         val dm = activity.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
             ?: return Progress.Failed
         val cursor = dm.query(DownloadManager.Query().setFilterById(id)) ?: return Progress.Failed
@@ -84,11 +93,19 @@ object ApkDownloader {
                 it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
             val total =
                 it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-            return when (status) {
+            when (status) {
                 DownloadManager.STATUS_SUCCESSFUL -> Progress.Done
                 DownloadManager.STATUS_FAILED -> Progress.Failed
                 else -> Progress.Running(soFar, total)
             }
         }
+    } catch (e: Exception) {
+        // A SecurityException or SQLiteException from a stripped or operator-locked Downloads
+        // provider is realistic on the TV boxes this app targets — the same firmware class the
+        // DownloadManager service lookup above already anticipates. UpdateDialog polls this
+        // every second for the whole download, so a crash here would take down the process
+        // mid-download; degrade like enqueue does instead.
+        Log.w(TAG, "progress query failed", e)
+        Progress.Failed
     }
 }
