@@ -1,9 +1,11 @@
 package net.mrowser
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
@@ -23,6 +25,8 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import net.mrowser.adblock.AdBlocker
 import net.mrowser.data.DefaultFavorites
 import net.mrowser.data.Favorite
@@ -38,6 +42,11 @@ import net.mrowser.home.OverlayFocus
 import net.mrowser.home.SettingsView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
+import net.mrowser.update.ApkDownloader
+import net.mrowser.update.JsonUpdateStore
+import net.mrowser.update.ReleaseFetcher
+import net.mrowser.update.UpdateController
+import net.mrowser.update.UpdateDialog
 import net.mrowser.web.BrowserWebChromeClient
 import net.mrowser.web.ChromeController
 import net.mrowser.web.CursorController
@@ -67,6 +76,11 @@ class MainActivity : Activity() {
     private lateinit var settings: JsonSettingsStore
     private lateinit var settingsView: SettingsView
     private lateinit var externalLinks: ExternalIntentLauncher
+    private lateinit var updates: UpdateController
+    private lateinit var updateIo: ExecutorService
+
+    /** One outstanding storage-permission ask at a time; see ensureStoragePermission. */
+    private var pendingStoragePermission: ((Boolean) -> Unit)? = null
 
     /** True when history was opened from the home overlay (BACK returns to home);
      *  false when opened from the chrome bar mid-browse (BACK returns to the page). */
@@ -102,6 +116,16 @@ class MainActivity : Activity() {
         history = JsonHistoryStore(File(filesDir, "history.json"))
         settings = JsonSettingsStore(File(filesDir, "settings.json"))
         seedDefaultFavorites()
+
+        updateIo = Executors.newSingleThreadExecutor()
+        updates = UpdateController(
+            store = JsonUpdateStore(File(filesDir, "update.json")),
+            installedVersion = installedVersion(),
+            fetch = ReleaseFetcher::fetch,
+            io = updateIo,
+            main = { task -> runOnUiThread(task) },
+            now = { System.currentTimeMillis() }
+        )
 
         adBlocker = AdBlocker(
             blockAds = { settings.get().blockAds },
@@ -205,8 +229,15 @@ class MainActivity : Activity() {
             onSubmitUrl = { openUrl(it) },
             onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { homeView.refresh() } },
             onHistory = { showHistory(fromHome = true) },
-            onSettings = { showSettings() }
+            onSettings = { showSettings() },
+            onUpdate = { release ->
+                UpdateDialog.show(this, release, ::ensureStoragePermission, ::openObtainium)
+            }
         )
+        // Straight from the cache, so the line is there on the first frame; then once more if
+        // today's check turns something up. Once per process launch, not per home show.
+        homeView.showUpdate(updates.cachedBanner())
+        updates.checkIfDue { homeView.showUpdate(it) }
         historyView.bind(
             repository = history,
             onOpen = { openUrl(it) },
@@ -317,6 +348,42 @@ class MainActivity : Activity() {
         settings.update(settings.get().copy(seeded = true))
     }
 
+    /** Empty when it cannot be read, which VersionCompare treats as unknown — so, no banner. */
+    private fun installedVersion(): String = try {
+        packageManager.getPackageInfo(packageName, 0).versionName ?: ""
+    } catch (e: PackageManager.NameNotFoundException) {
+        ""
+    }
+
+    /**
+     * Storage is free from API 29; below it the user is asked once, and only because they tapped
+     * Download. The dialog stays ignorant of request codes — it just gets a yes or a no.
+     */
+    private fun ensureStoragePermission(onResult: (Boolean) -> Unit) {
+        if (ApkDownloader.hasStoragePermission(this)) {
+            onResult(true)
+            return
+        }
+        pendingStoragePermission = onResult
+        requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQ_STORAGE)
+    }
+
+    /** Obtainium is the one route that ends the update problem for good; the README says so too. */
+    private fun openObtainium() {
+        ExternalIntentLauncher(
+            context = this,
+            onFallback = { url -> openUrl(url) },
+            onNoApp = {
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.obtainium_title)
+                    .setMessage(R.string.obtainium_message)
+                    .setPositiveButton(R.string.obtainium_open) { _, _ -> openUrl(OBTAINIUM_URL) }
+                    .setNegativeButton(R.string.close, null)
+                    .show()
+            }
+        ).launch(OBTAINIUM_ADD_URL)
+    }
+
     private fun recordHistory(url: String, title: String?) {
         if (!url.startsWith("http://") && !url.startsWith("https://")) return
         val label = title?.takeIf { it.isNotBlank() } ?: (Uri.parse(url).host ?: url)
@@ -396,6 +463,20 @@ class MainActivity : Activity() {
             settingsView.visibility != View.VISIBLE) showChip()
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQ_STORAGE) return
+        val callback = pendingStoragePermission
+        pendingStoragePermission = null
+        callback?.invoke(
+            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         // ServiceWorkerController is process-scoped, not Activity-scoped: its client keeps this
@@ -404,6 +485,7 @@ class MainActivity : Activity() {
         // also stops a recreated Activity's service-worker fetches from being filtered by this
         // now-stale AdBlocker (stale pageHost, stale settings cache).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) unregisterServiceWorkerAdBlock()
+        updateIo.shutdownNow()
     }
 
     /** Service-worker fetches bypass WebViewClient.shouldInterceptRequest entirely, so they need
@@ -502,5 +584,8 @@ class MainActivity : Activity() {
 
     companion object {
         private const val CHIP_TIMEOUT_MS = 30_000L
+        private const val REQ_STORAGE = 101
+        private const val OBTAINIUM_ADD_URL = "obtainium://add/https://github.com/m-salehi-v/mrowser"
+        private const val OBTAINIUM_URL = "https://github.com/ImranR98/Obtainium"
     }
 }

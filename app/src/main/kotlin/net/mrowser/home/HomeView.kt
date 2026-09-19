@@ -20,6 +20,7 @@ import android.widget.TextView
 import net.mrowser.R
 import net.mrowser.data.Favorite
 import net.mrowser.data.FavoritesRepository
+import net.mrowser.update.Release
 import net.mrowser.web.UrlNormalizer
 
 /** Home overlay: wordmark + URL pill + favorites grid. */
@@ -31,6 +32,7 @@ class HomeView @JvmOverloads constructor(
     private val grid: GridLayout
     private val emptyHint: TextView
     private val urlInput: EditText
+    private val updateButton: Button
 
     private var repository: FavoritesRepository? = null
     private var onOpen: (Favorite) -> Unit = {}
@@ -38,6 +40,8 @@ class HomeView @JvmOverloads constructor(
     private var onEdit: (Favorite) -> Unit = {}
     private var onHistory: () -> Unit = {}
     private var onSettings: () -> Unit = {}
+    private var onUpdate: (Release) -> Unit = {}
+    private var pendingUpdate: Release? = null
 
     private val backgroundDrawable =
         GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, null)
@@ -60,6 +64,8 @@ class HomeView @JvmOverloads constructor(
         }
         findViewById<Button>(R.id.homeHistoryButton).setOnClickListener { onHistory() }
         findViewById<ImageButton>(R.id.homeSettingsButton).setOnClickListener { onSettings() }
+        updateButton = findViewById(R.id.homeUpdateButton)
+        updateButton.setOnClickListener { pendingUpdate?.let { release -> onUpdate(release) } }
     }
 
     fun bind(
@@ -68,7 +74,8 @@ class HomeView @JvmOverloads constructor(
         onSubmitUrl: (String) -> Unit,
         onEdit: (Favorite) -> Unit,
         onHistory: () -> Unit,
-        onSettings: () -> Unit
+        onSettings: () -> Unit,
+        onUpdate: (Release) -> Unit
     ) {
         this.repository = repository
         this.onOpen = onOpen
@@ -76,6 +83,7 @@ class HomeView @JvmOverloads constructor(
         this.onEdit = onEdit
         this.onHistory = onHistory
         this.onSettings = onSettings
+        this.onUpdate = onUpdate
         startIndex = HomeBackgrounds.indexFor(System.currentTimeMillis())
         background = backgroundDrawable
         applyGradient(0f)
@@ -155,6 +163,18 @@ class HomeView @JvmOverloads constructor(
         emptyHint.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
         items.forEach { grid.addView(card(it)) }
         if (hadFocus && findFocus() == null) restoreFocus()
+    }
+
+    /**
+     * Show or hide the update line. Called twice per launch — once from the cache while laying
+     * out, once more if the daily check turns up something — so it must be idempotent.
+     */
+    fun showUpdate(release: Release?) {
+        pendingUpdate = release
+        updateButton.visibility = if (release == null) View.GONE else View.VISIBLE
+        if (release != null) {
+            updateButton.text = context.getString(R.string.update_available, release.version)
+        }
     }
 
     private fun card(fav: Favorite): View {
