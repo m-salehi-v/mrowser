@@ -3,8 +3,11 @@ package net.mrowser.update
 /** Pure: when to ask GitHub, and whether the cached answer is worth showing. */
 object UpdateCheckPolicy {
 
-    /** One check a day. GitHub allows 60 unauthenticated requests an hour per IP, and carrier
-     *  -grade NAT puts many users behind one address, so this stays deliberately far under. */
+    /**
+     * One check a day. GitHub allows 60 unauthenticated requests an hour per IP, and
+     * carrier-grade NAT puts many users behind one address, so this stays deliberately far
+     * under.
+     */
     const val CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
 
     /**

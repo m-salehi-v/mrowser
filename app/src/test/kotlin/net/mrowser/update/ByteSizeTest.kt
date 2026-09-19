@@ -17,6 +17,14 @@ class ByteSizeTest {
         assertEquals("0.2 MB", ByteSize.format(200_000L))
     }
 
+    @Test fun `a mid-band size reads in whole kilobytes`() {
+        assertEquals("50 KB", ByteSize.format(50_000L))
+    }
+
+    @Test fun `the kilobyte-megabyte boundary reads as the first MB value`() {
+        assertEquals("0.1 MB", ByteSize.format(100_000L))
+    }
+
     @Test fun `an unknown size is blank`() {
         assertEquals("", ByteSize.format(0L))
         assertEquals("", ByteSize.format(-1L))
