@@ -64,6 +64,5 @@
     <string name="update_failed">Download failed. Try again.</string>
     <string name="update_manual">mrowser can\'t save the file on this device.\n\nOpen this on another device:\n%1$s\n\nOr use Obtainium to keep mrowser updated for you.</string>
     <string name="obtainium_title">Obtainium not installed</string>
-    <string name="obtainium_message">Obtainium installs apps straight from GitHub Releases and keeps them updated. Open its page to install it?</string>
-    <string name="obtainium_open">Open</string>
+    <string name="obtainium_message">Obtainium installs apps straight from GitHub Releases and keeps them updated for you — mrowser included.\n\nmrowser can\'t install it here. Get it on a phone or computer from:\n\n%1$s</string>
 </resources>

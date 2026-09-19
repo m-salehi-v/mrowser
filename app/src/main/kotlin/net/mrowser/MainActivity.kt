@@ -373,12 +373,15 @@ class MainActivity : Activity() {
         ExternalIntentLauncher(
             context = this,
             onFallback = { url -> openUrl(url) },
+            // Without Obtainium installed this says what it is and where to get it, and stops
+            // there. It deliberately does NOT offer to open Obtainium's release page here: mrowser
+            // cannot install an APK, so that page is a dead end on a TV — the same chicken-and-egg
+            // that makes this app's own update end at "saved to Downloads".
             onNoApp = {
                 AlertDialog.Builder(this)
                     .setTitle(R.string.obtainium_title)
-                    .setMessage(R.string.obtainium_message)
-                    .setPositiveButton(R.string.obtainium_open) { _, _ -> openUrl(OBTAINIUM_URL) }
-                    .setNegativeButton(R.string.close, null)
+                    .setMessage(getString(R.string.obtainium_message, OBTAINIUM_URL))
+                    .setPositiveButton(R.string.close, null)
                     .show()
             }
         ).launch(OBTAINIUM_ADD_URL)
