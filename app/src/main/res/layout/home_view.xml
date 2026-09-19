@@ -93,4 +93,21 @@
                 android:visibility="gone" />
         </FrameLayout>
     </ScrollView>
+
+    <!-- Bottom-left, deliberately quiet: accent text on the same focus_ring the header buttons
+         use, not a filled chip. `gone` by default so the favorites grid keeps its full height. -->
+    <Button
+        android:id="@+id/homeUpdateButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/focus_ring"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:text="@string/update_available"
+        android:textAllCaps="false"
+        android:textColor="@color/accent"
+        android:textSize="14sp"
+        android:visibility="gone" />
 </LinearLayout>
