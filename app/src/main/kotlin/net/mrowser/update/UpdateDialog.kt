@@ -69,6 +69,11 @@ object UpdateDialog {
 
         dialog.setOnShowListener {
             val download = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            // The notes ScrollView is focusable, so without this it takes first focus and D-pad
+            // DOWN scrolls the notes instead of ever reaching the buttons — on a remote the
+            // primary action became unreachable except by pressing RIGHT. Start on Download;
+            // UP still reaches the notes for anyone who wants to read them.
+            download.requestFocus()
             download.setOnClickListener {
                 ensureStoragePermission { granted ->
                     if (dismissed) return@ensureStoragePermission
