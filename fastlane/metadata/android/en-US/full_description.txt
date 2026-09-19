@@ -3,9 +3,9 @@ mrowser turns an Android TV box into something the platform does not otherwise g
 Streaming on a TV normally means whatever apps the store offers. Anything outside that catalogue is out of reach — and on the rare TV browser that can open the site at all, the video plays inside the WebView, where the audio slowly drifts out of step with the picture and never recovers. mrowser exists to close that gap.
 
 <b>Watch video from sites your TV has no app for</b>
-Open a site, start its video, and mrowser takes over. It watches the page's own network requests for the video stream (an HLS manifest) and, the moment one appears, hands it to a proper native player — carrying the session's User-Agent, Referer and cookies across so the stream keeps working. No catalogue, no app per site, no waiting for someone to build one.
+Open a site, start its video, and mrowser takes over. It watches the page's own network requests for the video stream — an HLS manifest, a DASH manifest, or a plain video file — and, the moment one appears, hands it to a proper native player — carrying the session's User-Agent, Referer and cookies across so the stream keeps working. No catalogue, no app per site, no waiting for someone to build one.
 
-HLS is what most streaming sites use. Sites that stream only over DASH (YouTube among them), plain MP4 files, and DRM-protected content are not handed off — they still play in the browser, just without the native player.
+That covers most of the streaming web. Detection reads the page's request URLs, so a site that hides its stream behind its own protocol (YouTube among them) is not handed off, and DRM-protected content stays in the browser by design — both still play in the page, just without the native player.
 
 <b>Video that stays in sync</b>
 Playback runs in a native Media3 / ExoPlayer activity rather than the WebView, which is what keeps audio locked to the picture for a whole film. You get real quality selection, audio-track switching and playback speed. BACK drops you back on the page exactly where you left it, and the play chip takes you straight back into the video.
@@ -21,6 +21,8 @@ Websites assume a mouse. mrowser gives you a virtual cursor driven by the D-pad,
 * Address bar opens on a held BACK, for the many remotes with no MENU key
 * Favourites grid and browsing history, both D-pad friendly
 * HTML5 fullscreen video support in the page itself
+* Ads and pop-unders blocked by host, with a per-site allow switch in the address bar
+* Opens links from other apps: mrowser registers as a browser on the device
 * Pop-ups a page opens by itself are blocked; ones you click still open
 * Dark interface designed for a ten-foot viewing distance
 * Plain Kotlin, no Compose, a single module — it stays light on weak boxes
