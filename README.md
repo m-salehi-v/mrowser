@@ -124,6 +124,18 @@ mrowser is **sideload-only** — it is not on the Play Store and needs no Google
 
 No ADB is strictly required — copying the APK to the device and opening it works.
 
+### Update notices
+
+mrowser checks GitHub for a new stable release once a day and, when there is one, shows a quiet
+**Update available** line at the bottom of the home screen. Opening it shows the release notes and
+a **Download** button that saves the APK to your `Downloads/` folder; install it from there with
+your file manager. Your settings, favorites and history are kept — the new APK is signed with the
+same key, so it updates in place.
+
+mrowser does not install the APK for you. Doing that requires the `REQUEST_INSTALL_PACKAGES`
+permission, and mrowser would rather not hold it. If your TV has no file manager, use Obtainium
+below — the dialog's **Automatic updates** button sets it up.
+
 ### Automatic updates with Obtainium
 
 [Obtainium](https://github.com/ImranR98/Obtainium) installs apps directly from GitHub Releases and keeps them updated — no store account, no Play Services. Add mrowser as an app source with this URL:
