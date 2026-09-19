@@ -1,6 +1,6 @@
 # mrowser — Android TV Browser for Streaming Video
 
-> A sideload-only **Android TV browser** for **watching video from websites your TV has no app for**. It detects the page's **HLS stream** automatically and plays it in a proper native **Media3 / ExoPlayer** player — correct **A/V sync**, quality and audio-track selection, and **subtitles you can retime while watching** — with a **D-pad-driven virtual mouse cursor** to get you there from the remote. No Google Play Services required.
+> A sideload-only **Android TV browser** for **watching video from websites your TV has no app for**. It detects the page's video stream automatically (**HLS**, **DASH**, or a plain video file) and plays it in a proper native **Media3 / ExoPlayer** player — correct **A/V sync**, quality and audio-track selection, and **subtitles you can retime while watching** — with a **D-pad-driven virtual mouse cursor** to get you there from the remote. No Google Play Services required.
 
 <!-- Badges: update the owner/repo path once the repository is public. -->
 [![Build](https://github.com/m-salehi-v/mrowser/actions/workflows/build.yml/badge.svg)](https://github.com/m-salehi-v/mrowser/actions/workflows/build.yml)
@@ -14,7 +14,7 @@
 
 **mrowser** (`net.mrowser`) is a lightweight, open-source **smart TV web browser** built specifically for **Android TV** and the **D-pad remote**. Its point is **streaming video from sites the TV has no app for**: open a site, start its video, and mrowser hands the stream to a real player instead of the WebView — so a whole film stays in sync. Everything else in the app exists to make that possible from a remote.
 
-> **mrowser hosts no content and breaks no DRM.** It ships with no preset sites or bookmarks, and it only replays standard HLS streams that the page you are visiting has already loaded in your own browser session — DRM/Widevine-protected content stays in the WebView. See [Scope of use & disclaimer](#scope-of-use--disclaimer).
+> **mrowser hosts no content and breaks no DRM.** It ships with no preset sites or bookmarks, and it only replays the standard streams (HLS, DASH, or a plain video file) that the page you are visiting has already loaded in your own browser session — DRM/Widevine-protected content stays in the WebView. See [Scope of use & disclaimer](#scope-of-use--disclaimer).
 
 ### The problem it solves
 
@@ -26,13 +26,13 @@ Watching video on Android TV means **whatever apps the store carries**. A site w
 
 mrowser fixes all three:
 
-1. **Find the real stream automatically.** As you browse, mrowser **sniffs the page's network traffic for an HLS manifest** (`.m3u8`) — an in-app **HLS sniffer** — and surfaces a play chip the moment a video stream appears. HLS is what most streaming sites use; see the [FAQ](#faq) for what is not covered.
+1. **Find the real stream automatically.** As you browse, mrowser **sniffs the page's network traffic for a video stream** — an HLS manifest (`.m3u8`), a DASH manifest (`.mpd`), or a plain video file (`.mp4`, `.m4v`, `.webm`, `.mkv`) — and surfaces a play chip the moment one appears. See the [FAQ](#faq) for what is not covered.
 2. **Play it properly.** The stream is handed to a **native Media3 / ExoPlayer** activity — with the session's User-Agent, Referer and cookies attached so it keeps working — for **correct A/V sync**, quality / audio-track selection, and **live, nudgeable subtitle timing**. Not the WebView's player.
 3. **Get there with a D-pad.** A **virtual mouse cursor** is driven entirely by the remote's directional pad and OK button, so any mouse-and-pointer website becomes navigable from the couch.
 
 ### What it is optimized for
 
-- **Streaming video from ordinary websites** — the whole pipeline, from sniffing the page's HLS manifest to native playback, exists for this.
+- **Streaming video from ordinary websites** — the whole pipeline, from sniffing the page's stream to native playback, exists for this.
 - **Correct A/V sync** via native ExoPlayer instead of the WebView player, so a two-hour film does not drift.
 - **Side-loaded subtitle support** (VTT and SRT) with a **live timing nudge** (±0.5s per press) — fix out-of-sync subtitles without rebuffering.
 - **Android TV and D-pad remotes** — no touchscreen, no mouse, no keyboard assumed.
@@ -61,13 +61,14 @@ mrowser fixes all three:
 ## Features
 
 - **D-pad mouse cursor** — a remote-driven virtual pointer (`CursorLayout` + `CursorController`) for sites a remote normally can't navigate; adjustable cursor speed.
-- **Automatic HLS detection and handoff** — the browser sniffs every WebView request, classifies media URLs, and auto-opens the stream in the native player when one appears (toggle off if you prefer a manual play chip).
+- **Automatic stream detection and handoff** — the browser sniffs every WebView request, classifies media URLs (**HLS** `.m3u8`, **DASH** `.mpd`, or a progressive `.mp4`/`.m4v`/`.webm`/`.mkv` file), and auto-opens the stream in the native player when one appears (toggle off if you prefer a manual play chip). A manifest outranks a plain file, so a page that serves a preview clip next to a real stream still hands off the stream.
 - **Native Media3 / ExoPlayer playback** — correct **A/V sync**, with in-player **quality**, **audio-track**, and **playback-speed** selection in the player's settings gear.
 - **Live subtitle sync** — the app renders side-loaded subtitles itself (VTT **and** SRT) so you can nudge their timing **±0.5s per press** (clamped to ±30s) **instantly, with no rebuffer** — solving the classic "subtitles are a second behind" problem ExoPlayer can't fix live.
 - **Smart subtitle labelling** — side-loaded tracks carry no language metadata, so mrowser infers a readable name (English, Persian, …) from the subtitle URL, else a generic `Subtitle N`.
 - **Home screen with favorites** — a favorites grid; add/remove the current page with the ★ button.
 - **Browsing history** — newest-first, deduplicated, with relative "Nm ago" labels; long-press to favorite.
 - **Ad blocking** — requests to ~90k known ad and pop-under hosts (OISD small + HaGeZi Pop-Up Ads, bundled and refreshed weekly) are answered with an empty stand-in, and a `window.open` or in-page redirect to one of them is refused while the page stays put. Per-site allow from the chrome bar, blocked counter, never touches the video stream itself.
+- **System browser registration** — links from other apps offer mrowser in the chooser, and one arriving while it runs navigates the page you are on instead of stacking a second browser. A link that belongs to another app (`market://`, `mailto:`, `intent://`, …) is handed to the system when you click it rather than dead-ending on the WebView's error page.
 - **Pop-up handling** — a window the user opens loads in the current window (there are no tabs) unless its destination is a known ad host; `target="_blank"` links still work and BACK returns you.
 - **Global settings** — auto-open-player, block-pop-ups, block-ads, and cursor-speed, applied live with no restart.
 - **Fullscreen HTML5 video** support in the WebView for sites that need it.
@@ -86,8 +87,9 @@ WebView (D-pad cursor)
    │  every resource request
    ▼
 SniffingWebViewClient ──▶ StreamSniffer ──▶ MediaUrlClassifier
-   │                         (off UI thread)   (.m3u8 → HLS, .vtt/.srt → subtitle)
-   │  first HLS manifest
+   │                         (off UI thread)   (.m3u8 → HLS, .mpd → DASH,
+   │                                            .mp4/.mkv → file, .vtt/.srt → subtitle)
+   │  first stream
    ▼
 onStreamAvailable ──▶ play chip + automatic handoff
    │
@@ -100,9 +102,9 @@ HandoffController ──▶ serializes PlaybackRequest ──▶ PlayerActivity
 ```
 
 1. **Browse.** You drive a virtual mouse cursor with the D-pad over a normal `WebView`.
-2. **Sniff.** `SniffingWebViewClient` forwards every resource request to `StreamSniffer`, which classifies each URL with the pure `MediaUrlClassifier` (extension-based: `.m3u8` → HLS, `.vtt`/`.srt` → subtitle) and accumulates candidates.
-3. **Handoff.** On the first HLS manifest, a play chip appears and (unless auto-open is off) `HandoffController` serializes a `PlaybackRequest` — manifest + subtitle tracks + playback headers — and launches `PlayerActivity`.
-4. **Play.** ExoPlayer plays the HLS stream with correct A/V sync. **BACK returns to the browser** (the WebView pauses during playback). Subtitles are **rendered by the app, not the player**, so a ~150ms ticker can push cues at `currentPosition + offset` into the `SubtitleView` — which is why the **sub-sync box** can nudge timing live.
+2. **Sniff.** `SniffingWebViewClient` forwards every resource request to `StreamSniffer`, which classifies each URL with the pure `MediaUrlClassifier` (extension-based: `.m3u8` → HLS, `.mpd` → DASH, `.mp4`/`.m4v`/`.webm`/`.mkv` → progressive file, `.vtt`/`.srt` → subtitle) and accumulates candidates. A `.mp4` is both a whole film and the segment container of fMP4 HLS/DASH, so the filename decides which it is.
+3. **Handoff.** On the first manifest, a play chip appears and (unless auto-open is off) `HandoffController` serializes a `PlaybackRequest` — stream + subtitle tracks + playback headers — and launches `PlayerActivity`. A plain video file is the weakest signal, so it announces only after a 1.5s grace window — a manifest arriving inside it wins the handoff.
+4. **Play.** ExoPlayer plays the stream with correct A/V sync — the container is declared by MIME type rather than guessed from the URL, since a query string can hide the extension. **BACK returns to the browser** (the WebView pauses during playback). Subtitles are **rendered by the app, not the player**, so a ~150ms ticker can push cues at `currentPosition + offset` into the `SubtitleView` — which is why the **sub-sync box** can nudge timing live.
 
 Throughout, **pure decision/parsing/geometry logic is separated from Android glue** so it can be unit-tested on the JVM without a device (`MediaUrlClassifier`, `StreamCandidateSelector`, `SubtitleCueParser`, `ActiveCueFinder`, `CursorGeometry`, and more).
 
@@ -141,6 +143,7 @@ mrowser is driven entirely by a standard **D-pad remote** (directional pad + OK 
 | **D-pad arrows** | Move the virtual mouse cursor (with acceleration and edge detection) |
 | **OK / Center** | Click at the cursor position |
 | **OK long-press** | Toggle between **CURSOR** mode (free pointer) and **FOCUS** mode |
+| **D-pad held at the top / bottom edge** | Scroll — at the cursor, so an overlay or cookie dialog with its own scrollbar scrolls too |
 | **MENU** *or* **BACK long-press** | Open the chrome / address bar to type or navigate a URL. Many TV remotes (e.g. the Mi Box 4K) have no MENU key — hold BACK for 500ms instead. |
 | **BACK** (tap) | Step back: chrome bar → WebView history → "Close this page?" → home |
 | **★ (favorite button)** | Add/remove the current page to favorites |
@@ -185,8 +188,8 @@ Run a single test class:
 
 - **Language:** Kotlin (single Gradle module `:app`)
 - **UI:** framework `Activity` + XML layouts in `res/layout` — **no AndroidX/Compose** beyond Media3
-- **Playback:** AndroidX **Media3 / ExoPlayer** (`media3-exoplayer`, `media3-exoplayer-hls`, `media3-ui`)
-- **Streaming:** HLS, detected by an in-app network sniffer over the `WebView`
+- **Playback:** AndroidX **Media3 / ExoPlayer** (`media3-exoplayer`, `media3-exoplayer-hls`, `media3-exoplayer-dash`, `media3-ui`)
+- **Streaming:** HLS, DASH, and progressive video files, detected by an in-app network sniffer over the `WebView`
 - **Build:** Gradle (Kotlin DSL), AGP 9.1.1, version catalog, GitHub Actions CI
 - **No Google Play Services**, no analytics, no bundled content
 - **Tests:** JUnit on pure Kotlin modules (`app/src/test/`)
@@ -208,22 +211,25 @@ Run a single test class:
 Yes. It is MIT-licensed and distributed only as a sideloaded APK from GitHub Releases — there is no Play Store listing and no account required.
 
 **Why does it need a separate native player instead of just playing video in the browser?**
-Android TV WebViews play video with **poor A/V sync** — audio drifts out of step with the picture. mrowser detects the page's HLS stream and plays it in a native **Media3 / ExoPlayer** activity, which keeps audio and video in sync.
+Android TV WebViews play video with **poor A/V sync** — audio drifts out of step with the picture. mrowser detects the page's stream and plays it in a native **Media3 / ExoPlayer** activity, which keeps audio and video in sync.
 
 **How do I move the cursor on Android TV without a mouse?**
 mrowser provides a **D-pad virtual mouse cursor**: the remote's arrow keys move an on-screen pointer and OK clicks. This makes pointer-and-mouse websites usable from a TV remote.
 
 **Does it work on every site?**
-It works on sites that stream over **HLS** (`.m3u8`), which is most of the streaming web. Three things are out of scope: **DASH-only sites** (YouTube among them) are not handed off, **progressive MP4** files are not detected, and **DRM/Widevine** content stays in the WebView by design. In all three cases the page still loads and its video still plays in the browser — you just do not get the native player, and so not the A/V-sync fix.
+It works on sites that stream over **HLS** (`.m3u8`), **DASH** (`.mpd`), or a plain video file (`.mp4`, `.m4v`, `.webm`, `.mkv`) — which is most of the streaming web. Two things stay out of scope: **DRM/Widevine** content remains in the WebView by design, and detection is by URL, so a site whose stream URLs carry no recognizable extension (YouTube among them) is not handed off. In both cases the page still loads and its video still plays in the browser — you just do not get the native player, and so not the A/V-sync fix.
 
-**What is the "HLS sniffer"?**
-As you browse, mrowser inspects the page's network requests and recognizes HLS manifests (`.m3u8`) and subtitle files (`.vtt`, `.srt`). When it sees a video stream it offers to hand it off to the native player.
+**What is the "stream sniffer"?**
+As you browse, mrowser inspects the page's network requests and recognizes HLS manifests (`.m3u8`), DASH manifests (`.mpd`), plain video files (`.mp4`, `.m4v`, `.webm`, `.mkv`) and subtitle files (`.vtt`, `.srt`). When it sees a video stream it offers to hand it off to the native player. A manifest is preferred over a plain file, and segments of a larger stream are told apart from a whole film by their filename.
 
 **Does the ad blocker block everything?**
 No. It blocks by **host**: requests to ~90k known ad and pop-under domains are dropped, and being sent to one of them by a click-hijack is refused. It does not hide empty ad slots (no cosmetic filtering) and cannot block ads served from the same host as the content, as YouTube does. The page's own video stream is never touched. Turn it off per site with the shield in the chrome bar, or globally in Settings.
 
 **Why do online ad-blocker tests score mrowser badly?**
 Because they infer "blocked" from a request *failing*. mrowser answers a blocked request with an empty stand-in (a 1×1 GIF, an empty script) and HTTP 200, so the page sees a successful load rather than an error — that is deliberate, since an outright failure fires a page's `onerror` handlers and breaks iframe layouts. The same property keeps anti-adblock detectors quiet. The blocked counter on the shield is the real measure of what was stopped.
+
+**Can I open links from other apps in mrowser?**
+Yes. mrowser registers as a system browser, so an `http`/`https` link from another app offers it in the chooser and it appears under the system's browser category; a link arriving while it is already running navigates the page you are on. Only ordinary web addresses are followed — a `file:` or `javascript:` URL handed in from another app is refused.
 
 **My subtitles are out of sync — can I fix that?**
 Yes. mrowser renders side-loaded subtitles itself, so the **sub-sync box** in the player lets you nudge subtitle timing by ±0.5s per press (up to ±30s), applied **instantly without rebuffering** — true **ExoPlayer subtitle sync** that the underlying player can't do on its own.
@@ -259,7 +265,7 @@ Issues and feature requests are tracked on the GitHub [issue tracker](https://gi
 
 mrowser is a **general-purpose web browser**. It hosts, bundles, indexes, and links to **no content** — it ships with no preset sites and no default bookmarks; every site you visit is one you type in yourself.
 
-Technically, it renders pages in a standard Android `WebView` and — like a browser's built-in developer tools — observes the page's own network requests to detect a standard **HLS manifest**, so it can play that stream in a native player with correct A/V sync. **It does not circumvent DRM or any technological protection measure** (DRM/Widevine content remains in the WebView), and it does not download, record, or redistribute streams.
+Technically, it renders pages in a standard Android `WebView` and — like a browser's built-in developer tools — observes the page's own network requests to detect a standard stream — an **HLS** or **DASH** manifest, or a plain video file — so it can play it in a native player with correct A/V sync. **It does not circumvent DRM or any technological protection measure** (DRM/Widevine content remains in the WebView), and it does not download, record, or redistribute streams.
 
 Use mrowser **only to access content you are authorized to access**, and in compliance with applicable law and the rights of content owners. The authors do not endorse or condone copyright infringement or unauthorized access to protected content. The software is provided **"as is", without warranty of any kind** — see [LICENSE](LICENSE).
 
@@ -275,4 +281,4 @@ Released under the **MIT License** — see [LICENSE](LICENSE). Bundled block lis
 
 mrowser was built with substantial help from **Anthropic's Claude** (via **Claude Code**). Architecture, planning docs in `docs/superpowers/`, much of the Kotlin implementation, and this README were produced in collaboration with Claude, with human direction and review. We're noting this honestly because the project's design and code genuinely reflect that collaboration.
 
-Built on the AndroidX **Media3 / ExoPlayer** library for HLS playback.
+Built on the AndroidX **Media3 / ExoPlayer** library for HLS, DASH and progressive playback.
