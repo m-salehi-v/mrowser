@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>mrowser — watch web video on your Android TV, in sync</title>
-<meta name="description" content="Open-source Android TV browser for watching video from sites your TV has no app for. It detects the page's HLS stream and plays it in a real native player — correct A/V sync, quality and audio-track selection, subtitles you can retime while watching, and a D-pad mouse cursor to get there.">
+<meta name="description" content="Open-source Android TV browser for watching video from sites your TV has no app for. It detects the page's stream — HLS, DASH or a plain video file — and plays it in a real native player: correct A/V sync, quality and audio-track selection, subtitles you can retime while watching, and a D-pad mouse cursor to get there.">
 <link rel="canonical" href="https://m-salehi-v.github.io/mrowser/">
 <meta property="og:title" content="mrowser — watch web video on your Android TV, in sync">
 <meta property="og:description" content="The page's video, handed to a real player instead of the WebView — in sync for a whole film, with subtitles you can retime mid-scene.">
@@ -135,7 +135,7 @@
     <div class="grid">
       <div>
         <h3>The page's video, played properly</h3>
-        <p>Open a site, start its video, and mrowser takes over. It watches the page's own requests for the HLS stream and hands it off the moment one appears — carrying the session's User-Agent, Referer and cookies across so it keeps working. No catalog, no app per site.</p>
+        <p>Open a site, start its video, and mrowser takes over. It watches the page's own requests for the video stream — an HLS manifest, a DASH manifest, or a plain video file — and hands it off the moment one appears, carrying the session's User-Agent, Referer and cookies across so it keeps working. No catalog, no app per site.</p>
       </div>
       <div>
         <h3>In sync for a whole film</h3>
@@ -151,7 +151,11 @@
       </div>
       <div>
         <h3>It leaves and comes back cleanly</h3>
-        <p>BACK drops you onto the page exactly where you left it, and the play chip takes you straight back into the video. Favourites grid, browsing history, HTML5 fullscreen, and an address bar that opens on a held BACK for remotes with no MENU key.</p>
+        <p>BACK drops you onto the page exactly where you left it, and the play chip takes you straight back into the video. Favourites grid, browsing history, HTML5 fullscreen, and an address bar that opens on a held BACK for remotes with no MENU key. It registers as a browser too, so links from other apps can open here.</p>
+      </div>
+      <div>
+        <h3>Ads and pop-unders, refused</h3>
+        <p>A bundled list of about 90,000 known ad hosts, refreshed weekly. Requests to them are answered with an empty stand-in, so a page waiting on its ads still finishes loading, and a script that hijacks your click to open an ad tab gets nowhere. The shield in the address bar counts what was stopped, and allows a site in one press. The video stream is never touched.</p>
       </div>
       <div>
         <h3>Small, quiet, and yours</h3>
@@ -190,6 +194,7 @@
         <tr><td>D-pad arrows</td><td>Move the cursor, with acceleration and edge detection</td></tr>
         <tr><td>OK</td><td>Click at the cursor</td></tr>
         <tr><td>OK long-press</td><td>Switch between cursor mode and focus mode</td></tr>
+        <tr><td>D-pad held at the screen edge</td><td>Scroll at the cursor — so a cookie dialog with its own scrollbar scrolls too</td></tr>
         <tr><td>MENU <em>or</em> BACK held</td><td>Open the address bar — the hold is for remotes with no MENU key</td></tr>
         <tr><td>BACK tapped</td><td>Address bar → page history → close page → home</td></tr>
         <tr><td>− / + in the player</td><td>Shift subtitle timing by 0.5s, live, with no rebuffer</td></tr>
@@ -209,7 +214,7 @@
     </ol>
     <p>For automatic updates, add the repository to <a href="https://github.com/ImranR98/Obtainium">Obtainium</a> as an app source:</p>
     <pre><code>https://github.com/m-salehi-v/mrowser</code></pre>
-    <p class="note"><b>What it covers:</b> sites that stream over HLS, which is most of the streaming web. DASH-only sites (YouTube among them), progressive MP4 files, and DRM/Widevine content are not handed off — those still play in the browser, just without the native player.</p>
+    <p class="note"><b>What it covers:</b> sites that stream over HLS, DASH, or a plain video file (MP4, M4V, WebM, MKV) — which is most of the streaming web. Detection reads the page's request URLs, so a site that hides its stream behind its own protocol (YouTube among them) is not handed off, and DRM/Widevine content stays in the browser by design. Both still play in the page, just without the native player.</p>
     <p class="note">mrowser hosts, bundles, indexes and links to no content. It ships with no preset sites or bookmarks, and it does not circumvent DRM — Widevine streams stay in the WebView. Use it only to access content you are authorised to access.</p>
   </div>
 </section>

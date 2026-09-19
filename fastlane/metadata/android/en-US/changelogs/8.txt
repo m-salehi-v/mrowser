@@ -1,0 +1,9 @@
+Ad blocking, and more stream types.
+
+Added: a bundled list of known ad and pop-under hosts. Requests to them are answered with an empty stand-in, so a page waiting on its ads still loads, and a script that hijacks a click to open an ad tab is refused. The shield in the address bar counts what was blocked and allows the site in one press.
+
+Added: DASH manifests and plain video files reach the synced player too. Until now only HLS did, and everything else played in the page with the A/V drift the native player exists to fix.
+
+Fixed: the cursor now scrolls whatever sits under it, so a cookie dialog with its own scrollbar can be reached.
+
+Fixed: the D-pad no longer goes dead after editing a favourite.

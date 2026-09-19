@@ -1,0 +1,7 @@
+App links and browser registration.
+
+Fixed: links that open another app no longer dead-end on an error page. A WebView only resolves ordinary web addresses itself; everything else now goes to the system, and when nothing on the device can take the link a short message says so.
+
+Added: mrowser registers as a browser, so opening a link from another app offers it in the chooser. A link arriving while it is already running navigates the page you are on rather than starting a second browser.
+
+Also: an intent:// link falls back to the web address it carries when no app can open it.
