@@ -107,6 +107,15 @@ class SettingsJsonTest {
         assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
     }
 
+    @Test fun `page settings are written under their stored key names`() {
+        val json = SettingsJson.toJson(
+            Settings(desktopByDefault = true, desktopOverride = mapOf("a.example" to false), zoomBySite = mapOf("b.example" to 125))
+        )
+        assertTrue(json.contains("\"desktopByDefault\":true"))
+        assertTrue(json.contains("\"desktopOverride\":{\"a.example\":false}"))
+        assertTrue(json.contains("\"zoomBySite\":{\"b.example\":125}"))
+    }
+
     @Test fun `a 1_4 settings file is mobile everywhere at 100 percent`() {
         val s = SettingsJson.fromJson("""{"autoOpenPlayer":true}""")
         assertFalse(s.desktopByDefault)
