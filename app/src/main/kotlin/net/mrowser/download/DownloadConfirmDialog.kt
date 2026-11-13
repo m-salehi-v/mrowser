@@ -34,13 +34,20 @@ object DownloadConfirmDialog {
         var confirmed = false
         dialog.setOnDismissListener { if (!confirmed) onDecline() }
         dialog.setOnShowListener {
-            val shownAt = SystemClock.uptimeMillis()
             val download = dialog.getButton(AlertDialog.BUTTON_POSITIVE) ?: return@setOnShowListener
+            // The delay runs from when the dialog's window has focus, not from onShow: a dialog
+            // opened while the player is in front has been "shown" all along, and would otherwise
+            // be armed the moment the user comes back. Every regain of focus restarts it.
+            val decor = dialog.window?.decorView
+            var armedAt: Long? = if (decor == null || decor.hasWindowFocus()) SystemClock.uptimeMillis() else null
+            decor?.viewTreeObserver?.addOnWindowFocusChangeListener { hasFocus ->
+                armedAt = if (hasFocus) SystemClock.uptimeMillis() else null
+            }
             // The D-pad starts on the action, as the spec asks; ConfirmDelay keeps a repeat of
             // the press that made the page fire this download from landing on it.
             download.requestFocus()
             download.setOnClickListener {
-                if (!ConfirmDelay.accepts(shownAt, SystemClock.uptimeMillis())) return@setOnClickListener
+                if (!ConfirmDelay.accepts(armedAt, SystemClock.uptimeMillis())) return@setOnClickListener
                 confirmed = true
                 dialog.dismiss()
                 onDownload()
