@@ -487,16 +487,24 @@ class MainActivity : Activity() {
             Toast.makeText(this, problem, Toast.LENGTH_LONG).show()
             return
         }
-        val summary = FavoritesBackup.summarize(favorites.findAll(), parsed.favorites)
-        favorites.addAll(parsed.favorites)
+        val capped = FavoritesBackup.capNew(favorites.findAll(), parsed.favorites)
+        val summary = FavoritesBackup.summarize(favorites.findAll(), capped.favorites)
+        favorites.addAll(capped.favorites)
         homeView.refresh()
-        val message = if (parsed.skipped == 0) {
-            getString(R.string.import_favorites_done, summary.added, summary.alreadyPresent)
+        val fromHtml = parsed.source == FavoritesBackup.Source.BOOKMARKS_HTML
+        var message = if (parsed.skipped == 0) {
+            getString(
+                if (fromHtml) R.string.import_bookmarks_done else R.string.import_favorites_done,
+                summary.added, summary.alreadyPresent
+            )
         } else {
             getString(
-                R.string.import_favorites_done_skipped,
+                if (fromHtml) R.string.import_bookmarks_done_skipped else R.string.import_favorites_done_skipped,
                 summary.added, summary.alreadyPresent, parsed.skipped
             )
+        }
+        if (capped.leftOut > 0) {
+            message += "\n" + getString(R.string.import_favorites_capped, FavoritesBackup.MAX_NEW, capped.leftOut)
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
