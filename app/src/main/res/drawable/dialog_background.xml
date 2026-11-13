@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Every AlertDialog's card (Theme.Mrowser.Dialog). The inset is the window's margin around
-     the card, as in the framework's dialog_background_material. -->
-<inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="16dp">
-    <shape android:shape="rectangle">
-        <corners android:radius="20dp" />
-        <solid android:color="@color/dialog_card" />
-        <stroke android:width="1dp" android:color="@color/hairline" />
-    </shape>
-</inset>
+<!-- Every AlertDialog's card (Theme.Mrowser.Dialog), drawn edge to edge: the window is the card.
+     Deliberately no <inset> margin around it, unlike the framework's dialog_background_material.
+     The stock decor pads its content by that inset, which keeps the content flush with the card,
+     but Fire OS lays dialogs out with its own layout, which put the content in the transparent
+     margin, where the card's edge cropped it (#65). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="20dp" />
+    <solid android:color="@color/dialog_card" />
+    <stroke android:width="1dp" android:color="@color/hairline" />
+</shape>
