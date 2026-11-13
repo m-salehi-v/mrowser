@@ -24,6 +24,12 @@ data class Settings(
     val matchResolution: Boolean = false,
     /** The engine the URL bar sends free text (anything that is not a web address) to. */
     val searchEngine: SearchEngine = SearchEngine.DEFAULT,
+    /** Ask sites for their desktop layout (a desktop User-Agent) unless a site says otherwise. */
+    val desktopByDefault: Boolean = false,
+    /** Sites whose choice differs from [desktopByDefault], by registrable domain; true = desktop. */
+    val desktopOverride: Map<String, Boolean> = emptyMap(),
+    /** Page zoom in percent (a [net.mrowser.web.PageZoom] step) for the sites not at 100, by registrable domain. */
+    val zoomBySite: Map<String, Int> = emptyMap(),
     /** Internal bookkeeping, not a user preference: default favorites written once. */
     val seeded: Boolean = false,
     /** Internal bookkeeping, not a user preference: hold-BACK hint shown once. */

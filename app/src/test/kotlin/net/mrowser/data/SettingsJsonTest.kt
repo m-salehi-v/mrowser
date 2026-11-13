@@ -101,4 +101,26 @@ class SettingsJsonTest {
 
     @Test fun `an unknown engine id reads as duckduckgo`() =
         assertEquals(SearchEngine.DUCKDUCKGO, SettingsJson.fromJson("""{"searchEngine":"yahoo"}""").searchEngine)
+
+    @Test fun `page settings round-trip`() {
+        val s = Settings(desktopByDefault = true, desktopOverride = mapOf("a.example" to false), zoomBySite = mapOf("b.example" to 125))
+        assertEquals(s, SettingsJson.fromJson(SettingsJson.toJson(s)))
+    }
+
+    @Test fun `a 1_4 settings file is mobile everywhere at 100 percent`() {
+        val s = SettingsJson.fromJson("""{"autoOpenPlayer":true}""")
+        assertFalse(s.desktopByDefault)
+        assertEquals(emptyMap<String, Boolean>(), s.desktopOverride)
+        assertEquals(emptyMap<String, Int>(), s.zoomBySite)
+    }
+
+    @Test fun `hand-edited zooms snap to a step and 100 is dropped`() = assertEquals(
+        mapOf("a.example" to 125, "c.example" to 200),
+        SettingsJson.fromJson("""{"zoomBySite":{"a.example":130,"b.example":100,"c.example":900,"d.example":"big"}}""").zoomBySite
+    )
+
+    @Test fun `non-boolean desktop overrides are skipped`() = assertEquals(
+        mapOf("a.example" to true),
+        SettingsJson.fromJson("""{"desktopOverride":{"a.example":true,"b.example":"yes"}}""").desktopOverride
+    )
 }

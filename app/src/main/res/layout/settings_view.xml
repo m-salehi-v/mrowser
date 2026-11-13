@@ -76,6 +76,17 @@
                 style="@style/Mrowser.SettingsValue" />
         </LinearLayout>
         <LinearLayout
+            android:id="@+id/settingsDesktopRow"
+            style="@style/Widget.Mrowser.SettingsRow">
+
+            <TextView
+                style="@style/Mrowser.SettingsLabel"
+                android:text="@string/desktop_by_default_title" />
+
+            <View
+                style="@style/Widget.Mrowser.SettingsSwitch" />
+        </LinearLayout>
+        <LinearLayout
             android:id="@+id/settingsPopupRow"
             style="@style/Widget.Mrowser.SettingsRow">
 

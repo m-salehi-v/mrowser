@@ -1,5 +1,6 @@
 package net.mrowser.data
 
+import net.mrowser.web.PageZoom
 import net.mrowser.web.SearchEngine
 import org.json.JSONArray
 import org.json.JSONException
@@ -18,6 +19,9 @@ object SettingsJson {
             .put("matchFrameRate", settings.matchFrameRate)
             .put("matchResolution", settings.matchResolution)
             .put("searchEngine", settings.searchEngine.id)
+            .put("desktopByDefault", settings.desktopByDefault)
+            .put("desktopOverride", JSONObject(settings.desktopOverride.toSortedMap()))
+            .put("zoomBySite", JSONObject(settings.zoomBySite.toSortedMap()))
             .put("seeded", settings.seeded)
             .put("navHintShown", settings.navHintShown)
             .toString()
@@ -36,12 +40,38 @@ object SettingsJson {
                 matchFrameRate = o.optBoolean("matchFrameRate", defaults.matchFrameRate),
                 matchResolution = o.optBoolean("matchResolution", defaults.matchResolution),
                 searchEngine = SearchEngine.fromId(o.optString("searchEngine", null)),
+                desktopByDefault = o.optBoolean("desktopByDefault", defaults.desktopByDefault),
+                desktopOverride = desktopMap(o.optJSONObject("desktopOverride")),
+                zoomBySite = zoomMap(o.optJSONObject("zoomBySite")),
                 seeded = o.optBoolean("seeded", defaults.seeded),
                 navHintShown = o.optBoolean("navHintShown", defaults.navHintShown)
             )
         } catch (e: JSONException) {
             Settings()
         }
+    }
+
+    /** Entries whose value is not a boolean, or whose key is blank, are skipped. */
+    private fun desktopMap(obj: JSONObject?): Map<String, Boolean> {
+        if (obj == null) return emptyMap()
+        val out = LinkedHashMap<String, Boolean>()
+        for (key in obj.keys()) {
+            val v = obj.opt(key) as? Boolean ?: continue
+            if (key.isNotBlank()) out[key] = v
+        }
+        return out
+    }
+
+    /** A non-number value or blank key is skipped; the rest snap to a zoom step, and 100 is dropped. */
+    private fun zoomMap(obj: JSONObject?): Map<String, Int> {
+        if (obj == null) return emptyMap()
+        val out = LinkedHashMap<String, Int>()
+        for (key in obj.keys()) {
+            val v = (obj.opt(key) as? Number)?.toInt() ?: continue
+            val z = PageZoom.snap(v)
+            if (key.isNotBlank() && z != PageZoom.DEFAULT) out[key] = z
+        }
+        return out
     }
 
     /** Non-string and blank elements are skipped; a missing/non-array value is null. */

@@ -42,6 +42,7 @@
     <string name="match_frame_rate_title">Match frame rate</string>
     <string name="match_resolution_title">Match resolution</string>
     <string name="search_engine_title">Search engine</string>
+    <string name="desktop_by_default_title">Desktop site by default</string>
     <string name="cursor_speed_title">Cursor speed</string>
     <string name="settings_section_playback">Playback</string>
     <string name="settings_section_browsing">Browsing</string>
