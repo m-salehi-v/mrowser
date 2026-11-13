@@ -122,4 +122,21 @@ class FavoritesBackupTest {
 
     @Test fun `a json file is from mrowser`() =
         assertEquals(FavoritesBackup.Source.MROWSER, FavoritesBackup.parse(FavoritesBackup.toJson(listOf(a)))!!.source)
+
+    @Test fun `caps new favorites, not ones already present`() {
+        val existing = listOf(Favorite("a", "https://a.example/"))
+        val imported = listOf(Favorite("a", "https://a.example/")) +
+            (1..5).map { Favorite("n$it", "https://n$it.example/") } + Favorite("dup", "https://n1.example/")
+        val c = FavoritesBackup.capNew(existing, imported, max = 3)
+        assertEquals(
+            listOf("https://a.example/", "https://n1.example/", "https://n2.example/", "https://n3.example/", "https://n1.example/"),
+            c.favorites.map { it.url }
+        )
+        assertEquals(2, c.leftOut)
+    }
+
+    @Test fun `no cap below the limit`() = assertEquals(
+        0,
+        FavoritesBackup.capNew(emptyList(), listOf(Favorite("x", "https://x.example/"))).leftOut
+    )
 }
