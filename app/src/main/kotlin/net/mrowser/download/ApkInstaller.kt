@@ -40,7 +40,9 @@ object ApkInstaller {
 
     fun install(activity: Activity, downloadId: Long, onUnavailable: (messageRes: Int) -> Unit) {
         val uri = apkUri(activity, downloadId)
-        if (uri == null) {
+        // A SUCCESSFUL row keeps its URI after a file manager deletes the file, and the installer
+        // would show only a generic parse error; say what happened instead.
+        if (uri == null || !Downloader.fileExists(activity, downloadId)) {
             onUnavailable(R.string.download_file_removed)
             return
         }

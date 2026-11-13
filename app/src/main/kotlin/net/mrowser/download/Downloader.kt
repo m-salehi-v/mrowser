@@ -116,6 +116,7 @@ object Downloader {
             context.contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
         }
     } catch (e: Exception) {
+        Log.w(TAG, "file check failed", e)
         false
     }
 
