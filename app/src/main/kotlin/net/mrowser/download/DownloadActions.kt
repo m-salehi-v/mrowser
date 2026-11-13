@@ -74,6 +74,22 @@ object DownloadActions {
             DownloadOption.COPY_LINK -> DownloadEffect.CopyLink(info.url)
         }
 
+    /**
+     * The state an option picked from the dialog acts on: the download as [fresh] (a re-query when
+     * it was picked) has it, since the dialog may have sat open while it moved on. When that answer
+     * is missing (the query failed, or the manager no longer knows the id) Cancel download and
+     * Delete file get null — both delete the file, so they never act on the row as it was when the
+     * dialog opened (a Cancel on a download that has since finished would delete it). The other
+     * options fall back to [opened].
+     */
+    fun stateFor(option: DownloadOption, fresh: List<DownloadInfo>?, opened: DownloadInfo): DownloadInfo? {
+        fresh?.firstOrNull { it.id == opened.id }?.let { return it }
+        return when (option) {
+            DownloadOption.CANCEL, DownloadOption.DELETE_FILE -> null
+            else -> opened
+        }
+    }
+
     /** Hides every finished or failed row; active ones stay. */
     fun clearFinished(visible: List<DownloadInfo>): DownloadEffect.Hide =
         DownloadEffect.Hide(visible.filter { !it.isActive }.map { it.id }.toSet())

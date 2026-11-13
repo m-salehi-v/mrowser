@@ -11,6 +11,7 @@ import net.mrowser.download.DownloadStatus.PENDING
 import net.mrowser.download.DownloadStatus.RUNNING
 import net.mrowser.download.DownloadStatus.SUCCESSFUL
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -75,5 +76,30 @@ class DownloadActionsTest {
     @Test fun `primary runs the OK action, copy link carries the url`() {
         assertEquals(DownloadEffect.Run(Primary.RETRY), DownloadActions.effect(PRIMARY, info(3, FAILED)))
         assertEquals(DownloadEffect.CopyLink("https://cdn.example/f1"), DownloadActions.effect(COPY_LINK, info(1, SUCCESSFUL)))
+    }
+
+    @Test fun `an option acts on the download as the re-query has it`() {
+        val opened = info(1, RUNNING)
+        val now = info(1, SUCCESSFUL)
+        listOf(PRIMARY, CANCEL, DELETE_FILE, REMOVE_FROM_LIST, COPY_LINK).forEach {
+            assertEquals(now, DownloadActions.stateFor(it, listOf(now), opened))
+        }
+    }
+
+    @Test fun `cancel and delete never act on the row as it was when the dialog opened`() {
+        val opened = info(1, RUNNING)
+        listOf(CANCEL, DELETE_FILE).forEach {
+            assertNull(DownloadActions.stateFor(it, null, opened))
+            assertNull(DownloadActions.stateFor(it, emptyList(), opened))
+            assertNull(DownloadActions.stateFor(it, listOf(info(2, RUNNING)), opened))
+        }
+    }
+
+    @Test fun `the other options fall back to the opened row when the re-query has nothing`() {
+        val opened = info(1, FAILED)
+        listOf(PRIMARY, REMOVE_FROM_LIST, COPY_LINK).forEach {
+            assertEquals(opened, DownloadActions.stateFor(it, null, opened))
+            assertEquals(opened, DownloadActions.stateFor(it, emptyList(), opened))
+        }
     }
 }

@@ -62,8 +62,13 @@ class DownloadRunner(
 
     private fun pick(option: DownloadOption, row: DownloadRowModel) {
         // The dialog may have sat open while the download moved on: decide on its state now, so a
-        // Cancel download picked after it finished cannot delete the finished file.
-        val info = Downloader.query(activity, row.info.id)?.firstOrNull() ?: row.info
+        // Cancel download picked after it finished cannot delete the finished file. Cancel and
+        // Delete file act only on a fresh answer — never on the row as it was when it opened.
+        val info = DownloadActions.stateFor(option, Downloader.query(activity, row.info.id), row.info)
+        if (info == null) {
+            toast(R.string.download_check_failed)
+            return
+        }
         when (val effect = DownloadActions.effect(option, info, row.fileMissing)) {
             is DownloadEffect.Run ->
                 primary(row.copy(info = info, primary = effect.primary))

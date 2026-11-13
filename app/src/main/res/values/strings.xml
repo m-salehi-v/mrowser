@@ -114,6 +114,7 @@
     <string name="download_delete">Delete file</string>
     <string name="download_remove">Remove from list</string>
     <string name="download_copy_link">Copy link</string>
+    <string name="download_check_failed">Couldn\'t check this download. Try again.</string>
     <string name="download_link_copied">Link copied</string>
     <string name="download_delete_title">Delete this file?</string>
     <string name="download_delete_message">%1$s will be deleted from Downloads.</string>
