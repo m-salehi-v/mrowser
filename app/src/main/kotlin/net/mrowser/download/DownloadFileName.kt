@@ -76,15 +76,20 @@ object DownloadFileName {
         return if (type.isEmpty() || type in GENERIC_MIME) null else type
     }
 
-    /** The name the saved file really has (the system may have renamed it), else the title. */
+    /**
+     * The name the saved file really has (the system may have renamed it), else the title. Only a
+     * `file:` URI names the file: a `content://media/…/1234` ends in a row id, and so does no name
+     * worth showing when the segment is purely digits.
+     */
     fun displayName(title: String?, localUri: String?): String {
         if (localUri != null) {
             val segment = try {
-                URI(localUri).path?.substringAfterLast('/')
+                val uri = URI(localUri)
+                if (uri.scheme.equals("file", ignoreCase = true)) uri.path?.substringAfterLast('/') else null
             } catch (e: URISyntaxException) {
                 null
             }
-            if (!segment.isNullOrBlank()) return segment
+            if (!segment.isNullOrBlank() && !segment.all { it in '0'..'9' }) return segment
         }
         return title?.trim()?.takeIf { it.isNotEmpty() } ?: FALLBACK_DISPLAY
     }

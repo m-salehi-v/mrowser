@@ -89,5 +89,8 @@ class DownloadFileNameTest {
         assertEquals("My Film.mkv", DownloadFileName.displayName("x", "file:///storage/emulated/0/Download/My%20Film.mkv"))
         assertEquals("mrowser 1.5.0", DownloadFileName.displayName("mrowser 1.5.0", null))
         assertEquals("Download", DownloadFileName.displayName(" ", "content://downloads/"))
+        // a content:// local URI ends in a row id, which is no name
+        assertEquals("a.mp4", DownloadFileName.displayName("a.mp4", "content://media/external/downloads/1234"))
+        assertEquals("clip", DownloadFileName.displayName("clip", "file:///storage/emulated/0/Download/1234"))
     }
 }
