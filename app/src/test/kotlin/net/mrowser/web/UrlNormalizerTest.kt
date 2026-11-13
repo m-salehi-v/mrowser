@@ -51,6 +51,16 @@ class UrlNormalizerTest {
         assertEquals("http://example.com/x", UrlNormalizer.resolve("http://example.com/x", ddg))
     }
 
+    @Test fun `resolve keeps an explicit scheme with a dotless host`() {
+        assertEquals("http://nas:5000/", UrlNormalizer.resolve("http://nas:5000/", ddg))
+        assertEquals("https://intranet/", UrlNormalizer.resolve("https://intranet/", ddg))
+        assertEquals("http://router", UrlNormalizer.resolve("http://router", ddg))
+    }
+
+    @Test fun `resolve searches a scheme with no host`() {
+        assertEquals("https://duckduckgo.com/?q=http%3A%2F%2F", UrlNormalizer.resolve("http://", ddg))
+    }
+
     @Test fun `resolve searches words`() {
         assertEquals("https://duckduckgo.com/?q=tarkovsky", UrlNormalizer.resolve("tarkovsky", ddg))
         assertEquals("https://duckduckgo.com/?q=solaris+1972", UrlNormalizer.resolve("  solaris 1972 ", ddg))
