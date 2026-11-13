@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
+import android.os.Message
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
@@ -98,6 +99,16 @@ class SniffingWebViewClient(
         handler?.cancel()
         val url = error?.url ?: return
         if (MainFrameUrl.same(url, navigatingUrl)) pageEvents.onMainFrameSslError(url)
+    }
+
+    /**
+     * A reload (the bar's, the page menu's Desktop site, the User-Agent safety net) of a POST
+     * result. Never re-post a form behind the user's back; the default does the same, but
+     * silently, and the loading line would then wait out its timeout on a page that is there.
+     */
+    override fun onFormResubmission(view: WebView?, dontResend: Message?, resend: Message?) {
+        dontResend?.sendToTarget()
+        pageEvents.onReloadNotResent()
     }
 
     /** Only called on API 26+, where [RenderProcessGoneDetail.didCrash] exists. */

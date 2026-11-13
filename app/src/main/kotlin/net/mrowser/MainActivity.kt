@@ -259,6 +259,12 @@ class MainActivity : Activity() {
             httpErrorStatus = status
         }
 
+        // The page the reload was for is still there, as it was: end the load as a finish (no
+        // error screen) rather than leave the line and the ring up to the timeout.
+        override fun onReloadNotResent() {
+            applyLoad(PageLoadEvent.Finished)
+        }
+
         /**
          * Keeps the app alive: the dead WebView is dropped (it must not be used again) and the
          * Activity is recreated with a fresh one, which shows Page crashed for [crashedUrl] and
