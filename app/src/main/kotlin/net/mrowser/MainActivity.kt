@@ -65,6 +65,7 @@ import net.mrowser.web.CursorController
 import net.mrowser.web.CursorLayout
 import net.mrowser.web.ExternalIntentLauncher
 import net.mrowser.web.IncomingUrl
+import net.mrowser.web.MainFrameUrl
 import net.mrowser.web.PageError
 import net.mrowser.web.PageErrorKind
 import net.mrowser.web.PageErrorView
@@ -128,6 +129,10 @@ class MainActivity : Activity() {
     private var errorKind: PageErrorKind? = null
     private var errorUrl: String? = null
 
+    /** The URL the last [PageLoadEvent.Started] began, so its own later `onPageStarted` (at
+     *  commit, for a clicked link) continues the line instead of restarting it. */
+    private var startedUrl: String? = null
+
     /** A main-frame 4xx/5xx waiting for its page to finish; see [scheduleEmptyPageCheck]. */
     private var httpErrorUrl: String? = null
     private var httpErrorStatus = 0
@@ -153,8 +158,14 @@ class MainActivity : Activity() {
                 httpErrorStatus = 0
             }
             hidePageError()
-            // about:blank (close tab, home) and other non-web URLs show no loading feedback
-            if (isWebUrl(url)) applyLoad(PageLoadEvent.Started)
+            // about:blank (close tab, home) and other non-web URLs show no loading feedback here
+            // (the app's own loads — openUrl, the bar's back/reload, Try again, Go back — apply
+            // Started themselves and end through about:blank's finish all the same)
+            if (isWebUrl(url)) {
+                val again = MainFrameUrl.same(url, startedUrl)
+                startedUrl = url
+                applyLoad(if (again) PageLoadEvent.StartedAgain else PageLoadEvent.Started)
+            }
         }
 
         override fun onCommitVisible(url: String) = applyLoad(PageLoadEvent.Committed)
@@ -369,13 +380,13 @@ class MainActivity : Activity() {
 
         backButton.setOnClickListener {
             if (webView.canGoBack()) {
-                applyLoad(PageLoadEvent.Started)
+                startLoad(null)
                 webView.goBack()
             }
             chrome.onInteracted()
         }
         reloadButton.setOnClickListener {
-            applyLoad(PageLoadEvent.Started)
+            startLoad(webView.url)
             webView.reload()
             chrome.onInteracted()
         }
@@ -512,7 +523,7 @@ class MainActivity : Activity() {
             return
         }
         hidePageError()
-        applyLoad(PageLoadEvent.Started)
+        startLoad(url)
         if (webView.url == url) webView.reload() else webView.loadUrl(url)
     }
 
@@ -529,7 +540,7 @@ class MainActivity : Activity() {
             return
         }
         hidePageError()
-        applyLoad(PageLoadEvent.Started)
+        startLoad(null)
         webView.goBack()
     }
 
@@ -566,10 +577,16 @@ class MainActivity : Activity() {
         layout.requestFocus()
         clearHistoryOnLoad = true
         adBlocker.onUserNavigation()
-        applyLoad(PageLoadEvent.Started)
+        startLoad(url)
         webView.loadUrl(url)
         chrome.onPageInteracted()
         showNavHintOnce()
+    }
+
+    /** Starts the loading feedback for a load the app begins; [url] is where it goes, if known. */
+    private fun startLoad(url: String?) {
+        startedUrl = url
+        applyLoad(PageLoadEvent.Started)
     }
 
     /**

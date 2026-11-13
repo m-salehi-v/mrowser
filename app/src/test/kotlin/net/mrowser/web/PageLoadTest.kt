@@ -68,4 +68,29 @@ class PageLoadTest {
 
     @Test fun `a progress tick after failure reopens the line with the ring off`() =
         assertEquals(PageLoadState(true, 30, false), run(PageLoadEvent.Started, PageLoadEvent.Failed, PageLoadEvent.Progress(30)))
+
+    // A clicked link: shouldOverrideUrlLoading starts it, onPageStarted for the same URL comes at commit.
+    @Test fun `a start for the load already running keeps its progress`() =
+        assertEquals(
+            PageLoadState(true, 40, true),
+            run(PageLoadEvent.Started, PageLoadEvent.Progress(40), PageLoadEvent.StartedAgain),
+        )
+
+    @Test fun `a start for the load already running does not re-arm the ring after commit`() =
+        assertEquals(
+            PageLoadState(true, 60, false),
+            run(PageLoadEvent.Started, PageLoadEvent.Progress(60), PageLoadEvent.Committed, PageLoadEvent.StartedAgain),
+        )
+
+    @Test fun `progress keeps moving after a start for the same load`() =
+        assertEquals(
+            75,
+            run(PageLoadEvent.Started, PageLoadEvent.Progress(50), PageLoadEvent.StartedAgain, PageLoadEvent.Progress(75)).progress,
+        )
+
+    @Test fun `a start for the same url with nothing loading starts afresh`() {
+        assertEquals(PageLoadState(true, 0, true), run(PageLoadEvent.StartedAgain))
+        assertEquals(PageLoadState(true, 0, true), run(PageLoadEvent.Started, PageLoadEvent.Finished, PageLoadEvent.StartedAgain))
+        assertEquals(PageLoadState(true, 0, true), run(PageLoadEvent.Started, PageLoadEvent.Failed, PageLoadEvent.StartedAgain))
+    }
 }

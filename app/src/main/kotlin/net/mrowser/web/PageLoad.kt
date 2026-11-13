@@ -14,6 +14,13 @@ sealed interface PageLoadEvent {
     /** A navigation began (click, URL bar, back/forward reported by `onPageStarted`). */
     data object Started : PageLoadEvent
 
+    /**
+     * A start for the navigation already under way: a clicked link reports
+     * `shouldOverrideUrlLoading` first and `onPageStarted` for the same URL only at commit, and
+     * an app-initiated load reports `onPageStarted` for the URL it already announced.
+     */
+    data object StartedAgain : PageLoadEvent
+
     /** `onProgressChanged`; any int, clamped to 0..100. */
     data class Progress(val percent: Int) : PageLoadEvent
 
@@ -32,6 +39,9 @@ sealed interface PageLoadEvent {
  *
  * - **Started** raises both signals at once and resets progress to 0 (a second click
  *   mid-load restarts cleanly).
+ * - **StartedAgain** changes nothing while a load is running: the line keeps its progress and
+ *   a ring that the commit already dropped stays off. With nothing loading it is a Started (a
+ *   page reloading itself after it finished).
  * - **Progress** is clamped to 0..100 and only moves forward while loading. A tick that
  *   brings a loading state to 100 ends the load, exactly as Finished does (both signals
  *   off, progress 100), so a page at 100% never leaves an indicator behind. If we never
@@ -57,6 +67,7 @@ object PageLoad {
 
     fun reduce(state: PageLoadState, event: PageLoadEvent): PageLoadState = when (event) {
         PageLoadEvent.Started -> PageLoadState(loading = true, progress = 0, cursorBusy = true)
+        PageLoadEvent.StartedAgain -> if (state.loading) state else reduce(state, PageLoadEvent.Started)
         is PageLoadEvent.Progress -> {
             val p = event.percent.coerceIn(0, 100)
             when {
