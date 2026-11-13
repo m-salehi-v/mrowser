@@ -100,6 +100,7 @@
     <string name="download_action">Download</string>
     <string name="download_unsupported">mrowser can\'t save this kind of download yet.</string>
     <string name="download_storage_denied">mrowser needs storage access to save downloads on this TV.</string>
+    <string name="download_repeat_blocked">Blocked repeated download requests from this page.</string>
     <string name="download_failed_to_start">Couldn\'t start the download.</string>
     <string name="downloads">Downloads</string>
     <string name="downloads_subtitle">Saved to Downloads on this device</string>

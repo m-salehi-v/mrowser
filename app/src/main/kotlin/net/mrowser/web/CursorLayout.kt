@@ -47,6 +47,9 @@ class CursorLayout @JvmOverloads constructor(
     var downloadChip: android.view.View? = null
     var onDownloadChipClick: () -> Unit = {}
 
+    /** The user clicked on the page itself (not a chip), after the click is dispatched. */
+    var onPageTap: () -> Unit = {}
+
     private val density = resources.displayMetrics.density
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E50914") }
     private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -148,7 +151,10 @@ class CursorLayout @JvmOverloads constructor(
                     when {
                         chipContains(playChip, cursor.x, cursor.y) -> onChipClick()
                         chipContains(downloadChip, cursor.x, cursor.y) -> onDownloadChipClick()
-                        else -> cursor.tap()
+                        else -> {
+                            cursor.tap()
+                            onPageTap()
+                        }
                     }
                 }
             }

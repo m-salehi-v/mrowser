@@ -51,6 +51,7 @@ import net.mrowser.data.JsonSettingsStore
 import net.mrowser.download.ChipText
 import net.mrowser.download.DownloadConfirmDialog
 import net.mrowser.download.DownloadFileName
+import net.mrowser.download.DownloadOfferGate
 import net.mrowser.download.DownloadRequest
 import net.mrowser.download.DownloadRunner
 import net.mrowser.download.DownloadSpec
@@ -138,6 +139,9 @@ class MainActivity : Activity() {
 
     /** The download confirm on screen, if any: one at a time, so a page cannot stack prompts. */
     private var downloadConfirm: AlertDialog? = null
+
+    /** After a Cancel, the same page cannot bring the confirm back: see [DownloadOfferGate]. */
+    private val downloadOffers = DownloadOfferGate()
 
     /** One outstanding storage-permission ask at a time; see ensureStoragePermission. */
     private var pendingStoragePermission: ((Boolean) -> Unit)? = null
@@ -331,7 +335,11 @@ class MainActivity : Activity() {
         webClient = SniffingWebViewClient(
             sniffer,
             adBlocker,
-            onNavigate = { url -> updateUrlText(url) },
+            onNavigate = { url ->
+                updateUrlText(url)
+                // onPageStarted: a new page may offer downloads again (a download never commits)
+                downloadOffers.reset()
+            },
             onLoaded = { url ->
                 applyLoad(PageLoadEvent.Finished)
                 if (httpErrorStatus != 0) scheduleEmptyPageCheck(url, httpErrorStatus)
@@ -406,6 +414,8 @@ class MainActivity : Activity() {
         layout.onChipClick = { handoff.play() }
         layout.downloadChip = downloadChip
         layout.onDownloadChipClick = { showDownloads(fromHome = false) }
+        // The user's own click on the page may ask for a file again after a Cancel.
+        layout.onPageTap = { downloadOffers.reset() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
         // Refuse the reveal in fullscreen (the bar would sit under the video) and report
@@ -985,6 +995,13 @@ class MainActivity : Activity() {
             return
         }
         if (downloadConfirm?.isShowing == true) return
+        val ticket = when (val verdict = downloadOffers.offer()) {
+            is DownloadOfferGate.Verdict.Offer -> verdict.ticket
+            is DownloadOfferGate.Verdict.Blocked -> {
+                if (verdict.notify) Toast.makeText(this, R.string.download_repeat_blocked, Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
         val cleanMime = DownloadFileName.cleanMime(mimeType)
         val name = DownloadFileName.sanitize(URLUtil.guessFileName(url, disposition, cleanMime))
         val ext = name.substringAfterLast('.', "").lowercase()
@@ -993,7 +1010,7 @@ class MainActivity : Activity() {
         val host = UrlHost.of(url) ?: url
         // The page as it was when the file was offered: the Referer, and the row's source.
         val pageUrl = webView.url
-        downloadConfirm = DownloadConfirmDialog.show(this, name, size, host) {
+        downloadConfirm = DownloadConfirmDialog.show(this, name, size, host, onDecline = { downloadOffers.declined(ticket) }) {
             ensureStoragePermission { granted ->
                 if (!granted) {
                     Toast.makeText(this, R.string.download_storage_denied, Toast.LENGTH_LONG).show()

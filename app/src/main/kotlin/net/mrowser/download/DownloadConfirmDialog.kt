@@ -11,8 +11,18 @@ import net.mrowser.R
  */
 object DownloadConfirmDialog {
 
-    /** [size] is the formatted size, or the "Unknown size" text; [host] is the download URL's. */
-    fun show(activity: Activity, name: String, size: String, host: String, onDownload: () -> Unit): AlertDialog {
+    /**
+     * [size] is the formatted size, or the "Unknown size" text; [host] is the download URL's.
+     * [onDecline] runs when the dialog goes away without Download (Cancel, BACK, outside).
+     */
+    fun show(
+        activity: Activity,
+        name: String,
+        size: String,
+        host: String,
+        onDecline: () -> Unit,
+        onDownload: () -> Unit,
+    ): AlertDialog {
         val dialog = AlertDialog.Builder(activity)
             .setTitle(R.string.download_confirm_title)
             .setMessage(activity.getString(R.string.download_confirm_message, name, size, host))
@@ -21,6 +31,8 @@ object DownloadConfirmDialog {
             .setPositiveButton(R.string.download_action, null)
             .setNegativeButton(R.string.cancel, null)
             .create()
+        var confirmed = false
+        dialog.setOnDismissListener { if (!confirmed) onDecline() }
         dialog.setOnShowListener {
             val shownAt = SystemClock.uptimeMillis()
             val download = dialog.getButton(AlertDialog.BUTTON_POSITIVE) ?: return@setOnShowListener
@@ -29,6 +41,7 @@ object DownloadConfirmDialog {
             download.requestFocus()
             download.setOnClickListener {
                 if (!ConfirmDelay.accepts(shownAt, SystemClock.uptimeMillis())) return@setOnClickListener
+                confirmed = true
                 dialog.dismiss()
                 onDownload()
             }
