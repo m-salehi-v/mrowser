@@ -144,6 +144,7 @@ class MainActivity : Activity() {
     /** A main-frame 4xx/5xx waiting for its page to finish; see [scheduleEmptyPageCheck]. */
     private var httpErrorUrl: String? = null
     private var httpErrorStatus = 0
+    private var httpErrorAction = PageError.HttpErrorAction.IGNORE
     private var emptyPageCheck: Runnable? = null
 
     /** Bumped by every navigation start, so a late empty-page answer for an old page is dropped. */
@@ -164,6 +165,7 @@ class MainActivity : Activity() {
             if (url != httpErrorUrl) {
                 httpErrorUrl = null
                 httpErrorStatus = 0
+                httpErrorAction = PageError.HttpErrorAction.IGNORE
             }
             hidePageError()
             // about:blank (close tab, home) and other non-web URLs show no loading feedback here
@@ -194,9 +196,10 @@ class MainActivity : Activity() {
             )
         }
 
-        override fun onMainFrameHttpError(url: String, status: Int) {
+        override fun onMainFrameHttpError(url: String, status: Int, headers: Map<String, String>) {
             httpErrorUrl = url
             httpErrorStatus = status
+            httpErrorAction = PageError.httpErrorAction(status, headers)
         }
 
         /**
@@ -295,9 +298,17 @@ class MainActivity : Activity() {
             onNavigate = { url -> updateUrlText(url) },
             onLoaded = { url ->
                 applyLoad(PageLoadEvent.Finished)
-                if (httpErrorStatus != 0) scheduleEmptyPageCheck(url, httpErrorStatus)
+                when (httpErrorAction) {
+                    PageError.HttpErrorAction.IGNORE -> Unit
+                    // no body: Chromium has put its own error page up, which no script can read
+                    PageError.HttpErrorAction.SHOW -> if (pageErrorView.visibility != View.VISIBLE) {
+                        showPageError(PageErrorKind.SERVER, url, getString(R.string.page_error_code_http, httpErrorStatus))
+                    }
+                    PageError.HttpErrorAction.CHECK_PAGE -> scheduleEmptyPageCheck(url, httpErrorStatus)
+                }
                 httpErrorUrl = null
                 httpErrorStatus = 0
+                httpErrorAction = PageError.HttpErrorAction.IGNORE
                 recordHistory(url, webView.title)
                 // Opening from home starts a fresh tab: drop any prior back-stack so
                 // BACK at this page reaches root (close-tab) instead of walking old

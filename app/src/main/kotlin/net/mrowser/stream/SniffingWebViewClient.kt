@@ -83,7 +83,9 @@ class SniffingWebViewClient(
         super.onReceivedHttpError(view, request, errorResponse)
         if (request == null || errorResponse == null || !request.isForMainFrame) return
         if (errorResponse.statusCode >= 400) {
-            pageEvents.onMainFrameHttpError(request.url.toString(), errorResponse.statusCode)
+            pageEvents.onMainFrameHttpError(
+                request.url.toString(), errorResponse.statusCode, errorResponse.responseHeaders.orEmpty()
+            )
         }
     }
 

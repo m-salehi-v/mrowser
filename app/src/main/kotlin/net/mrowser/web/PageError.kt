@@ -79,6 +79,29 @@ object PageError {
 
     enum class EmptyVerdict { NOT_EMPTY, CHECK_AGAIN, EMPTY }
 
+    /** What a main-frame HTTP error response calls for, at the page's finish. */
+    enum class HttpErrorAction {
+        /** Not an error status: nothing to do. */
+        IGNORE,
+        /** The response had no body: Server error, without looking at the page. */
+        SHOW,
+        /** A body came with it, often the site's own error page: run the empty-page check. */
+        CHECK_PAGE,
+    }
+
+    /**
+     * Decides a main-frame `onReceivedHttpError` from the response itself. An error status with
+     * `Content-Length: 0` is exactly what Chromium turns into `ERR_HTTP_RESPONSE_CODE_FAILURE`
+     * and its own "Webpage not available" page, which `evaluateJavascript` cannot see into, so
+     * it is decided here. The header name is matched case-insensitively. Anything else with a
+     * body (or no length, such as a chunked one) is left to [EMPTY_PAGE_SCRIPT].
+     */
+    fun httpErrorAction(status: Int, headers: Map<String, String>?): HttpErrorAction {
+        if (status < 400) return HttpErrorAction.IGNORE
+        val length = headers?.entries?.firstOrNull { it.key.equals("Content-Length", ignoreCase = true) }?.value
+        return if (length?.trim() == "0") HttpErrorAction.SHOW else HttpErrorAction.CHECK_PAGE
+    }
+
     /** What the [pass]th (1-based) empty-page check concludes from its [scriptResult]. */
     fun emptyVerdict(pass: Int, scriptResult: String?): EmptyVerdict = when {
         // Chromium's error page is final: no site script is going to fill it in
