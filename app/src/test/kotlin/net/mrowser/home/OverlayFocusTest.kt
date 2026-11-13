@@ -11,8 +11,9 @@ class OverlayFocusTest {
         settings: Boolean = false,
         history: Boolean = false,
         home: Boolean = false,
+        error: Boolean = false,
         focus: Zone
-    ) = OverlayFocus.recoveryTarget(settings, history, home, focus)
+    ) = OverlayFocus.recoveryTarget(settings, history, home, errorVisible = error, focus = focus)
 
     @Test fun `focus already inside the visible overlay needs no recovery`() {
         assertNull(target(home = true, focus = Zone.HOME))
@@ -59,5 +60,24 @@ class OverlayFocusTest {
 
     @Test fun `focus left in an overlay after it closed returns to the page`() {
         assertEquals(Zone.PAGE, target(focus = Zone.HOME))
+    }
+
+    @Test fun `the error screen owns focus over the page`() =
+        assertEquals(OverlayFocus.Zone.ERROR, OverlayFocus.recoveryTarget(false, false, false, true, OverlayFocus.Zone.PAGE))
+
+    @Test fun `home outranks the error screen`() =
+        assertEquals(OverlayFocus.Zone.HOME, OverlayFocus.recoveryTarget(false, false, true, true, OverlayFocus.Zone.ERROR))
+
+    @Test fun `focus already on the error screen needs no recovery`() {
+        assertNull(target(error = true, focus = Zone.ERROR))
+    }
+
+    @Test fun `focus left on the error screen after it closed returns to the page`() {
+        assertEquals(Zone.PAGE, target(focus = Zone.ERROR))
+    }
+
+    @Test fun `settings and history outrank the error screen`() {
+        assertEquals(Zone.SETTINGS, target(settings = true, error = true, focus = Zone.ERROR))
+        assertEquals(Zone.HISTORY, target(history = true, error = true, focus = Zone.ERROR))
     }
 }

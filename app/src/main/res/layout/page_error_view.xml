@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Why a page didn't load: a native screen over the web area (PageErrorView). A left-aligned
+     column centred on screen; the buttons pin their outward next-focus at themselves so the
+     D-pad cannot fall through to the cursor layer behind, and clipChildren is off so a focused
+     pill's 1.06 scale is not cut. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/surface"
+    android:clickable="true"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="520dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <ImageView
+            android:id="@+id/pageErrorIcon"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:background="@drawable/circle_bg"
+            android:scaleType="center"
+            android:src="@drawable/ic_error"
+            android:tint="@color/danger_text"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:id="@+id/pageErrorTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/page_error_title"
+            android:textColor="@color/text_primary"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/pageErrorMessage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:lineSpacingExtra="3dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="17sp" />
+
+        <TextView
+            android:id="@+id/pageErrorCode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:fontFamily="monospace"
+            android:textColor="@color/text_dim"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:orientation="horizontal"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <Button
+                android:id="@+id/pageErrorRetry"
+                style="@style/Widget.Mrowser.Pill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="20dp"
+                android:nextFocusLeft="@id/pageErrorRetry"
+                android:nextFocusUp="@id/pageErrorRetry"
+                android:nextFocusDown="@id/pageErrorRetry"
+                android:text="@string/page_error_retry" />
+
+            <Button
+                android:id="@+id/pageErrorBack"
+                style="@style/Widget.Mrowser.Pill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:paddingStart="20dp"
+                android:nextFocusUp="@id/pageErrorBack"
+                android:nextFocusDown="@id/pageErrorBack"
+                android:text="@string/page_error_back" />
+
+            <Button
+                android:id="@+id/pageErrorHome"
+                style="@style/Widget.Mrowser.Pill"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:paddingStart="20dp"
+                android:nextFocusRight="@id/pageErrorHome"
+                android:nextFocusUp="@id/pageErrorHome"
+                android:nextFocusDown="@id/pageErrorHome"
+                android:text="@string/page_error_home" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

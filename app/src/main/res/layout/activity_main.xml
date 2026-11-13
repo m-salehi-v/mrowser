@@ -14,6 +14,16 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <!-- Page-load progress: scaled from the left edge by MainActivity. Over the page, under
+             the bar and the chip. -->
+        <View
+            android:id="@+id/loadingLine"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_gravity="top"
+            android:background="@color/accent"
+            android:visibility="gone" />
+
         <!-- The capsule address bar. Left to right is also the D-pad order; the edge
              controls point their outward next-focus at themselves, so focus cannot leave the
              bar for the WebView / cursor layer behind it. clipToPadding is off so a focused end
@@ -171,6 +181,14 @@
             android:textSize="17sp"
             android:visibility="gone" />
     </net.mrowser.web.CursorLayout>
+
+    <!-- Why a page didn't load. Outside CursorLayout, whose dispatchKeyEvent would take the
+         D-pad; over the page and under the overlays (it ranks below them in OverlayFocus). -->
+    <net.mrowser.web.PageErrorView
+        android:id="@+id/pageErrorView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
     <net.mrowser.home.HomeView
         android:id="@+id/homeView"
