@@ -22,6 +22,7 @@ import net.mrowser.R
 import net.mrowser.data.Favorite
 import net.mrowser.data.FavoritesRepository
 import net.mrowser.update.Release
+import net.mrowser.web.SearchEngine
 import net.mrowser.web.UrlNormalizer
 
 /** Home overlay: wordmark + URL pill + favorites grid. */
@@ -38,6 +39,7 @@ class HomeView @JvmOverloads constructor(
     private var repository: FavoritesRepository? = null
     private var onOpen: (Favorite) -> Unit = {}
     private var onSubmitUrl: (String) -> Unit = {}
+    private var searchEngine: () -> SearchEngine = { SearchEngine.DEFAULT }
     private var onEdit: (Favorite) -> Unit = {}
     private var onHistory: () -> Unit = {}
     private var onSettings: () -> Unit = {}
@@ -57,7 +59,7 @@ class HomeView @JvmOverloads constructor(
         urlInput = findViewById(R.id.homeUrlInput)
         urlInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) {
-                UrlNormalizer.normalize(urlInput.text.toString())?.let { onSubmitUrl(it) }
+                UrlNormalizer.resolve(urlInput.text.toString(), searchEngine())?.let { onSubmitUrl(it) }
                 true
             } else {
                 false
@@ -73,6 +75,7 @@ class HomeView @JvmOverloads constructor(
         repository: FavoritesRepository,
         onOpen: (Favorite) -> Unit,
         onSubmitUrl: (String) -> Unit,
+        searchEngine: () -> SearchEngine,
         onEdit: (Favorite) -> Unit,
         onHistory: () -> Unit,
         onSettings: () -> Unit,
@@ -81,6 +84,7 @@ class HomeView @JvmOverloads constructor(
         this.repository = repository
         this.onOpen = onOpen
         this.onSubmitUrl = onSubmitUrl
+        this.searchEngine = searchEngine
         this.onEdit = onEdit
         this.onHistory = onHistory
         this.onSettings = onSettings
