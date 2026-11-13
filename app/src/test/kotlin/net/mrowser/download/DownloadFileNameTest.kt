@@ -93,4 +93,43 @@ class DownloadFileNameTest {
         assertEquals("a.mp4", DownloadFileName.displayName("a.mp4", "content://media/external/downloads/1234"))
         assertEquals("clip", DownloadFileName.displayName("clip", "file:///storage/emulated/0/Download/1234"))
     }
+
+    @Test fun `a name with an extension keeps it`() {
+        assertEquals("Solaris.1972.mkv", DownloadFileName.withExtension("Solaris.1972.mkv", "video/mp4", "https://x.example/a.mp4"))
+        assertEquals("archive.tar.gz", DownloadFileName.withExtension("archive.tar.gz", null, "https://x.example/a"))
+    }
+
+    @Test fun `a title without an extension takes one from the mime type`() {
+        assertEquals(
+            "mrowser 1.5.0.apk",
+            DownloadFileName.withExtension("mrowser 1.5.0", DownloadActions.APK_MIME, "https://github.com/o/r/releases/download/v1.5.0/app-release.apk"),
+        )
+        assertEquals("clip.mp4", DownloadFileName.withExtension("clip", "video/mp4; codecs=avc1", "https://x.example/get?id=1"))
+        assertEquals("Download.mkv", DownloadFileName.withExtension("Download", "VIDEO/X-MATROSKA", "https://x.example/f"))
+    }
+
+    @Test fun `with no useful mime type the url's file name gives the extension`() {
+        assertEquals(
+            "mrowser 1.5.0.apk",
+            DownloadFileName.withExtension("mrowser 1.5.0", "application/octet-stream", "https://cdn.example/dl/app-release.APK?sig=1#x"),
+        )
+        assertEquals("film.webm", DownloadFileName.withExtension("film", null, "https://cdn.example/v/film%20cut.webm"))
+    }
+
+    @Test fun `nothing to go on leaves the name as it is`() {
+        assertEquals("film", DownloadFileName.withExtension("film", null, "https://cdn.example/get?id=7"))
+        assertEquals("film", DownloadFileName.withExtension("film", "application/x-unknown-thing", "https://cdn.example/"))
+        assertEquals("film", DownloadFileName.withExtension("film", null, "not a url %%"))
+    }
+
+    @Test fun `only a short alphanumeric suffix with a letter is an extension`() {
+        assertEquals("apk", DownloadFileName.extensionOf("a.APK"))
+        assertEquals("7z", DownloadFileName.extensionOf("a.7z"))
+        assertNull(DownloadFileName.extensionOf("mrowser 1.5.0"))
+        assertNull(DownloadFileName.extensionOf("Mr. Smith goes"))
+        assertNull(DownloadFileName.extensionOf(".bashrc"))
+        assertNull(DownloadFileName.extensionOf("name."))
+        assertNull(DownloadFileName.extensionOf("a.verylongextension"))
+        assertNull(DownloadFileName.extensionOf(null))
+    }
 }

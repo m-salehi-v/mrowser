@@ -59,7 +59,8 @@ class DownloadsController(
     fun retry(info: DownloadInfo, cookie: String?, userAgent: String?): Long? {
         val spec = DownloadSpec(
             url = info.url,
-            fileName = DownloadFileName.sanitize(info.name),
+            // A failed row's name may be the title, without the extension the file needs.
+            fileName = DownloadFileName.sanitize(DownloadFileName.withExtension(info.name, info.mimeType, info.url)),
             mimeType = info.mimeType,
             headers = DownloadRequest.headers(cookie, userAgent, pageUrl(info.id), info.url),
         )
