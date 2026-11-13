@@ -1145,7 +1145,14 @@ class MainActivity : Activity() {
         // is loading leaves that page's line alone. A redirect to the file is no miss — each hop
         // goes through shouldOverrideUrlLoading (API 24+), which moves startedUrl along; where one
         // does not, the ring ends at its timeout as before.
-        if (MainFrameUrl.same(url, startedUrl)) applyLoad(PageLoadEvent.Failed)
+        if (MainFrameUrl.same(url, startedUrl)) {
+            applyLoad(PageLoadEvent.Failed)
+            // A navigation the gate re-issued with the other agent and that became a download
+            // never commits, so the page that stays would keep that agent: give it its own back
+            // (the listener's [userAgent], the one the file was asked with, goes with the file).
+            // Only for this load — a script's download during another load leaves its agent be.
+            applyUserAgent(wantsDesktop(webView.url))
+        }
         // A video file sent as an attachment was also seen as a request; the player must not
         // open on it 1.5s later.
         sniffer.onDownload(url)
