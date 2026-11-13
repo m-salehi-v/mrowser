@@ -64,6 +64,10 @@ import net.mrowser.web.CursorController
 import net.mrowser.web.CursorLayout
 import net.mrowser.web.ExternalIntentLauncher
 import net.mrowser.web.IncomingUrl
+import net.mrowser.web.PageLoad
+import net.mrowser.web.PageLoadEvent
+import net.mrowser.web.PageLoadEvents
+import net.mrowser.web.PageLoadState
 import net.mrowser.web.RegistrableDomain
 import net.mrowser.web.UrlDisplay
 import net.mrowser.web.UrlHost
@@ -110,6 +114,23 @@ class MainActivity : Activity() {
     private val uiHandler = Handler(Looper.getMainLooper())
     private val chipHideRunnable = Runnable { playChip.visibility = View.GONE }
 
+    private lateinit var loadingLine: View
+    private var loadState = PageLoadState()
+    /** Ends a load that never reports an end (a download, a same-document navigation). */
+    private val loadTimeout = Runnable { applyLoad(PageLoadEvent.TimedOut) }
+
+    /** The WebView's page-load signals. Task 6.5 adds the error methods here. */
+    private val pageEvents = object : PageLoadEvents {
+        override fun onStarting(url: String) {
+            // about:blank (close tab, home) and other non-web URLs show no loading feedback
+            if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
+                applyLoad(PageLoadEvent.Started)
+            }
+        }
+
+        override fun onCommitVisible(url: String) = applyLoad(PageLoadEvent.Committed)
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,6 +140,7 @@ class MainActivity : Activity() {
         webView = findViewById(R.id.webView)
         urlInput = findViewById(R.id.urlInput)
         playChip = findViewById(R.id.playChip)
+        loadingLine = findViewById(R.id.loadingLine)
         homeView = findViewById(R.id.homeView)
         historyView = findViewById(R.id.historyView)
         settingsView = findViewById(R.id.settingsView)
@@ -185,6 +207,7 @@ class MainActivity : Activity() {
             adBlocker,
             onNavigate = { url -> updateUrlText(url) },
             onLoaded = { url ->
+                applyLoad(PageLoadEvent.Finished)
                 recordHistory(url, webView.title)
                 // Opening from home starts a fresh tab: drop any prior back-stack so
                 // BACK at this page reaches root (close-tab) instead of walking old
@@ -195,7 +218,8 @@ class MainActivity : Activity() {
                 }
             },
             onExternalScheme = { url -> externalLinks.launch(url) },
-            onNavigationBlocked = { Toast.makeText(this, R.string.navigation_blocked, Toast.LENGTH_SHORT).show() }
+            onNavigationBlocked = { Toast.makeText(this, R.string.navigation_blocked, Toast.LENGTH_SHORT).show() },
+            pageEvents = pageEvents
         )
         chromeClient = BrowserWebChromeClient(
             activity = this,
@@ -205,7 +229,8 @@ class MainActivity : Activity() {
             onTitle = { url, title -> recordHistory(url, title) },
             onPopupBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() },
             isBlockedPopup = { url -> adBlocker.isBlockedPopup(url) },
-            launchExternal = { url -> externalLinks.launch(url) }
+            launchExternal = { url -> externalLinks.launch(url) },
+            onProgress = { applyLoad(PageLoadEvent.Progress(it)) }
         )
         webView.webChromeClient = chromeClient
         webView.settings.apply {
@@ -273,10 +298,14 @@ class MainActivity : Activity() {
         layout.post { cursor.center(webView.width, webView.height) }
 
         backButton.setOnClickListener {
-            if (webView.canGoBack()) webView.goBack()
+            if (webView.canGoBack()) {
+                applyLoad(PageLoadEvent.Started)
+                webView.goBack()
+            }
             chrome.onInteracted()
         }
         reloadButton.setOnClickListener {
+            applyLoad(PageLoadEvent.Started)
             webView.reload()
             chrome.onInteracted()
         }
@@ -352,9 +381,43 @@ class MainActivity : Activity() {
         layout.requestFocus()
         clearHistoryOnLoad = true
         adBlocker.onUserNavigation()
+        applyLoad(PageLoadEvent.Started)
         webView.loadUrl(url)
         chrome.onPageInteracted()
         showNavHintOnce()
+    }
+
+    /**
+     * Folds [event] into [loadState] (the pure [PageLoad.reduce]) and applies it: the top line
+     * follows `progress` while loading and fills then fades when the load ends, the cursor
+     * ring follows `cursorBusy`. The timeout is armed on every Started and whenever the state
+     * turns from idle to loading (a Progress can open the line too), and dropped when loading
+     * stops, so nothing stays on screen without one.
+     */
+    private fun applyLoad(event: PageLoadEvent) {
+        val wasLoading = loadState.loading
+        loadState = PageLoad.reduce(loadState, event)
+        val s = loadState
+        if (s.loading) {
+            if (event is PageLoadEvent.Started || !wasLoading) {
+                uiHandler.removeCallbacks(loadTimeout)
+                uiHandler.postDelayed(loadTimeout, PageLoad.TIMEOUT_MS)
+            }
+            loadingLine.animate().cancel()
+            loadingLine.pivotX = 0f
+            loadingLine.scaleX = s.progress / 100f
+            loadingLine.alpha = 1f
+            loadingLine.visibility = View.VISIBLE
+        } else {
+            uiHandler.removeCallbacks(loadTimeout)
+            if (loadingLine.visibility == View.VISIBLE) {
+                loadingLine.animate().scaleX(1f).alpha(0f).setDuration(LINE_FADE_MS).withEndAction {
+                    // a new load may have begun while this one faded out
+                    if (!loadState.loading) loadingLine.visibility = View.GONE
+                }
+            }
+        }
+        layout.busy = s.cursorBusy
     }
 
     /** One-time nudge: the chrome bar has no MENU key to summon it on most TV remotes. */
@@ -657,6 +720,7 @@ class MainActivity : Activity() {
         // now-stale AdBlocker (stale pageHost, stale settings cache).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) unregisterServiceWorkerAdBlock()
         updateIo.shutdownNow()
+        uiHandler.removeCallbacks(loadTimeout)
     }
 
     /** Service-worker fetches bypass WebViewClient.shouldInterceptRequest entirely, so they need
@@ -756,6 +820,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val CHIP_TIMEOUT_MS = 30_000L
+        private const val LINE_FADE_MS = 200L
         private const val REQ_STORAGE = 101
         private const val REQ_IMPORT_FAVORITES = 102
         private const val OBTAINIUM_ADD_URL = "obtainium://add/https://github.com/m-salehi-v/mrowser"
