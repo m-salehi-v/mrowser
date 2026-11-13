@@ -39,4 +39,30 @@ class DownloadSpeedTest {
         val s = DownloadSpeed(); s.sample(1, 0, 0); s.sample(1, 1_000_000, 1_000)
         assertEquals(700_000L, s.sample(1, 1_000_000, 2_000))
     }
+
+    @Test fun `a long stall ends with no speed at all, and recovery brings it back`() {
+        val s = DownloadSpeed(); s.sample(1, 0, 0); s.sample(1, 1_000_000, 1_000)
+        var last: Long? = 1L
+        for (i in 2..100) last = s.sample(1, 1_000_000, i * 1_000L)
+        assertNull(last)
+        // downloading again: 0.3 * 2 MB/s is above the floor
+        assertEquals(true, (s.sample(1, 3_000_000, 101_000L) ?: 0L) > 0L)
+    }
+
+    @Test fun `no time passed during a stall still reports no speed`() {
+        val s = DownloadSpeed(); s.sample(1, 0, 0); s.sample(1, 1_000_000, 1_000)
+        for (i in 2..100) s.sample(1, 1_000_000, i * 1_000L)
+        assertNull(s.sample(1, 1_000_000, 100_000L))
+    }
+
+    @Test fun `an unknown byte count is not a sample and not a baseline`() {
+        val s = DownloadSpeed(); s.sample(1, 0, 0)
+        assertNull(s.sample(1, -1, 500))
+        assertEquals(1_000_000L, s.sample(1, 1_000_000, 1_000))
+        assertEquals(1_000_000L, s.sample(1, -1, 2_000))
+        assertNull(DownloadSpeed().sample(7, -1, 0))
+        val fresh = DownloadSpeed(); fresh.sample(7, -1, 0)
+        assertNull(fresh.sample(7, 0, 100))
+        assertEquals(1_000L, fresh.sample(7, 100, 200))
+    }
 }

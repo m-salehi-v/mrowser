@@ -48,6 +48,13 @@ class DownloadTextTest {
         assertNull(DownloadText.timeLeft(1_000, -3))
     }
 
+    @Test fun `a time left beyond 99 hours is not shown`() {
+        assertEquals("about 99 h left", DownloadText.timeLeft(356_400_000_000, 1_000_000))
+        assertNull(DownloadText.timeLeft(356_401_000_000, 1_000_000))
+        assertNull(DownloadText.timeLeft(2_400_000_000, 1))
+        assertEquals("50% · 500.0 MB of 1.0 GB", DownloadText.progress(500_000_000, 1_000_000_000, 1))
+    }
+
     @Test fun `finished line`() = assertEquals("276.0 MB · site.example · 1d ago",
         detailOf(info(1, SUCCESSFUL, total = 276_000_000, modified = now - 86_400_000)))
 

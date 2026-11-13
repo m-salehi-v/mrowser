@@ -12,15 +12,19 @@ object DownloadText {
 
     private const val SEP = " · "
 
+    /** Below 1 KB/s a speed is a stall, not a rate: it reads "0 KB/s" and its ETA is absurd. */
+    const val MIN_SPEED = 1_024L
+    private const val MAX_ETA_SECONDS = 99L * 3_600
+
     /**
      * "42% · 1.0 GB of 2.4 GB · 3.1 MB/s · about 8 min left". Nothing arrived yet is "Starting…".
      * A server that never announced a size, or sent more than it announced, gets no percent and
-     * no time left; a speed of zero or less is left out, so no time is ever computed from it.
+     * no time left; a speed below [MIN_SPEED] is left out, so no time is ever computed from it.
      */
     fun progress(soFar: Long, total: Long, speedBps: Long?): String {
         if (soFar <= 0) return "Starting…"
         val sized = total > 0 && soFar <= total
-        val speed = speedBps?.takeIf { it > 0 }
+        val speed = speedBps?.takeIf { it >= MIN_SPEED }
         val parts = ArrayList<String>(4)
         if (sized) {
             parts += "${DownloadList.percent(soFar, total)}%"
@@ -36,6 +40,7 @@ object DownloadText {
     fun timeLeft(remainingBytes: Long, speedBps: Long): String? {
         if (speedBps <= 0) return null
         val secs = ceilDiv(remainingBytes.coerceAtLeast(0L), speedBps)
+        if (secs > MAX_ETA_SECONDS) return null
         if (secs < 60) return "less than a minute left"
         val mins = ceilDiv(secs, 60)
         if (mins < 60) return "about $mins min left"
