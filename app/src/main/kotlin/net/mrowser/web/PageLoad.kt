@@ -32,7 +32,9 @@ sealed interface PageLoadEvent {
  *
  * - **Started** raises both signals at once and resets progress to 0 (a second click
  *   mid-load restarts cleanly).
- * - **Progress** is clamped to 0..100 and only moves forward while loading. If we never
+ * - **Progress** is clamped to 0..100 and only moves forward while loading. A tick that
+ *   brings a loading state to 100 ends the load, exactly as Finished does (both signals
+ *   off, progress 100), so a page at 100% never leaves an indicator behind. If we never
  *   saw Started (back/forward) a value below 100 raises the line alone; the cursor is
  *   not busy. A tick at 100 never opens the line, and once a load has Finished (state
  *   at 100, not loading) a late tick is ignored, so the line cannot be reopened with
@@ -40,7 +42,9 @@ sealed interface PageLoadEvent {
  * - **Committed** (the page is visible) drops the cursor ring only; the line keeps
  *   running until Finished. With nothing loading it changes nothing.
  * - **Finished** ends both signals, leaving progress at 100 (the line can fill, then hide).
- * - **Failed** and **TimedOut** end both signals and reset progress to 0.
+ * - **Failed** and **TimedOut** end both signals and reset progress to 0. The state then
+ *   equals the initial one, so a later below-100 Progress reopens the line (ring off);
+ *   the glue's [TIMEOUT_MS] timer covers that.
  *
  * Every path other than Started (and a fresh below-100 Progress with no load) ends in
  * "not busy"; the glue starts a [TIMEOUT_MS] timer on Started so a navigation that never
@@ -49,11 +53,15 @@ sealed interface PageLoadEvent {
 object PageLoad {
     const val TIMEOUT_MS = 30_000L
 
+    private val FINISHED = PageLoadState(loading = false, progress = 100, cursorBusy = false)
+
     fun reduce(state: PageLoadState, event: PageLoadEvent): PageLoadState = when (event) {
         PageLoadEvent.Started -> PageLoadState(loading = true, progress = 0, cursorBusy = true)
         is PageLoadEvent.Progress -> {
             val p = event.percent.coerceIn(0, 100)
             when {
+                // reaching 100 while loading is a finish: nothing else is guaranteed to close the line
+                state.loading && p >= 100 -> FINISHED
                 state.loading -> state.copy(progress = maxOf(state.progress, p))
                 // finished (progress 100, not loading) or a lone 100: nothing to show
                 p >= 100 || state.progress >= 100 -> state
@@ -61,7 +69,7 @@ object PageLoad {
             }
         }
         PageLoadEvent.Committed -> state.copy(cursorBusy = false)
-        PageLoadEvent.Finished -> PageLoadState(loading = false, progress = 100, cursorBusy = false)
+        PageLoadEvent.Finished -> FINISHED
         PageLoadEvent.Failed, PageLoadEvent.TimedOut -> PageLoadState()
     }
 }

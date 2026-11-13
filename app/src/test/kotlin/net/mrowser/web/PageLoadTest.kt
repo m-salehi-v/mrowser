@@ -59,4 +59,13 @@ class PageLoadTest {
 
     @Test fun `a click after finish starts again`() =
         assertEquals(PageLoadState(true, 0, true), run(PageLoadEvent.Started, PageLoadEvent.Finished, PageLoadEvent.Started))
+
+    @Test fun `progress reaching 100 while loading finishes the load`() =
+        assertEquals(PageLoadState(false, 100, false), run(PageLoadEvent.Started, PageLoadEvent.Progress(100)))
+
+    @Test fun `a progress-only line closes at 100`() =
+        assertFalse(run(PageLoadEvent.Progress(30), PageLoadEvent.Progress(100)).loading)
+
+    @Test fun `a progress tick after failure reopens the line with the ring off`() =
+        assertEquals(PageLoadState(true, 30, false), run(PageLoadEvent.Started, PageLoadEvent.Failed, PageLoadEvent.Progress(30)))
 }
