@@ -113,4 +113,13 @@ class FavoritesBackupTest {
             FavoritesBackup.summarize(existing = listOf(a), imported = listOf(b, b, a, a))
         )
     }
+
+    @Test fun `parse falls through to bookmarks html`() =
+        assertEquals(FavoritesBackup.Source.BOOKMARKS_HTML, FavoritesBackup.parse(BookmarksFixtures.chrome)!!.source)
+
+    @Test fun `a random html page is still not a favorites file`() =
+        assertNull(FavoritesBackup.parse("<html><body>hello</body></html>"))
+
+    @Test fun `a json file is from mrowser`() =
+        assertEquals(FavoritesBackup.Source.MROWSER, FavoritesBackup.parse(FavoritesBackup.toJson(listOf(a)))!!.source)
 }

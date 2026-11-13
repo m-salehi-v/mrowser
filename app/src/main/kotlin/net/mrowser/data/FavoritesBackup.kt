@@ -24,8 +24,11 @@ object FavoritesBackup {
     private const val APP = "mrowser"
     private const val VERSION = 1
 
+    /** Where an imported file came from: this app's own export, or a browser's bookmarks.html. */
+    enum class Source { MROWSER, BOOKMARKS_HTML }
+
     /** [skipped] counts entries dropped as malformed or not a web page, for the import message. */
-    data class Parsed(val favorites: List<Favorite>, val skipped: Int)
+    data class Parsed(val favorites: List<Favorite>, val skipped: Int, val source: Source = Source.MROWSER)
 
     data class Summary(val added: Int, val alreadyPresent: Int)
 
@@ -36,8 +39,12 @@ object FavoritesBackup {
             .put("favorites", JSONArray(FavoritesJson.toJson(items)))
             .toString(2)
 
-    /** The favorites in [text], possibly none; null when it is not a favorites file at all. */
-    fun parse(text: String): Parsed? {
+    /** The favorites in [text], possibly none; null when it is not a favorites file at all. JSON
+     *  first, then a browser's bookmarks.html. */
+    fun parse(text: String): Parsed? =
+        parseJson(text) ?: if (BookmarksHtml.looksLike(text)) BookmarksHtml.parse(text) else null
+
+    private fun parseJson(text: String): Parsed? {
         val root = try {
             JSONTokener(text).nextValue()
         } catch (e: JSONException) {
