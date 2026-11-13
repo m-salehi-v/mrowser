@@ -247,6 +247,7 @@ class MainActivity : Activity() {
             repository = favorites,
             onOpen = { openUrl(it.url) },
             onSubmitUrl = { openUrl(it) },
+            searchEngine = { settings.get().searchEngine },
             onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { url -> homeView.refresh(url) } },
             onHistory = { showHistory(fromHome = true) },
             onSettings = { showSettings() },
@@ -313,7 +314,7 @@ class MainActivity : Activity() {
         })
         urlInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_GO) {
-                UrlNormalizer.normalize(urlInput.text.toString())?.let { openUrl(it) }
+                UrlNormalizer.resolve(urlInput.text.toString(), settings.get().searchEngine)?.let { openUrl(it) }
                 true
             } else {
                 false
