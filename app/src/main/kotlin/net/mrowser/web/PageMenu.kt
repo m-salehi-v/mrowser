@@ -31,6 +31,8 @@ class PageMenu(
     private val onZoom: (site: String, percent: Int) -> Unit,
 ) {
     private var popup: PopupWindow? = null
+    /** The site the open panel shows and stores its choices for. */
+    private var shownSite: String? = null
 
     val isShowing: Boolean get() = popup?.isShowing == true
 
@@ -94,8 +96,9 @@ class PageMenu(
         window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         window.elevation = ELEVATION_DP * density
         window.isOutsideTouchable = true
-        window.setOnDismissListener { if (popup === window) popup = null }
+        window.setOnDismissListener { if (popup === window) { popup = null; shownSite = null } }
         popup = window
+        shownSite = site
         window.showAsDropDown(anchor, 0, (OFFSET_DP * density).toInt(), Gravity.END)
         view.post { desktopRow.requestFocus() }
     }
@@ -103,7 +106,17 @@ class PageMenu(
     fun dismiss() {
         val window = popup ?: return
         popup = null
+        shownSite = null
         window.dismiss()
+    }
+
+    /**
+     * The page is going to [url] (`onPageStarted`): a panel for another site would show and store
+     * that site's choices over a page they do not apply to, so it closes. The same site — the
+     * Desktop toggle's own reload, a link within the site — keeps it open.
+     */
+    fun onNavigate(url: String) {
+        if (isShowing && SiteSettings.site(url) != shownSite) dismiss()
     }
 
     private companion object {

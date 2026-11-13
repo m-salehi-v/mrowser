@@ -368,6 +368,7 @@ class MainActivity : Activity() {
                 updateUrlText(url)
                 // onPageStarted: a new page may offer downloads again (a download never commits)
                 downloadOffers.reset()
+                pageMenu.onNavigate(url)
                 switchUserAgentLate(url)
                 // Best effort: the new document may not exist yet. Commit and finish apply it again.
                 applyZoomFor(url)
