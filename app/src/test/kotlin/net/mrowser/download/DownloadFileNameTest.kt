@@ -1,0 +1,55 @@
+package net.mrowser.download
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class DownloadFileNameTest {
+
+    @Test fun `keeps an ordinary name`() =
+        assertEquals("Solaris.1972.1080p.mp4", DownloadFileName.sanitize("Solaris.1972.1080p.mp4"))
+
+    @Test fun `drops any directory part`() {
+        assertEquals("evil.apk", DownloadFileName.sanitize("../../data/evil.apk"))
+        assertEquals("evil.apk", DownloadFileName.sanitize("C:\\temp\\evil.apk"))
+    }
+
+    @Test fun `replaces reserved characters and strips control and bidi characters`() {
+        assertEquals("a_b_c_.txt", DownloadFileName.sanitize("a:b*c?.txt"))
+        assertEquals("photo.jpg", DownloadFileName.sanitize("pho\u0000to\u0007.jpg"))
+        assertEquals("gpj.apk", DownloadFileName.sanitize("\u202Egpj.apk"))
+    }
+
+    @Test fun `collapses whitespace and trims dots and spaces`() {
+        assertEquals("my file.pdf", DownloadFileName.sanitize("  my \t\n file.pdf  "))
+        assertEquals("name", DownloadFileName.sanitize("...name..."))
+    }
+
+    @Test fun `nothing usable becomes download`() {
+        assertEquals("download", DownloadFileName.sanitize(""))
+        assertEquals("download", DownloadFileName.sanitize(" .. / "))
+    }
+
+    @Test fun `a long name is cut to the limit and keeps its extension`() {
+        val name = DownloadFileName.sanitize("a".repeat(300) + ".mp4")
+        assertEquals(DownloadFileName.MAX_LENGTH, name.length)
+        assertTrue(name.endsWith("a.mp4"))
+    }
+
+    @Test fun `generic mime types count as none`() {
+        listOf("application/octet-stream", "binary/octet-stream", "application/force-download", " ", null)
+            .forEach { assertNull(it, DownloadFileName.cleanMime(it)) }
+        assertEquals(
+            "application/vnd.android.package-archive",
+            DownloadFileName.cleanMime("Application/vnd.android.package-archive; charset=binary"),
+        )
+    }
+
+    @Test fun `the shown name is the saved file's, else the title`() {
+        assertEquals("Solaris-1.mp4", DownloadFileName.displayName("Solaris.mp4", "file:///storage/emulated/0/Download/Solaris-1.mp4"))
+        assertEquals("My Film.mkv", DownloadFileName.displayName("x", "file:///storage/emulated/0/Download/My%20Film.mkv"))
+        assertEquals("mrowser 1.5.0", DownloadFileName.displayName("mrowser 1.5.0", null))
+        assertEquals("Download", DownloadFileName.displayName(" ", "content://downloads/"))
+    }
+}
