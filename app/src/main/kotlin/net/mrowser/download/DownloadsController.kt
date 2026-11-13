@@ -61,7 +61,7 @@ class DownloadsController(
             url = info.url,
             fileName = DownloadFileName.sanitize(info.name),
             mimeType = info.mimeType,
-            headers = DownloadRequest.headers(cookie, userAgent, pageUrl(info.id)),
+            headers = DownloadRequest.headers(cookie, userAgent, pageUrl(info.id), info.url),
         )
         val id = Downloader.enqueue(context, spec) ?: return null
         save(DownloadsOps.retried(store.get(), info.id, id))

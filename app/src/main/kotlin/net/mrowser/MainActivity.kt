@@ -932,8 +932,11 @@ class MainActivity : Activity() {
      */
     private fun onDownloadOffered(url: String, userAgent: String?, disposition: String?, mimeType: String?, length: Long) {
         // The click's load became a download, and no finish will come: end the ring now rather
-        // than at the timeout.
-        applyLoad(PageLoadEvent.Failed)
+        // than at the timeout. Only that load's: a download a script fires while some other page
+        // is loading leaves that page's line alone. A redirect to the file is no miss — each hop
+        // goes through shouldOverrideUrlLoading (API 24+), which moves startedUrl along; where one
+        // does not, the ring ends at its timeout as before.
+        if (MainFrameUrl.same(url, startedUrl)) applyLoad(PageLoadEvent.Failed)
         // A video file sent as an attachment was also seen as a request; the player must not
         // open on it 1.5s later.
         sniffer.onDownload(url)
@@ -956,7 +959,7 @@ class MainActivity : Activity() {
                     Toast.makeText(this, R.string.download_storage_denied, Toast.LENGTH_LONG).show()
                     return@ensureStoragePermission
                 }
-                val headers = DownloadRequest.headers(CookieManager.getInstance().getCookie(url), userAgent, pageUrl)
+                val headers = DownloadRequest.headers(CookieManager.getInstance().getCookie(url), userAgent, pageUrl, url)
                 val id = downloads.start(DownloadSpec(url, name, mime, headers), pageUrl)
                 if (id == null) Toast.makeText(this, R.string.download_failed_to_start, Toast.LENGTH_LONG).show()
             }
@@ -966,7 +969,8 @@ class MainActivity : Activity() {
     /** One poll's result: a download that just finished says so for a moment, else the summary. */
     private fun renderDownloads(s: DownloadsSnapshot) {
         lastDownloads = s
-        s.finished.lastOrNull()?.let {
+        // Ids only grow, so the highest is the download that started last.
+        s.finished.maxByOrNull { it.id }?.let {
             downloadDone = DownloadText.chipDone(it.name)
             uiHandler.removeCallbacks(downloadDoneEnd)
             uiHandler.postDelayed(downloadDoneEnd, CHIP_DONE_MS)

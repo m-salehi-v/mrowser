@@ -2,6 +2,7 @@ package net.mrowser.download
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.os.SystemClock
 import net.mrowser.R
 
 /**
@@ -15,11 +16,23 @@ object DownloadConfirmDialog {
         val dialog = AlertDialog.Builder(activity)
             .setTitle(R.string.download_confirm_title)
             .setMessage(activity.getString(R.string.download_confirm_message, name, size, host))
-            .setPositiveButton(R.string.download_action) { _, _ -> onDownload() }
+            // Listener set in onShow instead, so a press inside the ConfirmDelay neither confirms
+            // nor dismisses.
+            .setPositiveButton(R.string.download_action, null)
             .setNegativeButton(R.string.cancel, null)
             .create()
-        // The leanback layout puts Download first, but say so: the D-pad starts on the action.
-        dialog.setOnShowListener { dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
+        dialog.setOnShowListener {
+            val shownAt = SystemClock.uptimeMillis()
+            val download = dialog.getButton(AlertDialog.BUTTON_POSITIVE) ?: return@setOnShowListener
+            // The D-pad starts on the action, as the spec asks; ConfirmDelay keeps a repeat of
+            // the press that made the page fire this download from landing on it.
+            download.requestFocus()
+            download.setOnClickListener {
+                if (!ConfirmDelay.accepts(shownAt, SystemClock.uptimeMillis())) return@setOnClickListener
+                dialog.dismiss()
+                onDownload()
+            }
+        }
         dialog.show()
         return dialog
     }

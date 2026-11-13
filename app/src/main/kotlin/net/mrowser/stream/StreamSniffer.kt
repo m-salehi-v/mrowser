@@ -1,6 +1,7 @@
 package net.mrowser.stream
 
 import android.webkit.CookieManager
+import net.mrowser.web.MainFrameUrl
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,19 +30,44 @@ class StreamSniffer(
     // saw it, cannot fire into the next one.
     private val page = AtomicInteger(0)
 
+    /**
+     * A file the top-level navigation asked for, held back until that navigation commits. A link
+     * to a file is requested before anyone knows whether it is a page the WebView will show or an
+     * attachment the download listener gets — and the listener can report a different URL
+     * (a redirect to a signed CDN link) or fire after the grace window. So it becomes a
+     * candidate only when the WebView commits it as its page ([onPageStarted] for that URL).
+     */
+    @Volatile private var mainFrameFile: StreamCandidate? = null
+
     fun onPageStarted(url: String) {
         pageUrl = url
         candidates.clear()
         announced.set(false)
         page.incrementAndGet()
         onCleared()
+        val held = mainFrameFile
+        mainFrameFile = null
+        if (held != null && MainFrameUrl.same(held.url, url)) collect(held)
     }
 
-    /** @param headers what the WebView reported sending for this request (Referer, Origin, …). */
-    fun onRequest(url: String, headers: Map<String, String> = emptyMap()) {
+    /**
+     * @param headers what the WebView reported sending for this request (Referer, Origin, …).
+     * @param isForMainFrame a top-level navigation: a progressive file waits for its commit.
+     */
+    fun onRequest(url: String, headers: Map<String, String> = emptyMap(), isForMainFrame: Boolean = false) {
         val kind = MediaUrlClassifier.classify(url)
         if (kind !in COLLECTED) return
-        candidates.add(StreamCandidate(url, kind, seq.incrementAndGet(), headers))
+        val candidate = StreamCandidate(url, kind, seq.incrementAndGet(), headers)
+        if (isForMainFrame && kind == MediaUrlClassifier.MediaKind.PROGRESSIVE) {
+            mainFrameFile = candidate
+            return
+        }
+        collect(candidate)
+    }
+
+    private fun collect(candidate: StreamCandidate) {
+        val kind = candidate.kind
+        candidates.add(candidate)
         when (kind) {
             MediaUrlClassifier.MediaKind.MANIFEST_HLS,
             MediaUrlClassifier.MediaKind.MANIFEST_DASH -> announce()
@@ -63,6 +89,7 @@ class StreamSniffer(
      * makes that announce find nothing (or only the page's other streams).
      */
     fun onDownload(url: String) {
+        if (mainFrameFile?.url == url) mainFrameFile = null
         // The member removeAll(Collection) runs under the list's lock, so a worker thread's
         // concurrent onRequest cannot be lost; Kotlin's removeAll { } rewrites by index, and
         // removeIf needs API 24.
