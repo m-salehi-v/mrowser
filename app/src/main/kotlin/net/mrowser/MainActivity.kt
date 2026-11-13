@@ -92,6 +92,7 @@ import net.mrowser.web.PageLoad
 import net.mrowser.web.PageLoadEvent
 import net.mrowser.web.PageLoadEvents
 import net.mrowser.web.PageLoadState
+import net.mrowser.web.PageMenu
 import net.mrowser.web.PageZoom
 import net.mrowser.web.RegistrableDomain
 import net.mrowser.web.SiteSettings
@@ -130,6 +131,7 @@ class MainActivity : Activity() {
     private lateinit var downloadChipTrailing: TextView
     private lateinit var downloadsView: DownloadsView
     private lateinit var downloadsButton: DownloadsButton
+    private lateinit var pageMenu: PageMenu
 
     /** The last poll, so the chip can be redrawn when an overlay closes or the done line ends. */
     private var lastDownloads: DownloadsSnapshot? = null
@@ -302,6 +304,7 @@ class MainActivity : Activity() {
         val homeButton = findViewById<ImageButton>(R.id.homeButton)
         val historyButton = findViewById<ImageButton>(R.id.historyButton)
         downloadsButton = findViewById(R.id.downloadsButton)
+        val moreButton = findViewById<ImageButton>(R.id.moreButton)
 
         favorites = JsonFavoritesStore(File(filesDir, "favorites.json"))
         history = JsonHistoryStore(File(filesDir, "history.json"))
@@ -389,7 +392,7 @@ class MainActivity : Activity() {
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
-            onEnter = { chrome.dismiss(); playChip.visibility = View.GONE; refreshDownloadChip(); layout.invalidate() },
+            onEnter = { pageMenu.dismiss(); chrome.dismiss(); playChip.visibility = View.GONE; refreshDownloadChip(); layout.invalidate() },
             onExit = { refreshDownloadChip(); layout.invalidate() },
             onTitle = { url, title -> recordHistory(url, title) },
             onPopupBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() },
@@ -523,6 +526,31 @@ class MainActivity : Activity() {
         homeButton.setOnClickListener { showHome() }
         historyButton.setOnClickListener { showHistory(fromHome = false) }
         downloadsButton.setOnClickListener { showDownloads(fromHome = false) }
+        // Below the bar's right end; each choice is read live, and stored per registrable domain.
+        pageMenu = PageMenu(
+            anchor = bar,
+            desktopFor = { site ->
+                val s = settings.get()
+                SiteSettings.wantsDesktop(site, s.desktopByDefault, s.desktopOverride)
+            },
+            zoomFor = { site -> SiteSettings.zoomFor(settings.get().zoomBySite, site) },
+            onDesktop = { site, desktop ->
+                val s = settings.get()
+                settings.update(s.copy(desktopOverride = SiteSettings.withDesktop(s.desktopOverride, site, desktop, s.desktopByDefault)))
+                reloadForUserAgent()
+            },
+            onZoom = { site, percent ->
+                val s = settings.get()
+                settings.update(s.copy(zoomBySite = SiteSettings.withZoom(s.zoomBySite, site, percent)))
+                // CSS zoom on the live page: no reload.
+                applyZoom(percent)
+            }
+        )
+        moreButton.setOnClickListener {
+            val site = SiteSettings.site(webView.url)
+            if (site == null) Toast.makeText(this, R.string.page_menu_no_page, Toast.LENGTH_SHORT).show()
+            else pageMenu.show(site)
+        }
         favoriteButton.setOnClickListener {
             toggleCurrentFavorite()
             chrome.onInteracted()
@@ -596,6 +624,7 @@ class MainActivity : Activity() {
      *  capsule's right-hand cluster is level with home's History and settings buttons, so
      *  RIGHT from home's address field jumped behind the overlay and got pulled back. */
     private fun hideAllOverlays() {
+        pageMenu.dismiss()
         chrome.dismiss()
         homeView.hide()
         historyView.hide()
@@ -630,6 +659,8 @@ class MainActivity : Activity() {
         errorNeverCommitted = neverCommitted
         val overlayUp = overlayVisible()
         // The capsule lives in CursorLayout, under this screen, and would stay in focus search.
+        // The page menu goes with it (a Desktop toggle's reload may fail behind it).
+        pageMenu.dismiss()
         chrome.dismiss()
         pageErrorView.show(kind, url, code, canGoBackFromError(), takeFocus = !overlayUp, rendererKilled = rendererKilled)
         refreshDownloadChip()
@@ -1269,6 +1300,7 @@ class MainActivity : Activity() {
         loadingLine.animate().cancel()
         if (::downloads.isInitialized) downloads.stop()
         uiHandler.removeCallbacks(downloadDoneEnd)
+        if (::pageMenu.isInitialized) pageMenu.dismiss()
         downloadConfirm?.dismiss()
         downloadConfirm = null
         // Leaving for good (not the recreate() after a dead renderer, which is a configuration

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The page menu (⋯ in the capsule bar), shown in its own PopupWindow by PageMenu. Two rows in
+     the settings style: Desktop site (a switch row, activated for "on") and Zoom, one focus
+     target whose LEFT/RIGHT step the zoom and whose OK resets it; the − and + only show it. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/page_menu_bg">
+
+    <LinearLayout
+        android:id="@+id/pageMenuDesktopRow"
+        style="@style/Widget.Mrowser.SettingsRow">
+
+        <TextView
+            style="@style/Mrowser.SettingsLabel"
+            android:text="@string/page_menu_desktop" />
+
+        <View
+            style="@style/Widget.Mrowser.SettingsSwitch" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/pageMenuZoomRow"
+        style="@style/Widget.Mrowser.SettingsRow">
+
+        <TextView
+            style="@style/Mrowser.SettingsLabel"
+            android:text="@string/page_menu_zoom" />
+
+        <ImageView
+            android:id="@+id/pageMenuZoomOut"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_minus"
+            android:tint="@color/row_secondary_text"
+            android:duplicateParentState="true"
+            android:importantForAccessibility="no" />
+
+        <TextView
+            android:id="@+id/pageMenuZoomValue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="56dp"
+            android:gravity="center"
+            android:textSize="15sp"
+            android:fontFeatureSettings="tnum"
+            android:textColor="@color/row_primary_text"
+            android:duplicateParentState="true"
+            android:importantForAccessibility="no" />
+
+        <ImageView
+            android:id="@+id/pageMenuZoomIn"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_plus"
+            android:tint="@color/row_secondary_text"
+            android:duplicateParentState="true"
+            android:importantForAccessibility="no" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/pageMenuSite"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="6dp"
+        android:paddingTop="4dp"
+        android:textSize="13sp"
+        android:textColor="@color/text_dim" />
+</LinearLayout>

@@ -104,6 +104,12 @@
     <string name="download_repeat_blocked">Blocked repeated download requests from this page.</string>
     <string name="download_failed_to_start">Couldn\'t start the download.</string>
     <string name="downloads">Downloads</string>
+    <string name="page_menu">Page menu</string>
+    <string name="page_menu_desktop">Desktop site</string>
+    <string name="page_menu_zoom">Zoom</string>
+    <string name="page_menu_zoom_description">Zoom %1$s. Left and right change it, OK resets it.</string>
+    <string name="page_menu_remembered">Remembered for %1$s</string>
+    <string name="page_menu_no_page">Open a page first.</string>
     <string name="downloads_subtitle">Saved to Downloads on this device</string>
     <string name="downloads_clear_finished">Clear finished</string>
     <string name="downloads_empty">Files you download appear here.</string>

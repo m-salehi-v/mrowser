@@ -163,11 +163,20 @@
             <net.mrowser.download.DownloadsButton
                 android:id="@+id/downloadsButton"
                 style="@style/Widget.Mrowser.BarIcon"
-                android:nextFocusRight="@id/downloadsButton"
                 android:nextFocusUp="@id/downloadsButton"
                 android:nextFocusDown="@id/downloadsButton"
                 android:src="@drawable/ic_download"
                 android:contentDescription="@string/downloads" />
+
+            <!-- The page menu (Desktop site, Zoom): the bar's last control, so its RIGHT pins. -->
+            <ImageButton
+                android:id="@+id/moreButton"
+                style="@style/Widget.Mrowser.BarIcon"
+                android:nextFocusRight="@id/moreButton"
+                android:nextFocusUp="@id/moreButton"
+                android:nextFocusDown="@id/moreButton"
+                android:src="@drawable/ic_more"
+                android:contentDescription="@string/page_menu" />
         </LinearLayout>
 
         <!-- A capsule with an accent play button; CursorLayout hit-tests its bounds for OK. -->
