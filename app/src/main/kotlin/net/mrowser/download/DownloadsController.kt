@@ -28,7 +28,7 @@ class DownloadsController(
     private val context = context.applicationContext
     private val speed = DownloadSpeed()
 
-    /** Active at the previous successful poll, for [DownloadList.justFinished]. */
+    /** Active at the previous successful poll, for [DownloadList.justFinished] and `justFailed`. */
     private var previouslyActive: Set<Long> = emptySet()
 
     /** The rows last shown, for Clear finished. */
@@ -117,13 +117,14 @@ class DownloadsController(
         speed.forget(speeds.keys)
 
         val finished = DownloadList.justFinished(previouslyActive, visible)
+        val failed = DownloadList.justFailed(previouslyActive, visible)
         previouslyActive = visible.filter { it.isActive }.mapTo(HashSet()) { it.id }
         lastVisible = visible
 
         val rows = visible.map { info ->
             DownloadRows.build(info, state.pages[info.id], speeds[info.id], info.id in missing, at)
         }
-        val snapshot = DownloadsSnapshot(rows, DownloadList.summary(visible), finished)
+        val snapshot = DownloadsSnapshot(rows, DownloadList.summary(visible), finished, failed)
         last = snapshot
         onSnapshot(snapshot)
         reschedule(snapshot.summary.active)

@@ -130,7 +130,7 @@ class MainActivity : Activity() {
     /** The last poll, so the chip can be redrawn when an overlay closes or the done line ends. */
     private var lastDownloads: DownloadsSnapshot? = null
 
-    /** "Downloaded · name", shown for [CHIP_DONE_MS] after a download succeeds. */
+    /** "Downloaded · name" or "Download failed · name", shown for [CHIP_DONE_MS] after one ends. */
     private var downloadDone: ChipText? = null
     private val downloadDoneEnd = Runnable {
         downloadDone = null
@@ -1023,16 +1023,15 @@ class MainActivity : Activity() {
         }
     }
 
-    /** One poll's result: a download that just finished says so for a moment, else the summary. */
+    /** One poll's result: a download that just finished or failed says so for a moment, else the summary. */
     private fun renderDownloads(s: DownloadsSnapshot) {
         lastDownloads = s
         val active = s.summary.active > 0
         downloadsButton.setRing(active, s.summary.percent)
         homeView.showDownloadsActive(active)
         if (downloadsView.visibility == View.VISIBLE) downloadsView.render(s.rows)
-        // Ids only grow, so the highest is the download that started last.
-        s.finished.maxByOrNull { it.id }?.let {
-            downloadDone = DownloadText.chipDone(it.name)
+        DownloadText.chipEnded(s.finished, s.failed)?.let {
+            downloadDone = it
             uiHandler.removeCallbacks(downloadDoneEnd)
             uiHandler.postDelayed(downloadDoneEnd, CHIP_DONE_MS)
         }

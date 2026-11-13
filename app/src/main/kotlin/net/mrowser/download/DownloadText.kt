@@ -95,4 +95,16 @@ object DownloadText {
     }
 
     fun chipDone(name: String): ChipText = ChipText("Downloaded · $name", null)
+
+    fun chipFailed(name: String): ChipText = ChipText("Download failed · $name", null)
+
+    /**
+     * The chip's line for downloads that ended since the last poll, null when none did. A failure
+     * wins over a success in the same poll — a finished file still gets the system's notification,
+     * a failed one would otherwise go unseen — and within each, the download started last (ids only
+     * grow) speaks.
+     */
+    fun chipEnded(finished: List<DownloadInfo>, failed: List<DownloadInfo>): ChipText? =
+        failed.maxByOrNull { it.id }?.let { chipFailed(it.name) }
+            ?: finished.maxByOrNull { it.id }?.let { chipDone(it.name) }
 }

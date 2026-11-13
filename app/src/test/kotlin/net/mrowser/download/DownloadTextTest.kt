@@ -111,5 +111,18 @@ class DownloadTextTest {
         assertEquals(ChipText("2 downloads", null), DownloadText.chip(DownloadSummary(2, null, null)))
         assertNull(DownloadText.chip(DownloadSummary(0, null, null)))
         assertEquals(ChipText("Downloaded · a.mp4", null), DownloadText.chipDone("a.mp4"))
+        assertEquals(ChipText("Download failed · a.mp4", null), DownloadText.chipFailed("a.mp4"))
+    }
+
+    @Test fun `the chip names what just ended, a failure first`() {
+        assertNull(DownloadText.chipEnded(emptyList(), emptyList()))
+        assertEquals(
+            ChipText("Downloaded · b.mp4", null),
+            DownloadText.chipEnded(listOf(info(1, SUCCESSFUL, name = "a.mp4"), info(2, SUCCESSFUL, name = "b.mp4")), emptyList()),
+        )
+        assertEquals(
+            ChipText("Download failed · c.apk", null),
+            DownloadText.chipEnded(listOf(info(5, SUCCESSFUL, name = "a.mp4")), listOf(info(3, FAILED, name = "c.apk"))),
+        )
     }
 }

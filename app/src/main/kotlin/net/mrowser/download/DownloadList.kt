@@ -7,12 +7,14 @@ data class DownloadSummary(val active: Int, val percent: Int?, val name: String?
 
 /**
  * One poll of the download list: the rows to draw, what the chip and ring show, and the downloads
- * that succeeded since the previous poll (the chip says "Downloaded" for the last of them).
+ * that succeeded or failed since the previous poll (the chip says so for a moment —
+ * [DownloadText.chipEnded]).
  */
 data class DownloadsSnapshot(
     val rows: List<DownloadRowModel>,
     val summary: DownloadSummary,
     val finished: List<DownloadInfo>,
+    val failed: List<DownloadInfo>,
 )
 
 /** Ordering, summary and finish detection for the download list. Pure. */
@@ -40,6 +42,10 @@ object DownloadList {
     /** Downloads that were active at the last poll and have succeeded since. */
     fun justFinished(previouslyActive: Set<Long>, now: List<DownloadInfo>): List<DownloadInfo> =
         now.filter { it.id in previouslyActive && it.status == DownloadStatus.SUCCESSFUL }
+
+    /** Downloads that were active at the last poll and have failed since. */
+    fun justFailed(previouslyActive: Set<Long>, now: List<DownloadInfo>): List<DownloadInfo> =
+        now.filter { it.id in previouslyActive && it.status == DownloadStatus.FAILED }
 
     /** Floored, clamped to 0..100; null when the total is unknown (<= 0). Never overflows. */
     fun percent(soFar: Long, total: Long): Int? {

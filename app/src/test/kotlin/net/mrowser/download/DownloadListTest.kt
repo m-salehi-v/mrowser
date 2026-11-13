@@ -56,4 +56,12 @@ class DownloadListTest {
         listOf(1L),
         DownloadList.justFinished(setOf(1L, 3L), listOf(info(1, SUCCESSFUL), info(2, SUCCESSFUL), info(3, FAILED))).map { it.id },
     )
+
+    @Test fun `just failed are the ones active at the last poll that failed`() = assertEquals(
+        listOf(3L),
+        DownloadList.justFailed(
+            setOf(1L, 3L),
+            listOf(info(1, SUCCESSFUL), info(2, FAILED), info(3, FAILED), info(4, RUNNING)),
+        ).map { it.id },
+    )
 }
