@@ -101,6 +101,14 @@
     <string name="download_unsupported">mrowser can\'t save this kind of download yet.</string>
     <string name="download_storage_denied">mrowser needs storage access to save downloads on this TV.</string>
     <string name="download_failed_to_start">Couldn\'t start the download.</string>
+    <string name="downloads">Downloads</string>
+    <string name="downloads_subtitle">Saved to Downloads on this device</string>
+    <string name="downloads_clear_finished">Clear finished</string>
+    <string name="downloads_empty">Files you download appear here.</string>
+    <string name="download_play">Play</string>
+    <string name="download_install">Install</string>
+    <string name="download_open">Open</string>
+    <string name="download_retry">Retry</string>
     <string name="update_failed">Download failed. Try again.</string>
     <string name="update_manual">mrowser can\'t save the file on this device.\n\nOpen this on another device:\n%1$s\n\nOr use Obtainium to keep mrowser updated for you.</string>
     <string name="obtainium_title">Obtainium not installed</string>

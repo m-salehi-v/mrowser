@@ -154,11 +154,20 @@
             <ImageButton
                 android:id="@+id/historyButton"
                 style="@style/Widget.Mrowser.BarIcon"
-                android:nextFocusRight="@id/historyButton"
                 android:nextFocusUp="@id/historyButton"
                 android:nextFocusDown="@id/historyButton"
                 android:src="@drawable/ic_history"
                 android:contentDescription="@string/history" />
+
+            <!-- Draws a thin progress ring around its icon while anything downloads. -->
+            <net.mrowser.download.DownloadsButton
+                android:id="@+id/downloadsButton"
+                style="@style/Widget.Mrowser.BarIcon"
+                android:nextFocusRight="@id/downloadsButton"
+                android:nextFocusUp="@id/downloadsButton"
+                android:nextFocusDown="@id/downloadsButton"
+                android:src="@drawable/ic_download"
+                android:contentDescription="@string/downloads" />
         </LinearLayout>
 
         <!-- A capsule with an accent play button; CursorLayout hit-tests its bounds for OK. -->
@@ -244,6 +253,12 @@
 
     <net.mrowser.home.HistoryView
         android:id="@+id/historyView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <net.mrowser.download.DownloadsView
+        android:id="@+id/downloadsView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />

@@ -4,8 +4,9 @@
     <color name="on_surface">#FFFFFFFF</color>
     <color name="hint">#FF8C8C8C</color>
     <color name="cursor_outline">#CCFFFFFF</color>
-    <!-- The busy ring's track, behind its accent arc. -->
-    <color name="cursor_busy_track">#40FFFFFF</color>
+    <!-- A progress ring's track, behind its accent arc: the cursor's busy ring and the bar's
+         Downloads ring. -->
+    <color name="ring_track">#40FFFFFF</color>
 
     <!-- Design tokens shared by the bar, the dialogs and the screens. -->
     <color name="card_surface">#FF1C1A1A</color>

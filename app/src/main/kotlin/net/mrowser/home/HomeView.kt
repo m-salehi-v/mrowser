@@ -35,6 +35,7 @@ class HomeView @JvmOverloads constructor(
     private val emptyHint: TextView
     private val urlInput: EditText
     private val updateButton: Button
+    private val downloadsDot: View
 
     private var repository: FavoritesRepository? = null
     private var onOpen: (Favorite) -> Unit = {}
@@ -42,6 +43,7 @@ class HomeView @JvmOverloads constructor(
     private var searchEngine: () -> SearchEngine = { SearchEngine.DEFAULT }
     private var onEdit: (Favorite) -> Unit = {}
     private var onHistory: () -> Unit = {}
+    private var onDownloads: () -> Unit = {}
     private var onSettings: () -> Unit = {}
     private var onUpdate: (Release) -> Unit = {}
     private var pendingUpdate: Release? = null
@@ -66,6 +68,8 @@ class HomeView @JvmOverloads constructor(
             }
         }
         findViewById<Button>(R.id.homeHistoryButton).setOnClickListener { onHistory() }
+        findViewById<Button>(R.id.homeDownloadsButton).setOnClickListener { onDownloads() }
+        downloadsDot = findViewById(R.id.homeDownloadsDot)
         findViewById<ImageButton>(R.id.homeSettingsButton).setOnClickListener { onSettings() }
         updateButton = findViewById(R.id.homeUpdateButton)
         updateButton.setOnClickListener { pendingUpdate?.let { release -> onUpdate(release) } }
@@ -78,6 +82,7 @@ class HomeView @JvmOverloads constructor(
         searchEngine: () -> SearchEngine,
         onEdit: (Favorite) -> Unit,
         onHistory: () -> Unit,
+        onDownloads: () -> Unit,
         onSettings: () -> Unit,
         onUpdate: (Release) -> Unit
     ) {
@@ -87,6 +92,7 @@ class HomeView @JvmOverloads constructor(
         this.searchEngine = searchEngine
         this.onEdit = onEdit
         this.onHistory = onHistory
+        this.onDownloads = onDownloads
         this.onSettings = onSettings
         this.onUpdate = onUpdate
         startIndex = HomeBackgrounds.indexFor(System.currentTimeMillis())
@@ -190,6 +196,11 @@ class HomeView @JvmOverloads constructor(
             updateButton.text = context.getString(R.string.update_available, release.version)
         }
         if (release == null && hadFocus) restoreFocus()
+    }
+
+    /** The Downloads pill's accent dot: on while anything downloads. */
+    fun showDownloadsActive(active: Boolean) {
+        downloadsDot.visibility = if (active) View.VISIBLE else View.GONE
     }
 
     private fun card(fav: Favorite): View {

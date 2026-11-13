@@ -55,8 +55,10 @@ import net.mrowser.download.DownloadRequest
 import net.mrowser.download.DownloadSpec
 import net.mrowser.download.DownloadText
 import net.mrowser.download.Downloader
+import net.mrowser.download.DownloadsButton
 import net.mrowser.download.DownloadsController
 import net.mrowser.download.DownloadsSnapshot
+import net.mrowser.download.DownloadsView
 import net.mrowser.download.JsonDownloadsStore
 import net.mrowser.handoff.HandoffController
 import net.mrowser.home.DestructiveButton
@@ -120,6 +122,8 @@ class MainActivity : Activity() {
     private lateinit var downloadChip: View
     private lateinit var downloadChipLabel: TextView
     private lateinit var downloadChipTrailing: TextView
+    private lateinit var downloadsView: DownloadsView
+    private lateinit var downloadsButton: DownloadsButton
 
     /** The last poll, so the chip can be redrawn when an overlay closes or the done line ends. */
     private var lastDownloads: DownloadsSnapshot? = null
@@ -140,6 +144,9 @@ class MainActivity : Activity() {
     /** True when history was opened from the home overlay (BACK returns to home);
      *  false when opened from the chrome bar mid-browse (BACK returns to the page). */
     private var historyFromHome = false
+
+    /** The same for the Downloads page: opened from home's pill, or from the bar or the chip. */
+    private var downloadsFromHome = false
 
     /** True while [showPageUrl] itself is writing the field, so the edit watcher can tell
      *  the page's URL apart from the user typing over it. */
@@ -259,6 +266,7 @@ class MainActivity : Activity() {
         homeView = findViewById(R.id.homeView)
         historyView = findViewById(R.id.historyView)
         settingsView = findViewById(R.id.settingsView)
+        downloadsView = findViewById(R.id.downloadsView)
         pageErrorView = findViewById(R.id.pageErrorView)
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
@@ -269,6 +277,7 @@ class MainActivity : Activity() {
         adBlockCount = findViewById(R.id.adBlockCount)
         val homeButton = findViewById<ImageButton>(R.id.homeButton)
         val historyButton = findViewById<ImageButton>(R.id.historyButton)
+        downloadsButton = findViewById(R.id.downloadsButton)
 
         favorites = JsonFavoritesStore(File(filesDir, "favorites.json"))
         history = JsonHistoryStore(File(filesDir, "history.json"))
@@ -364,7 +373,7 @@ class MainActivity : Activity() {
         downloads = DownloadsController(
             context = this,
             store = JsonDownloadsStore(File(filesDir, "downloads.json")),
-            isPageOpen = { false },
+            isPageOpen = { downloadsView.visibility == View.VISIBLE },
             onSnapshot = ::renderDownloads,
             handler = uiHandler
         )
@@ -395,6 +404,7 @@ class MainActivity : Activity() {
         layout.playChip = playChip
         layout.onChipClick = { handoff.play() }
         layout.downloadChip = downloadChip
+        layout.onDownloadChipClick = { showDownloads(fromHome = false) }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
         // Refuse the reveal in fullscreen (the bar would sit under the video) and report
@@ -411,6 +421,7 @@ class MainActivity : Activity() {
             searchEngine = { settings.get().searchEngine },
             onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { url -> homeView.refresh(url) } },
             onHistory = { showHistory(fromHome = true) },
+            onDownloads = { showDownloads(fromHome = true) },
             onSettings = { showSettings() },
             onUpdate = { release ->
                 UpdateDialog.show(
@@ -432,6 +443,8 @@ class MainActivity : Activity() {
                 Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
             }
         )
+        // Task 2.8 gives the rows their actions; Clear finished only hides rows, the files stay.
+        downloadsView.bind(onPrimary = {}, onOptions = {}, onClearFinished = { downloads.clearFinished() })
         settingsView.bind(settings) { adBlocker.list }
         settingsView.bindFavorites(onExport = ::exportFavorites, onImport = ::importFavorites)
         pageErrorView.bind(onRetry = ::retryFromError, onBack = ::backFromError, onHome = ::closeToHome)
@@ -452,6 +465,7 @@ class MainActivity : Activity() {
         }
         homeButton.setOnClickListener { showHome() }
         historyButton.setOnClickListener { showHistory(fromHome = false) }
+        downloadsButton.setOnClickListener { showDownloads(fromHome = false) }
         favoriteButton.setOnClickListener {
             toggleCurrentFavorite()
             chrome.onInteracted()
@@ -519,7 +533,7 @@ class MainActivity : Activity() {
     }
 
     /** Show exactly one overlay at a time: a second VISIBLE overlay steals window-global
-     *  D-pad focus (focus search can't move past it), so every transition hides all three
+     *  D-pad focus (focus search can't move past it), so every transition hides all four
      *  first, then the caller shows the one it wants (or none, for openUrl). The address bar
      *  goes too: left up under an overlay, its buttons sit in the same focus search — the
      *  capsule's right-hand cluster is level with home's History and settings buttons, so
@@ -528,13 +542,15 @@ class MainActivity : Activity() {
         chrome.dismiss()
         homeView.hide()
         historyView.hide()
+        downloadsView.hide()
         settingsView.hide()
         pageErrorView.hide()
         refreshDownloadChip()
     }
 
     private fun overlayVisible(): Boolean = homeView.visibility == View.VISIBLE ||
-        historyView.visibility == View.VISIBLE || settingsView.visibility == View.VISIBLE
+        historyView.visibility == View.VISIBLE || downloadsView.visibility == View.VISIBLE ||
+        settingsView.visibility == View.VISIBLE
 
     private fun isWebUrl(url: String): Boolean =
         url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
@@ -740,6 +756,18 @@ class MainActivity : Activity() {
         historyFromHome = fromHome
         hideAllOverlays()
         historyView.show()
+        refreshDownloadChip()
+    }
+
+    /** The Downloads page; [fromHome] decides where BACK returns, as for History. */
+    private fun showDownloads(fromHome: Boolean) {
+        downloadsFromHome = fromHome
+        hideAllOverlays()
+        // The last poll first, so the page is never blank while a failed query keeps it.
+        lastDownloads?.let { downloadsView.render(it.rows) }
+        downloadsView.show()
+        // Polls now, and every second while the page is open (isPageOpen).
+        downloads.kick()
         refreshDownloadChip()
     }
 
@@ -969,6 +997,10 @@ class MainActivity : Activity() {
     /** One poll's result: a download that just finished says so for a moment, else the summary. */
     private fun renderDownloads(s: DownloadsSnapshot) {
         lastDownloads = s
+        val active = s.summary.active > 0
+        downloadsButton.setRing(active, s.summary.percent)
+        homeView.showDownloadsActive(active)
+        if (downloadsView.visibility == View.VISIBLE) downloadsView.render(s.rows)
         // Ids only grow, so the highest is the download that started last.
         s.finished.maxByOrNull { it.id }?.let {
             downloadDone = DownloadText.chipDone(it.name)
@@ -1139,6 +1171,7 @@ class MainActivity : Activity() {
             val target = OverlayFocus.recoveryTarget(
                 settingsVisible = settingsView.visibility == View.VISIBLE,
                 historyVisible = historyView.visibility == View.VISIBLE,
+                downloadsVisible = downloadsView.visibility == View.VISIBLE,
                 homeVisible = homeView.visibility == View.VISIBLE,
                 errorVisible = pageErrorView.visibility == View.VISIBLE,
                 focus = focusZone()
@@ -1146,6 +1179,7 @@ class MainActivity : Activity() {
             val recovered = when (target) {
                 OverlayFocus.Zone.SETTINGS -> settingsView.restoreFocus()
                 OverlayFocus.Zone.HISTORY -> historyView.restoreFocus()
+                OverlayFocus.Zone.DOWNLOADS -> downloadsView.restoreFocus()
                 OverlayFocus.Zone.HOME -> homeView.restoreFocus()
                 OverlayFocus.Zone.ERROR -> pageErrorView.restoreFocus()
                 OverlayFocus.Zone.PAGE -> layout.requestFocus()
@@ -1156,13 +1190,14 @@ class MainActivity : Activity() {
         return super.dispatchKeyEvent(event)
     }
 
-    /** Which of the five subtrees currently holds D-pad focus, for [OverlayFocus]. */
+    /** Which of the six subtrees currently holds D-pad focus, for [OverlayFocus]. */
     private fun focusZone(): OverlayFocus.Zone {
         var v: View? = currentFocus
         while (v != null) {
             when (v) {
                 settingsView -> return OverlayFocus.Zone.SETTINGS
                 historyView -> return OverlayFocus.Zone.HISTORY
+                downloadsView -> return OverlayFocus.Zone.DOWNLOADS
                 homeView -> return OverlayFocus.Zone.HOME
                 pageErrorView -> return OverlayFocus.Zone.ERROR
                 layout -> return OverlayFocus.Zone.PAGE
@@ -1185,6 +1220,13 @@ class MainActivity : Activity() {
                 // Return to wherever history was opened from. Back on the page, a load that failed
                 // meanwhile has put the error screen up, and that takes the D-pad.
                 if (historyFromHome) showHome()
+                else if (!pageErrorView.restoreFocus()) layout.requestFocus()
+            }
+            downloadsView.visibility == View.VISIBLE -> {
+                downloadsView.hide()
+                refreshDownloadChip()
+                // Back to where it was opened from, as for History.
+                if (downloadsFromHome) showHome()
                 else if (!pageErrorView.restoreFocus()) layout.requestFocus()
             }
             homeView.visibility == View.VISIBLE -> confirmExit()

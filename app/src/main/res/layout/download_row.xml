@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A download row, a history row's shape: a type badge, the name over the detail line (and a
+     progress bar while it runs), and OK's action at the end. Focused, the row-focus fill and
+     outline, with the texts lightening through duplicateParentState. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="6dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/row_bg"
+    android:paddingStart="10dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp"
+    android:focusable="true">
+
+    <FrameLayout
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:background="@drawable/letter_tile_small_bg"
+        android:backgroundTint="@color/control">
+
+        <ImageView
+            android:id="@+id/rowType"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_type_file"
+            android:tint="@color/text_primary" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="14dp"
+        android:orientation="vertical"
+        android:duplicateParentState="true">
+
+        <TextView
+            android:id="@+id/rowName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:ellipsize="middle"
+            android:duplicateParentState="true"
+            android:textColor="@color/row_primary_text"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/rowDetail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:duplicateParentState="true"
+            android:fontFeatureSettings="tnum"
+            android:textColor="@color/row_secondary_text"
+            android:textSize="13sp" />
+
+        <ProgressBar
+            android:id="@+id/rowProgress"
+            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="6dp"
+            android:max="100"
+            android:progressTint="@color/accent"
+            android:progressBackgroundTint="@color/control"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/rowAction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:duplicateParentState="true"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@color/row_primary_text"
+        android:textSize="14sp"
+        android:visibility="gone" />
+</LinearLayout>

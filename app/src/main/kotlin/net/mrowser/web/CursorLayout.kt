@@ -70,7 +70,7 @@ class CursorLayout @JvmOverloads constructor(
     private val busyTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = BUSY_STROKE_DP * density
-        color = context.getColor(R.color.cursor_busy_track)
+        color = context.getColor(R.color.ring_track)
     }
     private val busyArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
