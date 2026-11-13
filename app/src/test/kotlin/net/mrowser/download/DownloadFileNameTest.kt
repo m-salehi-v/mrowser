@@ -37,6 +37,44 @@ class DownloadFileNameTest {
         assertTrue(name.endsWith("a.mp4"))
     }
 
+    @Test fun `a long name without an extension is cut to the limit`() {
+        val name = DownloadFileName.sanitize("b".repeat(300))
+        assertEquals(DownloadFileName.MAX_LENGTH, name.length)
+    }
+
+    @Test fun `an 11 character extension is not treated as one`() {
+        val name = DownloadFileName.sanitize("c".repeat(200) + ".abcdefghijk")
+        assertEquals(DownloadFileName.MAX_LENGTH, name.length)
+        assertTrue(name.startsWith("c"))
+    }
+
+    @Test fun `a cut never splits a surrogate pair`() {
+        val emoji = "\uD83C\uDFAC"
+        val name = DownloadFileName.sanitize("a".repeat(119) + emoji + "zz")
+        assertEquals("a".repeat(119), name)
+        assertTrue(name.none { Character.isSurrogate(it) })
+        val withExt = DownloadFileName.sanitize("a".repeat(115) + emoji.repeat(5) + ".mp4")
+        assertTrue(withExt.endsWith(".mp4"))
+        assertTrue(withExt.length <= DownloadFileName.MAX_LENGTH)
+        assertTrue(withExt.none { it == '\uFFFD' })
+        assertEquals(withExt, String(withExt.toByteArray(Charsets.UTF_8), Charsets.UTF_8))
+    }
+
+    @Test fun `a cut leaves no trailing space or dot`() {
+        val name = DownloadFileName.sanitize("a".repeat(118) + " ." + "x".repeat(12))
+        assertEquals("a".repeat(118), name)
+    }
+
+    @Test fun `a long CJK name stays within the byte limit and keeps its extension`() {
+        val name = DownloadFileName.sanitize("\u6F22".repeat(300) + ".mp4")
+        assertTrue(name.toByteArray(Charsets.UTF_8).size <= DownloadFileName.MAX_BYTES)
+        assertTrue(name.endsWith(".mp4"))
+        assertTrue(name.length <= DownloadFileName.MAX_LENGTH)
+    }
+
+    @Test fun `a bidi mark alone becomes download`() =
+        assertEquals("download", DownloadFileName.sanitize("\u200E"))
+
     @Test fun `generic mime types count as none`() {
         listOf("application/octet-stream", "binary/octet-stream", "application/force-download", " ", null)
             .forEach { assertNull(it, DownloadFileName.cleanMime(it)) }

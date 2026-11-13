@@ -10,6 +10,9 @@ import java.net.URISyntaxException
 object DownloadFileName {
 
     const val MAX_LENGTH = 120
+
+    /** ext4 allows 255 bytes; 120 CJK characters are 360, so the length is capped in bytes too. */
+    const val MAX_BYTES = 240
     private const val FALLBACK = "download"
     private const val FALLBACK_DISPLAY = "Download"
     private const val MAX_EXTENSION = 10
@@ -37,15 +40,35 @@ object DownloadFileName {
         }
         val name = cleaned.toString().replace(Regex("\\s+"), " ").trim { it == ' ' || it == '.' }
         if (name.isEmpty()) return FALLBACK
-        if (name.length <= MAX_LENGTH) return name
+        if (fits(name, MAX_LENGTH, MAX_BYTES)) return name
         val dot = name.lastIndexOf('.')
-        val ext = if (dot >= 0) name.substring(dot) else ""
-        return if (ext.length - 1 in 1..MAX_EXTENSION) {
-            name.substring(0, MAX_LENGTH - ext.length) + ext
-        } else {
-            name.substring(0, MAX_LENGTH)
-        }
+        val ext = if (dot >= 0 && name.length - dot - 1 in 1..MAX_EXTENSION) name.substring(dot) else ""
+        val base = cut(
+            name.substring(0, name.length - ext.length),
+            MAX_LENGTH - ext.length,
+            MAX_BYTES - utf8Length(ext),
+        )
+        return (base.ifEmpty { FALLBACK }) + ext
     }
+
+    /** The longest start of [text] within both budgets, never splitting a surrogate pair. */
+    private fun cut(text: String, maxChars: Int, maxBytes: Int): String {
+        var end = 0
+        var bytes = 0
+        while (end < text.length) {
+            val step = if (Character.isHighSurrogate(text[end]) && end + 1 < text.length) 2 else 1
+            val size = utf8Length(text.substring(end, end + step))
+            if (end + step > maxChars || bytes + size > maxBytes) break
+            end += step
+            bytes += size
+        }
+        return text.substring(0, end).trimEnd(' ', '.')
+    }
+
+    private fun fits(text: String, maxChars: Int, maxBytes: Int) =
+        text.length <= maxChars && utf8Length(text) <= maxBytes
+
+    private fun utf8Length(text: String) = text.toByteArray(Charsets.UTF_8).size
 
     /** The MIME type without parameters, lowercased; null for a blank or generic one. */
     fun cleanMime(mime: String?): String? {
@@ -67,5 +90,5 @@ object DownloadFileName {
     }
 
     private fun isBidi(c: Char): Boolean =
-        c == '‎' || c == '‏' || c in '‪'..'‮' || c in '⁦'..'⁩'
+        c == '\u200E' || c == '\u200F' || c in '\u202A'..'\u202E' || c in '\u2066'..'\u2069'
 }
