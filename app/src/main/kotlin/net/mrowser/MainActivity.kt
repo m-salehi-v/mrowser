@@ -94,6 +94,7 @@ import net.mrowser.web.PageLoadEvents
 import net.mrowser.web.PageLoadState
 import net.mrowser.web.PageMenu
 import net.mrowser.web.PageZoom
+import net.mrowser.web.Referrer
 import net.mrowser.web.RegistrableDomain
 import net.mrowser.web.SiteSettings
 import net.mrowser.web.UrlDisplay
@@ -774,13 +775,13 @@ class MainActivity : Activity() {
      * is coming (so a refused certificate on it is the main frame's, whenever `onPageStarted`
      * arrives — see [SniffingWebViewClient.expectNavigation]) and the loading feedback starts.
      */
-    private fun loadPage(url: String) {
+    private fun loadPage(url: String, referer: String? = null) {
         webClient.expectNavigation(url)
         // The agent is in place before the request: setting it never reloads, so no guard is
         // needed here.
         applyUserAgent(wantsDesktop(url))
         startLoad(url)
-        webView.loadUrl(url)
+        if (referer == null) webView.loadUrl(url) else webView.loadUrl(url, mapOf("Referer" to referer))
     }
 
     /** Every app-initiated reload: as [loadPage], with the agent the page's site wants now. */
@@ -816,9 +817,12 @@ class MainActivity : Activity() {
         val want = wantsDesktop(url)
         if (!uaSwitch.decide(SiteSettings.site(url), uaDesktop, want)) return false
         applyUserAgent(want)
+        // The cancelled navigation's Referer goes with it: the page the click came from (still
+        // the current one — nothing has committed), as the browser's default policy trims it.
+        val referer = Referrer.of(webView.url, url)
         // Not from inside shouldOverrideUrlLoading itself; loadPage starts the loading line and
         // tells the client the URL, so a certificate error on it still shows the error screen.
-        uiHandler.post { if (!webViewGone) loadPage(url) }
+        uiHandler.post { if (!webViewGone) loadPage(url, referer) }
         return true
     }
 
