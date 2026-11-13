@@ -1,6 +1,7 @@
 package net.mrowser.stream
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,5 +75,26 @@ class StreamSnifferTest {
         runPending()
         assertEquals(0, announced)
         assertTrue(!s.hasStream())
+    }
+
+    @Test fun `a file the page offered as a download is not handed to the player`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/movie.mp4")
+        s.onDownload("https://cdn.net/movie.mp4")
+        runPending()
+        assertEquals(0, announced)
+        assertFalse(s.hasStream())
+    }
+
+    @Test fun `a download leaves the page's other streams alone`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/movie.mp4")
+        s.onRequest("https://cdn.net/trailer.mp4")
+        s.onDownload("https://cdn.net/movie.mp4")
+        runPending()
+        assertEquals(1, announced)
+        assertTrue(s.hasStream())
     }
 }

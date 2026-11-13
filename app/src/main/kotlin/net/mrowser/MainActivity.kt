@@ -22,8 +22,11 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.webkit.CookieManager
+import android.webkit.MimeTypeMap
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
+import android.webkit.URLUtil
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -45,7 +48,16 @@ import net.mrowser.data.HistoryEntry
 import net.mrowser.data.JsonFavoritesStore
 import net.mrowser.data.JsonHistoryStore
 import net.mrowser.data.JsonSettingsStore
+import net.mrowser.download.ChipText
+import net.mrowser.download.DownloadConfirmDialog
+import net.mrowser.download.DownloadFileName
+import net.mrowser.download.DownloadRequest
+import net.mrowser.download.DownloadSpec
+import net.mrowser.download.DownloadText
 import net.mrowser.download.Downloader
+import net.mrowser.download.DownloadsController
+import net.mrowser.download.DownloadsSnapshot
+import net.mrowser.download.JsonDownloadsStore
 import net.mrowser.handoff.HandoffController
 import net.mrowser.home.DestructiveButton
 import net.mrowser.home.FavoriteDialog
@@ -55,6 +67,7 @@ import net.mrowser.home.OverlayFocus
 import net.mrowser.home.SettingsView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
+import net.mrowser.update.ByteSize
 import net.mrowser.update.JsonUpdateStore
 import net.mrowser.update.ReleaseFetcher
 import net.mrowser.update.UpdateController
@@ -103,6 +116,23 @@ class MainActivity : Activity() {
     private lateinit var externalLinks: ExternalIntentLauncher
     private lateinit var updates: UpdateController
     private lateinit var updateIo: ExecutorService
+    private lateinit var downloads: DownloadsController
+    private lateinit var downloadChip: View
+    private lateinit var downloadChipLabel: TextView
+    private lateinit var downloadChipTrailing: TextView
+
+    /** The last poll, so the chip can be redrawn when an overlay closes or the done line ends. */
+    private var lastDownloads: DownloadsSnapshot? = null
+
+    /** "Downloaded · name", shown for [CHIP_DONE_MS] after a download succeeds. */
+    private var downloadDone: ChipText? = null
+    private val downloadDoneEnd = Runnable {
+        downloadDone = null
+        refreshDownloadChip()
+    }
+
+    /** The download confirm on screen, if any: one at a time, so a page cannot stack prompts. */
+    private var downloadConfirm: AlertDialog? = null
 
     /** One outstanding storage-permission ask at a time; see ensureStoragePermission. */
     private var pendingStoragePermission: ((Boolean) -> Unit)? = null
@@ -223,6 +253,9 @@ class MainActivity : Activity() {
         urlInput = findViewById(R.id.urlInput)
         playChip = findViewById(R.id.playChip)
         loadingLine = findViewById(R.id.loadingLine)
+        downloadChip = findViewById(R.id.downloadChip)
+        downloadChipLabel = findViewById(R.id.downloadChipLabel)
+        downloadChipTrailing = findViewById(R.id.downloadChipTrailing)
         homeView = findViewById(R.id.homeView)
         historyView = findViewById(R.id.historyView)
         settingsView = findViewById(R.id.settingsView)
@@ -314,8 +347,8 @@ class MainActivity : Activity() {
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
-            onEnter = { chrome.dismiss(); playChip.visibility = View.GONE; layout.invalidate() },
-            onExit = { layout.invalidate() },
+            onEnter = { chrome.dismiss(); playChip.visibility = View.GONE; refreshDownloadChip(); layout.invalidate() },
+            onExit = { refreshDownloadChip(); layout.invalidate() },
             onTitle = { url, title -> recordHistory(url, title) },
             onPopupBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() },
             isBlockedPopup = { url -> adBlocker.isBlockedPopup(url) },
@@ -324,6 +357,17 @@ class MainActivity : Activity() {
             beforeLoad = { url -> webClient.expectNavigation(url) }
         )
         webView.webChromeClient = chromeClient
+        // A page only ever offers a file: nothing is saved until the user presses Download.
+        webView.setDownloadListener { url, userAgent, disposition, mimeType, length ->
+            onDownloadOffered(url, userAgent, disposition, mimeType, length)
+        }
+        downloads = DownloadsController(
+            context = this,
+            store = JsonDownloadsStore(File(filesDir, "downloads.json")),
+            isPageOpen = { false },
+            onSnapshot = ::renderDownloads,
+            handler = uiHandler
+        )
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -350,6 +394,7 @@ class MainActivity : Activity() {
         layout.chrome = chrome
         layout.playChip = playChip
         layout.onChipClick = { handoff.play() }
+        layout.downloadChip = downloadChip
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
         // Refuse the reveal in fullscreen (the bar would sit under the video) and report
@@ -368,7 +413,10 @@ class MainActivity : Activity() {
             onHistory = { showHistory(fromHome = true) },
             onSettings = { showSettings() },
             onUpdate = { release ->
-                UpdateDialog.show(this, release, ::ensureStoragePermission, ::openObtainium)
+                UpdateDialog.show(
+                    this, release, ::ensureStoragePermission, ::openObtainium,
+                    onEnqueued = { downloads.kick() }
+                )
             }
         )
         // Straight from the cache, so the line is there on the first frame; then once more if
@@ -482,6 +530,7 @@ class MainActivity : Activity() {
         historyView.hide()
         settingsView.hide()
         pageErrorView.hide()
+        refreshDownloadChip()
     }
 
     private fun overlayVisible(): Boolean = homeView.visibility == View.VISIBLE ||
@@ -510,12 +559,14 @@ class MainActivity : Activity() {
         // The capsule lives in CursorLayout, under this screen, and would stay in focus search.
         chrome.dismiss()
         pageErrorView.show(kind, url, code, canGoBackFromError(), takeFocus = !overlayUp, rendererKilled = rendererKilled)
+        refreshDownloadChip()
     }
 
     private fun hidePageError() {
         if (pageErrorView.visibility != View.VISIBLE) return
         val hadFocus = pageErrorView.hasFocus()
         pageErrorView.hide()
+        refreshDownloadChip()
         if (hadFocus) layout.requestFocus()
     }
 
@@ -676,17 +727,20 @@ class MainActivity : Activity() {
     private fun showHome() {
         hideAllOverlays()
         homeView.show()
+        refreshDownloadChip()
     }
 
     private fun showSettings() {
         hideAllOverlays()
         settingsView.show()
+        refreshDownloadChip()
     }
 
     private fun showHistory(fromHome: Boolean) {
         historyFromHome = fromHome
         hideAllOverlays()
         historyView.show()
+        refreshDownloadChip()
     }
 
     /** First launch only: write the shipped starter favorites. Guarded by a persisted
@@ -871,6 +925,73 @@ class MainActivity : Activity() {
         urlInput.setCompoundDrawablesRelativeWithIntrinsicBounds(lock, 0, 0, 0)
     }
 
+    /**
+     * The page offered a file (`Content-Disposition: attachment`, or a type the WebView cannot
+     * show). Runs on the UI thread. Nothing is saved until the user presses Download in the
+     * confirm dialog — a page can never start a download by itself.
+     */
+    private fun onDownloadOffered(url: String, userAgent: String?, disposition: String?, mimeType: String?, length: Long) {
+        // The click's load became a download, and no finish will come: end the ring now rather
+        // than at the timeout.
+        applyLoad(PageLoadEvent.Failed)
+        // A video file sent as an attachment was also seen as a request; the player must not
+        // open on it 1.5s later.
+        sniffer.onDownload(url)
+        if (!DownloadRequest.isSupported(url)) {
+            Toast.makeText(this, R.string.download_unsupported, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (downloadConfirm?.isShowing == true) return
+        val cleanMime = DownloadFileName.cleanMime(mimeType)
+        val name = DownloadFileName.sanitize(URLUtil.guessFileName(url, disposition, cleanMime))
+        val ext = name.substringAfterLast('.', "").lowercase()
+        val mime = cleanMime ?: ext.takeIf { it.isNotEmpty() }?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+        val size = ByteSize.format(length).ifBlank { getString(R.string.download_unknown_size) }
+        val host = UrlHost.of(url) ?: url
+        // The page as it was when the file was offered: the Referer, and the row's source.
+        val pageUrl = webView.url
+        downloadConfirm = DownloadConfirmDialog.show(this, name, size, host) {
+            ensureStoragePermission { granted ->
+                if (!granted) {
+                    Toast.makeText(this, R.string.download_storage_denied, Toast.LENGTH_LONG).show()
+                    return@ensureStoragePermission
+                }
+                val headers = DownloadRequest.headers(CookieManager.getInstance().getCookie(url), userAgent, pageUrl)
+                val id = downloads.start(DownloadSpec(url, name, mime, headers), pageUrl)
+                if (id == null) Toast.makeText(this, R.string.download_failed_to_start, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** One poll's result: a download that just finished says so for a moment, else the summary. */
+    private fun renderDownloads(s: DownloadsSnapshot) {
+        lastDownloads = s
+        s.finished.lastOrNull()?.let {
+            downloadDone = DownloadText.chipDone(it.name)
+            uiHandler.removeCallbacks(downloadDoneEnd)
+            uiHandler.postDelayed(downloadDoneEnd, CHIP_DONE_MS)
+        }
+        refreshDownloadChip()
+    }
+
+    /**
+     * The download chip shows only over the page: not under an overlay or the error screen, and
+     * not in HTML5 fullscreen, where it would sit on the video. The player is its own Activity.
+     */
+    private fun refreshDownloadChip() {
+        val text = downloadDone ?: lastDownloads?.let { DownloadText.chip(it.summary) }
+        val onPage = !overlayVisible() && pageErrorView.visibility != View.VISIBLE &&
+            !(::chromeClient.isInitialized && chromeClient.isFullscreen)
+        if (text == null || !onPage) {
+            downloadChip.visibility = View.GONE
+            return
+        }
+        downloadChipLabel.text = text.label
+        downloadChipTrailing.text = text.trailing
+        downloadChipTrailing.visibility = if (text.trailing == null) View.GONE else View.VISIBLE
+        downloadChip.visibility = View.VISIBLE
+    }
+
     private fun showChip() {
         playChip.visibility = View.VISIBLE
         uiHandler.removeCallbacks(chipHideRunnable)
@@ -941,12 +1062,14 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         if (::webView.isInitialized && !webViewGone) webView.onPause()
+        if (::downloads.isInitialized) downloads.stop()
     }
 
     override fun onResume() {
         super.onResume()
         if (::webView.isInitialized && !webViewGone) webView.onResume()
         if (::sniffer.isInitialized && sniffer.hasStream() && !overlayVisible()) showChip()
+        if (::downloads.isInitialized) downloads.kick()
     }
 
     override fun onRequestPermissionsResult(
@@ -975,6 +1098,10 @@ class MainActivity : Activity() {
         uiHandler.removeCallbacks(loadTimeout)
         cancelEmptyPageCheck()
         loadingLine.animate().cancel()
+        if (::downloads.isInitialized) downloads.stop()
+        uiHandler.removeCallbacks(downloadDoneEnd)
+        downloadConfirm?.dismiss()
+        downloadConfirm = null
         // Leaving for good (not the recreate() after a dead renderer, which is a configuration
         // change): a crash screen still pending must not greet the next cold launch.
         if (isFinishing && !isChangingConfigurations) {
@@ -1050,6 +1177,7 @@ class MainActivity : Activity() {
             }
             historyView.visibility == View.VISIBLE -> {
                 historyView.hide()
+                refreshDownloadChip()
                 // Return to wherever history was opened from. Back on the page, a load that failed
                 // meanwhile has put the error screen up, and that takes the D-pad.
                 if (historyFromHome) showHome()
@@ -1090,6 +1218,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val CHIP_TIMEOUT_MS = 30_000L
+        private const val CHIP_DONE_MS = 5_000L
         private const val LINE_FADE_MS = 200L
         private const val EMPTY_PAGE_CHECK_MS = 1_000L
         private const val REQ_STORAGE = 101

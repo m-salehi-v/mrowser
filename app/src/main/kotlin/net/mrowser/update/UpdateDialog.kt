@@ -26,7 +26,9 @@ object UpdateDialog {
         activity: Activity,
         release: Release,
         ensureStoragePermission: ((granted: Boolean) -> Unit) -> Unit,
-        onObtainium: () -> Unit
+        onObtainium: () -> Unit,
+        /** After the APK is enqueued, so the Downloads chip and page pick it up at once. */
+        onEnqueued: () -> Unit = {}
     ) {
         val builder = AlertDialog.Builder(activity)
         // The dialog theme's context, so the notes read like any dialog message.
@@ -90,6 +92,7 @@ object UpdateDialog {
                         return@ensureStoragePermission
                     }
                     download.isEnabled = false
+                    onEnqueued()
                     val tick = object : Runnable {
                         override fun run() {
                             when (val p = ApkDownloader.progress(activity, id)) {

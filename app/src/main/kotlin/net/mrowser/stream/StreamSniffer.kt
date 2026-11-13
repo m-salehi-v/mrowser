@@ -56,6 +56,19 @@ class StreamSniffer(
         }
     }
 
+    /**
+     * The page offered [url] as a download (`Content-Disposition: attachment`), so the user gets
+     * the confirm dialog instead. A video file sent that way was also seen as a request, and its
+     * pending grace-window announce would open the player 1.5s later; dropping its candidates
+     * makes that announce find nothing (or only the page's other streams).
+     */
+    fun onDownload(url: String) {
+        // The member removeAll(Collection) runs under the list's lock, so a worker thread's
+        // concurrent onRequest cannot be lost; Kotlin's removeAll { } rewrites by index, and
+        // removeIf needs API 24.
+        candidates.removeAll(candidates.filter { it.url == url }.toSet())
+    }
+
     private fun announce() {
         if (hasStream() && announced.compareAndSet(false, true)) onStreamAvailable()
     }

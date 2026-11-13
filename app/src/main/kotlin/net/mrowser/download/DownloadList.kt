@@ -5,6 +5,16 @@ import java.math.BigInteger
 /** What the chip and the download ring show; [name] is set only when exactly one download is active. */
 data class DownloadSummary(val active: Int, val percent: Int?, val name: String?)
 
+/**
+ * One poll of the download list: the rows to draw, what the chip and ring show, and the downloads
+ * that succeeded since the previous poll (the chip says "Downloaded" for the last of them).
+ */
+data class DownloadsSnapshot(
+    val rows: List<DownloadRowModel>,
+    val summary: DownloadSummary,
+    val finished: List<DownloadInfo>,
+)
+
 /** Ordering, summary and finish detection for the download list. Pure. */
 object DownloadList {
 

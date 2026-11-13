@@ -94,6 +94,13 @@
     <string name="install_permission_open">Open settings</string>
     <string name="download_no_installer">This TV has no app installer.</string>
     <string name="download_file_removed">That file is no longer in Downloads.</string>
+    <string name="download_confirm_title">Download this file?</string>
+    <string name="download_confirm_message">%1$s\n\nSize: %2$s\nFrom: %3$s\nSaved to Downloads</string>
+    <string name="download_unknown_size">Unknown size</string>
+    <string name="download_action">Download</string>
+    <string name="download_unsupported">mrowser can\'t save this kind of download yet.</string>
+    <string name="download_storage_denied">mrowser needs storage access to save downloads on this TV.</string>
+    <string name="download_failed_to_start">Couldn\'t start the download.</string>
     <string name="update_failed">Download failed. Try again.</string>
     <string name="update_manual">mrowser can\'t save the file on this device.\n\nOpen this on another device:\n%1$s\n\nOr use Obtainium to keep mrowser updated for you.</string>
     <string name="obtainium_title">Obtainium not installed</string>
