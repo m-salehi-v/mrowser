@@ -1,5 +1,7 @@
 package net.mrowser.data
 
+import net.mrowser.web.SearchEngine
+
 /** App-wide settings. Defaults are the shipped values. Immutable — update via copy(). */
 data class Settings(
     val autoOpenPlayer: Boolean = true,
@@ -20,6 +22,8 @@ data class Settings(
     val matchFrameRate: Boolean = false,
     /** Switch the display's resolution to the video's while playing. Off by default, as above. */
     val matchResolution: Boolean = false,
+    /** The engine the URL bar sends free text (anything that is not a web address) to. */
+    val searchEngine: SearchEngine = SearchEngine.DEFAULT,
     /** Internal bookkeeping, not a user preference: default favorites written once. */
     val seeded: Boolean = false,
     /** Internal bookkeeping, not a user preference: hold-BACK hint shown once. */

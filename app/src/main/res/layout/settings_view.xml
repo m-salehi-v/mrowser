@@ -64,6 +64,18 @@
             style="@style/Mrowser.SettingsSection"
             android:text="@string/settings_section_browsing" />
         <LinearLayout
+            android:id="@+id/settingsSearchRow"
+            style="@style/Widget.Mrowser.SettingsRow">
+
+            <TextView
+                style="@style/Mrowser.SettingsLabel"
+                android:text="@string/search_engine_title" />
+
+            <TextView
+                android:id="@+id/settingsSearchValue"
+                style="@style/Mrowser.SettingsValue" />
+        </LinearLayout>
+        <LinearLayout
             android:id="@+id/settingsPopupRow"
             style="@style/Widget.Mrowser.SettingsRow">
 

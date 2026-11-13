@@ -1,5 +1,6 @@
 package net.mrowser.data
 
+import net.mrowser.web.SearchEngine
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -88,4 +89,16 @@ class SettingsJsonTest {
         assertFalse(s.autoOpenPlayer)
         assertTrue(s.seeded)
     }
+
+    @Test fun `search engine round-trips by id`() {
+        val s = Settings(searchEngine = SearchEngine.STARTPAGE)
+        assertTrue(SettingsJson.toJson(s).contains("\"searchEngine\":\"startpage\""))
+        assertEquals(SearchEngine.STARTPAGE, SettingsJson.fromJson(SettingsJson.toJson(s)).searchEngine)
+    }
+
+    @Test fun `a 1_4 settings file reads as duckduckgo`() =
+        assertEquals(SearchEngine.DUCKDUCKGO, SettingsJson.fromJson("""{"autoOpenPlayer":false}""").searchEngine)
+
+    @Test fun `an unknown engine id reads as duckduckgo`() =
+        assertEquals(SearchEngine.DUCKDUCKGO, SettingsJson.fromJson("""{"searchEngine":"yahoo"}""").searchEngine)
 }
