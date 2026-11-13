@@ -138,12 +138,17 @@ class DownloadsView @JvmOverloads constructor(
         DownloadKind.OTHER -> R.drawable.ic_type_file
     }
 
-    /** The word at the row's end for what OK does; none for a row whose OK opens the options. */
-    private fun actionLabel(primary: Primary): Int? = when (primary) {
-        Primary.PLAY -> R.string.download_play
-        Primary.INSTALL -> R.string.download_install
-        Primary.OPEN -> R.string.download_open
-        Primary.RETRY -> R.string.download_retry
-        Primary.OPTIONS -> null
+    companion object {
+        /**
+         * The word at the row's end for what OK does, and the options dialog's first item; none
+         * for a row whose OK opens the options.
+         */
+        fun actionLabel(primary: Primary): Int? = when (primary) {
+            Primary.PLAY -> R.string.download_play
+            Primary.INSTALL -> R.string.download_install
+            Primary.OPEN -> R.string.download_open
+            Primary.RETRY -> R.string.download_retry
+            Primary.OPTIONS -> null
+        }
     }
 }

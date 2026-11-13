@@ -52,6 +52,7 @@ import net.mrowser.download.ChipText
 import net.mrowser.download.DownloadConfirmDialog
 import net.mrowser.download.DownloadFileName
 import net.mrowser.download.DownloadRequest
+import net.mrowser.download.DownloadRunner
 import net.mrowser.download.DownloadSpec
 import net.mrowser.download.DownloadText
 import net.mrowser.download.Downloader
@@ -443,8 +444,19 @@ class MainActivity : Activity() {
                 Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
             }
         )
-        // Task 2.8 gives the rows their actions; Clear finished only hides rows, the files stay.
-        downloadsView.bind(onPrimary = {}, onOptions = {}, onClearFinished = { downloads.clearFinished() })
+        val downloadRunner = DownloadRunner(
+            activity = this,
+            downloads = downloads,
+            play = handoff::play,
+            userAgent = { webView.settings.userAgentString },
+            ensureStoragePermission = ::ensureStoragePermission
+        )
+        // Clear finished only hides rows, the files stay.
+        downloadsView.bind(
+            onPrimary = downloadRunner::primary,
+            onOptions = downloadRunner::options,
+            onClearFinished = { downloads.clearFinished() }
+        )
         settingsView.bind(settings) { adBlocker.list }
         settingsView.bindFavorites(onExport = ::exportFavorites, onImport = ::importFavorites)
         pageErrorView.bind(onRetry = ::retryFromError, onBack = ::backFromError, onHome = ::closeToHome)

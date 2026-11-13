@@ -69,6 +69,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />
 
+            <!-- Visible from the start, so the page says something before the first poll answers;
+                 render() hides it once there are rows. -->
             <TextView
                 android:id="@+id/downloadsEmptyHint"
                 android:layout_width="match_parent"
@@ -78,8 +80,7 @@
                 android:paddingTop="80dp"
                 android:text="@string/downloads_empty"
                 android:textColor="@color/hint"
-                android:textSize="18sp"
-                android:visibility="gone" />
+                android:textSize="18sp" />
         </FrameLayout>
     </ScrollView>
 </LinearLayout>
