@@ -3,6 +3,7 @@ package net.mrowser.stream
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
+import android.os.Build
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
@@ -12,6 +13,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import net.mrowser.adblock.AdBlocker
 import net.mrowser.web.ExternalSchemePolicy
+import net.mrowser.web.MainFrameUrl
 import net.mrowser.web.PageLoadEvents
 
 /**
@@ -39,6 +41,17 @@ class SniffingWebViewClient(
     private fun starting(url: String) {
         navigatingUrl = url
         pageEvents.onStarting(url)
+    }
+
+    /**
+     * The app is about to `loadUrl(url)` itself. Such a load reaches neither
+     * `shouldOverrideUrlLoading` nor, necessarily, `onPageStarted` before the certificate is
+     * checked (a WebView may post `onPageStarted` only at commit, which a refused certificate
+     * never reaches), so without this its certificate error would not be recognised as the main
+     * frame's and the user would be left on a blank page.
+     */
+    fun expectNavigation(url: String) {
+        navigatingUrl = url
     }
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -78,11 +91,14 @@ class SniffingWebViewClient(
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
         handler?.cancel()
         val url = error?.url ?: return
-        if (url == navigatingUrl) pageEvents.onMainFrameSslError(url)
+        if (MainFrameUrl.same(url, navigatingUrl)) pageEvents.onMainFrameSslError(url)
     }
 
-    override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean =
-        pageEvents.onRendererGone()
+    /** Only called on API 26+, where [RenderProcessGoneDetail.didCrash] exists. */
+    override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+        val crashed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) detail?.didCrash() ?: true else true
+        return pageEvents.onRendererGone(crashed)
+    }
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)

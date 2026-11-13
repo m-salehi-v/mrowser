@@ -58,4 +58,20 @@ object PageError {
 
     /** `evaluateJavascript` hands the expression's value back as JSON, so `true` arrives as `"true"`. */
     fun isEmptyPage(scriptResult: String?): Boolean = scriptResult?.trim() == "true"
+
+    /**
+     * Empty answers in a row (a check apart) before an HTTP-error page counts as empty. A site's
+     * own app shell can show nothing but a CSS spinner at the first check; one that is still
+     * empty a second later has nothing coming.
+     */
+    const val EMPTY_CHECKS = 2
+
+    enum class EmptyVerdict { NOT_EMPTY, CHECK_AGAIN, EMPTY }
+
+    /** What the [pass]th (1-based) empty-page check concludes from its [scriptResult]. */
+    fun emptyVerdict(pass: Int, scriptResult: String?): EmptyVerdict = when {
+        !isEmptyPage(scriptResult) -> EmptyVerdict.NOT_EMPTY
+        pass < EMPTY_CHECKS -> EmptyVerdict.CHECK_AGAIN
+        else -> EmptyVerdict.EMPTY
+    }
 }

@@ -51,11 +51,20 @@ class PageErrorView @JvmOverloads constructor(
     /**
      * Shows [kind] for [url]; [code] is the dim technical line (hidden when blank). With
      * [takeFocus] false the screen comes up without pulling focus — an overlay is in front of it
-     * and keeps the D-pad until it closes.
+     * and keeps the D-pad until it closes. [rendererKilled] (with [PageErrorKind.CRASHED]) says
+     * the system closed the page to free memory rather than it crashing, which reads differently.
      */
-    fun show(kind: PageErrorKind, url: String, code: String, canGoBack: Boolean, takeFocus: Boolean = true) {
+    fun show(
+        kind: PageErrorKind,
+        url: String,
+        code: String,
+        canGoBack: Boolean,
+        takeFocus: Boolean = true,
+        rendererKilled: Boolean = false,
+    ) {
         val host = UrlHost.of(url) ?: url
-        message.text = context.getString(messageRes(kind), host)
+        val res = if (kind == PageErrorKind.CRASHED && rendererKilled) R.string.page_error_killed else messageRes(kind)
+        message.text = context.getString(res, host)
         this.code.text = code
         this.code.visibility = if (code.isBlank()) View.GONE else View.VISIBLE
         setCanGoBack(canGoBack)

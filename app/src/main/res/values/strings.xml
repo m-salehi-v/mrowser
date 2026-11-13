@@ -93,10 +93,11 @@
     <string name="page_error_no_internet">The TV isn\'t connected to the internet. Check its network, then try again.</string>
     <string name="page_error_not_found">mrowser couldn\'t find %1$s. Check the address, or the TV\'s internet connection.</string>
     <string name="page_error_timed_out">%1$s took too long to answer.</string>
-    <string name="page_error_connection">%1$s refused the connection.</string>
+    <string name="page_error_connection">Couldn\'t connect to %1$s.</string>
     <string name="page_error_not_secure">%1$s has a certificate problem, so mrowser didn\'t open it.</string>
     <string name="page_error_server">%1$s answered with an error and sent no page.</string>
-    <string name="page_error_crashed">The page stopped working.</string>
+    <string name="page_error_crashed">The page at %1$s stopped working.</string>
+    <string name="page_error_killed">%1$s was closed to free up memory.</string>
     <string name="page_error_other">Something went wrong loading %1$s.</string>
     <string name="page_error_retry">Try again</string>
     <string name="page_error_back">Go back</string>

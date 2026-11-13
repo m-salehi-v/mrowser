@@ -63,4 +63,15 @@ class PageErrorTest {
         assertFalse(PageError.isEmptyPage("false"))
         assertFalse(PageError.isEmptyPage(null))
     }
+
+    @Test fun `an empty page needs two empty answers in a row`() {
+        assertEquals(PageError.EmptyVerdict.CHECK_AGAIN, PageError.emptyVerdict(1, "true"))
+        assertEquals(PageError.EmptyVerdict.EMPTY, PageError.emptyVerdict(2, "true"))
+    }
+
+    @Test fun `a page that has content at either check is left alone`() {
+        assertEquals(PageError.EmptyVerdict.NOT_EMPTY, PageError.emptyVerdict(1, "false"))
+        assertEquals(PageError.EmptyVerdict.NOT_EMPTY, PageError.emptyVerdict(2, "false"))
+        assertEquals(PageError.EmptyVerdict.NOT_EMPTY, PageError.emptyVerdict(2, null))
+    }
 }

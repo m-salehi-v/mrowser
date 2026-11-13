@@ -20,6 +20,9 @@ interface PageLoadEvents {
     /** The main frame loaded but the server answered [status] (>= 400). */
     fun onMainFrameHttpError(url: String, status: Int) {}
 
-    /** @return true when the renderer's death was handled and the app must not be killed. */
-    fun onRendererGone(): Boolean = false
+    /**
+     * The renderer is gone: [crashed] false when the system killed it (to free memory) rather
+     * than it crashing. @return true when this was handled and the app must not be killed.
+     */
+    fun onRendererGone(crashed: Boolean): Boolean = false
 }
