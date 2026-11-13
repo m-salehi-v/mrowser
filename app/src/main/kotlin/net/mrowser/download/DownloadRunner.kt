@@ -30,7 +30,7 @@ class DownloadRunner(
     private val activity: Activity,
     private val downloads: DownloadsController,
     private val play: (PlaybackRequest) -> Unit,
-    /** The User-Agent to fetch [url] with (the desktop one when its site wants desktop). */
+    /** The User-Agent the site of [url] gets (the desktop one when it wants desktop). */
     private val userAgent: (url: String) -> String,
     private val ensureStoragePermission: ((Boolean) -> Unit) -> Unit,
 ) {
@@ -98,7 +98,10 @@ class DownloadRunner(
                 return@ensureStoragePermission
             }
             val cookie = CookieManager.getInstance().getCookie(info.url)
-            if (downloads.retry(info, cookie, userAgent(info.url)) == null) {
+            // The agent of the page the file came from (its stored Referer page), as the first
+            // try had: a file on a CDN host has no per-site choice of its own.
+            val agent = userAgent(downloads.pageUrl(info.id) ?: info.url)
+            if (downloads.retry(info, cookie, agent) == null) {
                 Toast.makeText(activity, R.string.download_failed_to_start, Toast.LENGTH_LONG).show()
             }
         }

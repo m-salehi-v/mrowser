@@ -504,7 +504,8 @@ class MainActivity : Activity() {
             activity = this,
             downloads = downloads,
             play = handoff::play,
-            // A retry asks with the agent the file's site would get now, not the current page's.
+            // A retry asks with the agent its source page's site would get now (the file's own
+            // URL when no page was recorded), not the current page's.
             userAgent = { url -> userAgentFor(url) },
             ensureStoragePermission = ::ensureStoragePermission
         )
