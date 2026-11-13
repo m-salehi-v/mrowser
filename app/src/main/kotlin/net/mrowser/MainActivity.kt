@@ -461,6 +461,7 @@ class MainActivity : Activity() {
             downloadOffers.reset()
             uaSwitch.onUserNavigation()
         }
+        layout.onHistoryBack = { uaSwitch.onUserNavigation() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
         // Refuse the reveal in fullscreen (the bar would sit under the video) and report
@@ -522,7 +523,7 @@ class MainActivity : Activity() {
         backButton.setOnClickListener {
             if (webView.canGoBack()) {
                 startLoad(null)
-                webView.goBack()
+                goBackByUser()
             }
             chrome.onInteracted()
         }
@@ -723,7 +724,7 @@ class MainActivity : Activity() {
             ErrorNavigation.Back.GO_BACK -> {
                 hidePageError()
                 startLoad(null)
-                webView.goBack()
+                goBackByUser()
             }
             ErrorNavigation.Back.HOME -> closeToHome()
         }
@@ -841,6 +842,17 @@ class MainActivity : Activity() {
         if (!uaSwitch.decide(SiteSettings.site(url), uaDesktop, want)) return
         applyUserAgent(want)
         uiHandler.post { if (!webViewGone) reloadPage(url) }
+    }
+
+    /**
+     * The user's BACK (the bar's Back, the error screen's Go back; the page's BACK resets through
+     * [CursorLayout.onHistoryBack]): a user navigation, so the guard starts over — else the
+     * history entry it lands on keeps the agent of the page it left, the switch for its site
+     * having been spent on the way forward. One reset per press keeps it bounded.
+     */
+    private fun goBackByUser() {
+        uaSwitch.onUserNavigation()
+        webView.goBack()
     }
 
     /** The page menu's Desktop site toggle: the user's own action, so the guard starts over. */
