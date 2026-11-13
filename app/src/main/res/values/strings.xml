@@ -89,4 +89,18 @@
     <string name="update_manual">mrowser can\'t save the file on this device.\n\nOpen this on another device:\n%1$s\n\nOr use Obtainium to keep mrowser updated for you.</string>
     <string name="obtainium_title">Obtainium not installed</string>
     <string name="obtainium_message">Obtainium installs apps straight from GitHub Releases and keeps them updated for you — mrowser included.\n\nmrowser can\'t install it here. Get it on a phone or computer from:\n\n%1$s</string>
+    <string name="page_error_title">This page didn\'t load</string>
+    <string name="page_error_no_internet">The TV isn\'t connected to the internet. Check its network, then try again.</string>
+    <string name="page_error_not_found">mrowser couldn\'t find %1$s. Check the address, or the TV\'s internet connection.</string>
+    <string name="page_error_timed_out">%1$s took too long to answer.</string>
+    <string name="page_error_connection">%1$s refused the connection.</string>
+    <string name="page_error_not_secure">%1$s has a certificate problem, so mrowser didn\'t open it.</string>
+    <string name="page_error_server">%1$s answered with an error and sent no page.</string>
+    <string name="page_error_crashed">The page stopped working.</string>
+    <string name="page_error_other">Something went wrong loading %1$s.</string>
+    <string name="page_error_retry">Try again</string>
+    <string name="page_error_back">Go back</string>
+    <string name="page_error_home">Home</string>
+    <string name="page_error_code_certificate">Certificate error</string>
+    <string name="page_error_code_http">HTTP %1$d</string>
 </resources>

@@ -182,6 +182,14 @@
             android:visibility="gone" />
     </net.mrowser.web.CursorLayout>
 
+    <!-- Why a page didn't load. Outside CursorLayout, whose dispatchKeyEvent would take the
+         D-pad; over the page and under the overlays (it ranks below them in OverlayFocus). -->
+    <net.mrowser.web.PageErrorView
+        android:id="@+id/pageErrorView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <net.mrowser.home.HomeView
         android:id="@+id/homeView"
         android:layout_width="match_parent"

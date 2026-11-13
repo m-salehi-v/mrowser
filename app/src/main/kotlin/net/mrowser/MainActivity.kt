@@ -20,6 +20,7 @@ import android.text.TextWatcher
 import android.text.style.ForegroundColorSpan
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
@@ -64,6 +65,9 @@ import net.mrowser.web.CursorController
 import net.mrowser.web.CursorLayout
 import net.mrowser.web.ExternalIntentLauncher
 import net.mrowser.web.IncomingUrl
+import net.mrowser.web.PageError
+import net.mrowser.web.PageErrorKind
+import net.mrowser.web.PageErrorView
 import net.mrowser.web.PageLoad
 import net.mrowser.web.PageLoadEvent
 import net.mrowser.web.PageLoadEvents
@@ -93,6 +97,7 @@ class MainActivity : Activity() {
     private lateinit var historyView: HistoryView
     private lateinit var settings: JsonSettingsStore
     private lateinit var settingsView: SettingsView
+    private lateinit var pageErrorView: PageErrorView
     private lateinit var externalLinks: ExternalIntentLauncher
     private lateinit var updates: UpdateController
     private lateinit var updateIo: ExecutorService
@@ -119,16 +124,73 @@ class MainActivity : Activity() {
     /** Ends a load that never reports an end (a download, a same-document navigation). */
     private val loadTimeout = Runnable { applyLoad(PageLoadEvent.TimedOut) }
 
-    /** The WebView's page-load signals. Task 6.5 adds the error methods here. */
+    /** What the error screen is showing, for Try again. */
+    private var errorKind: PageErrorKind? = null
+    private var errorUrl: String? = null
+
+    /** A main-frame 4xx/5xx waiting for its page to finish; see [scheduleEmptyPageCheck]. */
+    private var httpErrorUrl: String? = null
+    private var httpErrorStatus = 0
+    private var emptyPageCheck: Runnable? = null
+
+    /** Bumped by every navigation start, so a late empty-page answer for an old page is dropped. */
+    private var navigation = 0
+
+    /** The renderer died and the WebView was destroyed; nothing may touch it until [recreate]. */
+    private var webViewGone = false
+
+    /** The WebView's page-load signals: the loading feedback and the error screen. */
     private val pageEvents = object : PageLoadEvents {
         override fun onStarting(url: String) {
-            // about:blank (close tab, home) and other non-web URLs show no loading feedback
-            if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
-                applyLoad(PageLoadEvent.Started)
+            // Any new navigation ends the error screen and an empty-page check still pending.
+            navigation++
+            cancelEmptyPageCheck()
+            // onPageStarted can come at commit rather than at the start (Chromium does that for
+            // some navigations), which is after onReceivedHttpError for that same response, so
+            // only a different URL forgets the status. The page's finish consumes it either way.
+            if (url != httpErrorUrl) {
+                httpErrorUrl = null
+                httpErrorStatus = 0
             }
+            hidePageError()
+            // about:blank (close tab, home) and other non-web URLs show no loading feedback
+            if (isWebUrl(url)) applyLoad(PageLoadEvent.Started)
         }
 
         override fun onCommitVisible(url: String) = applyLoad(PageLoadEvent.Committed)
+
+        override fun onMainFrameError(url: String, code: Int, description: String?) {
+            // null: cancelled, not failed (our own ad cancel, a download, a scheme) — show nothing
+            val kind = PageError.classify(code, description) ?: return
+            applyLoad(PageLoadEvent.Failed)
+            showPageError(kind, url, PageError.codeLabel(description))
+        }
+
+        override fun onMainFrameSslError(url: String) {
+            applyLoad(PageLoadEvent.Failed)
+            showPageError(PageErrorKind.NOT_SECURE, url, getString(R.string.page_error_code_certificate))
+        }
+
+        override fun onMainFrameHttpError(url: String, status: Int) {
+            httpErrorUrl = url
+            httpErrorStatus = status
+        }
+
+        /**
+         * Keeps the app alive: the dead WebView is dropped (it must not be used again) and the
+         * Activity is recreated with a fresh one, which shows Page crashed for [crashedUrl] and
+         * loads nothing by itself — so a page that kills the renderer on load cannot loop.
+         */
+        override fun onRendererGone(): Boolean {
+            crashedUrl = webView.url.orEmpty()
+            webViewGone = true
+            uiHandler.removeCallbacksAndMessages(null)
+            emptyPageCheck = null
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.destroy()
+            recreate()
+            return true
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -144,6 +206,7 @@ class MainActivity : Activity() {
         homeView = findViewById(R.id.homeView)
         historyView = findViewById(R.id.historyView)
         settingsView = findViewById(R.id.settingsView)
+        pageErrorView = findViewById(R.id.pageErrorView)
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
         val reloadButton = findViewById<ImageButton>(R.id.reloadButton)
@@ -208,6 +271,9 @@ class MainActivity : Activity() {
             onNavigate = { url -> updateUrlText(url) },
             onLoaded = { url ->
                 applyLoad(PageLoadEvent.Finished)
+                if (httpErrorStatus != 0) scheduleEmptyPageCheck(url, httpErrorStatus)
+                httpErrorUrl = null
+                httpErrorStatus = 0
                 recordHistory(url, webView.title)
                 // Opening from home starts a fresh tab: drop any prior back-stack so
                 // BACK at this page reaches root (close-tab) instead of walking old
@@ -294,6 +360,7 @@ class MainActivity : Activity() {
         )
         settingsView.bind(settings) { adBlocker.list }
         settingsView.bindFavorites(onExport = ::exportFavorites, onImport = ::importFavorites)
+        pageErrorView.bind(onRetry = ::retryFromError, onBack = ::backFromError, onHome = ::closeToHome)
 
         layout.post { cursor.center(webView.width, webView.height) }
 
@@ -352,7 +419,16 @@ class MainActivity : Activity() {
         // Launched by another app's link (mrowser is a registered browser), or from the
         // launcher / TV home row. Only the former has a page to go to.
         val link = IncomingUrl.fromViewIntent(intent?.action, intent?.dataString)
-        if (link != null) openUrl(link) else showHome()
+        val crashed = crashedUrl
+        crashedUrl = null
+        when {
+            // Recreated after the renderer died: say so and load nothing — not even the launch
+            // link, which may be the very page that crashed — until the user picks Try again.
+            crashed != null && isWebUrl(crashed) -> showPageError(PageErrorKind.CRASHED, crashed, "")
+            crashed != null -> showHome()
+            link != null -> openUrl(link)
+            else -> showHome()
+        }
     }
 
     /** A link from another app while mrowser is already running. `singleTask` sends it here
@@ -374,6 +450,89 @@ class MainActivity : Activity() {
         homeView.hide()
         historyView.hide()
         settingsView.hide()
+        pageErrorView.hide()
+    }
+
+    private fun overlayVisible(): Boolean = homeView.visibility == View.VISIBLE ||
+        historyView.visibility == View.VISIBLE || settingsView.visibility == View.VISIBLE
+
+    private fun isWebUrl(url: String): Boolean =
+        url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
+
+    /**
+     * The error screen for [url]. Under an overlay (a load that failed while history was open
+     * over the page) it comes up without taking focus; closing the overlay hands it over.
+     */
+    private fun showPageError(kind: PageErrorKind, url: String, code: String) {
+        errorKind = kind
+        errorUrl = url
+        val overlayUp = overlayVisible()
+        // The capsule lives in CursorLayout, under this screen, and would stay in focus search.
+        chrome.dismiss()
+        pageErrorView.show(kind, url, code, canGoBackFromError(), takeFocus = !overlayUp)
+    }
+
+    private fun hidePageError() {
+        if (pageErrorView.visibility != View.VISIBLE) return
+        val hadFocus = pageErrorView.hasFocus()
+        pageErrorView.hide()
+        if (hadFocus) layout.requestFocus()
+    }
+
+    /** A page opened from home clears its back-stack when it finishes, so it has none to go to. */
+    private fun canGoBackFromError(): Boolean = webView.canGoBack() && !clearHistoryOnLoad
+
+    /** Try again: a crash reloads into the fresh WebView; otherwise the failed URL again. A load
+     *  that never committed (a refused certificate) left the previous page current, so only
+     *  reload when the failed URL is the one on screen. */
+    private fun retryFromError() {
+        val url = errorUrl ?: return
+        if (errorKind == PageErrorKind.CRASHED) {
+            openUrl(url)
+            return
+        }
+        hidePageError()
+        applyLoad(PageLoadEvent.Started)
+        if (webView.url == url) webView.reload() else webView.loadUrl(url)
+    }
+
+    /** Go back (and BACK on the error screen): the previous page, or home with no history. */
+    private fun backFromError() {
+        if (!canGoBackFromError()) {
+            closeToHome()
+            return
+        }
+        hidePageError()
+        applyLoad(PageLoadEvent.Started)
+        webView.goBack()
+    }
+
+    /**
+     * An HTTP error page is often the site's own, and that is left alone: only a page that shows
+     * nothing gets the error screen. Checked a second after it finished, since an app shell
+     * served with a 4xx status is still empty at the finish and fills in from script. Any new
+     * navigation cancels it.
+     */
+    private fun scheduleEmptyPageCheck(url: String, status: Int) {
+        cancelEmptyPageCheck()
+        val nav = navigation
+        val check = Runnable {
+            emptyPageCheck = null
+            if (webViewGone || pageErrorView.visibility == View.VISIBLE) return@Runnable
+            webView.evaluateJavascript(PageError.EMPTY_PAGE_SCRIPT) { result ->
+                if (isDestroyed || nav != navigation || pageErrorView.visibility == View.VISIBLE) return@evaluateJavascript
+                if (PageError.isEmptyPage(result)) {
+                    showPageError(PageErrorKind.SERVER, url, getString(R.string.page_error_code_http, status))
+                }
+            }
+        }
+        emptyPageCheck = check
+        uiHandler.postDelayed(check, EMPTY_PAGE_CHECK_MS)
+    }
+
+    private fun cancelEmptyPageCheck() {
+        emptyPageCheck?.let { uiHandler.removeCallbacks(it) }
+        emptyPageCheck = null
     }
 
     private fun openUrl(url: String) {
@@ -410,7 +569,9 @@ class MainActivity : Activity() {
             loadingLine.visibility = View.VISIBLE
         } else {
             uiHandler.removeCallbacks(loadTimeout)
-            if (loadingLine.visibility == View.VISIBLE) {
+            // Only a line that is fully up starts its fade: one already fading keeps going (a
+            // second end event, Failed then Finished, must not restart it).
+            if (loadingLine.visibility == View.VISIBLE && loadingLine.alpha == 1f) {
                 loadingLine.animate().scaleX(1f).alpha(0f).setDuration(LINE_FADE_MS).withEndAction {
                     // a new load may have begun while this one faded out
                     if (!loadState.loading) loadingLine.visibility = View.GONE
@@ -686,15 +847,13 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         super.onPause()
-        if (::webView.isInitialized) webView.onPause()
+        if (::webView.isInitialized && !webViewGone) webView.onPause()
     }
 
     override fun onResume() {
         super.onResume()
-        if (::webView.isInitialized) webView.onResume()
-        if (::sniffer.isInitialized && sniffer.hasStream() &&
-            homeView.visibility != View.VISIBLE && historyView.visibility != View.VISIBLE &&
-            settingsView.visibility != View.VISIBLE) showChip()
+        if (::webView.isInitialized && !webViewGone) webView.onResume()
+        if (::sniffer.isInitialized && sniffer.hasStream() && !overlayVisible()) showChip()
     }
 
     override fun onRequestPermissionsResult(
@@ -721,6 +880,8 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) unregisterServiceWorkerAdBlock()
         updateIo.shutdownNow()
         uiHandler.removeCallbacks(loadTimeout)
+        cancelEmptyPageCheck()
+        loadingLine.animate().cancel()
     }
 
     /** Service-worker fetches bypass WebViewClient.shouldInterceptRequest entirely, so they need
@@ -743,17 +904,20 @@ class MainActivity : Activity() {
         // to the root's first focusable, CursorLayout, which sits *behind* a visible
         // overlay and turns the D-pad into the hidden cursor. Either way the user is
         // stuck, so re-seat focus where it belongs and swallow this one press.
+        if (webViewGone) return true // the renderer died and recreate() is under way: drive nothing
         if (event.action == KeyEvent.ACTION_DOWN) {
             val target = OverlayFocus.recoveryTarget(
                 settingsVisible = settingsView.visibility == View.VISIBLE,
                 historyVisible = historyView.visibility == View.VISIBLE,
                 homeVisible = homeView.visibility == View.VISIBLE,
+                errorVisible = pageErrorView.visibility == View.VISIBLE,
                 focus = focusZone()
             )
             val recovered = when (target) {
                 OverlayFocus.Zone.SETTINGS -> settingsView.restoreFocus()
                 OverlayFocus.Zone.HISTORY -> historyView.restoreFocus()
                 OverlayFocus.Zone.HOME -> homeView.restoreFocus()
+                OverlayFocus.Zone.ERROR -> pageErrorView.restoreFocus()
                 OverlayFocus.Zone.PAGE -> layout.requestFocus()
                 else -> false
             }
@@ -762,7 +926,7 @@ class MainActivity : Activity() {
         return super.dispatchKeyEvent(event)
     }
 
-    /** Which of the four subtrees currently holds D-pad focus, for [OverlayFocus]. */
+    /** Which of the five subtrees currently holds D-pad focus, for [OverlayFocus]. */
     private fun focusZone(): OverlayFocus.Zone {
         var v: View? = currentFocus
         while (v != null) {
@@ -770,6 +934,7 @@ class MainActivity : Activity() {
                 settingsView -> return OverlayFocus.Zone.SETTINGS
                 historyView -> return OverlayFocus.Zone.HISTORY
                 homeView -> return OverlayFocus.Zone.HOME
+                pageErrorView -> return OverlayFocus.Zone.ERROR
                 layout -> return OverlayFocus.Zone.PAGE
             }
             v = v.parent as? View
@@ -786,10 +951,13 @@ class MainActivity : Activity() {
             }
             historyView.visibility == View.VISIBLE -> {
                 historyView.hide()
-                // Return to wherever history was opened from.
-                if (historyFromHome) showHome() else layout.requestFocus()
+                // Return to wherever history was opened from. Back on the page, a load that failed
+                // meanwhile has put the error screen up, and that takes the D-pad.
+                if (historyFromHome) showHome()
+                else if (!pageErrorView.restoreFocus()) layout.requestFocus()
             }
             homeView.visibility == View.VISIBLE -> confirmExit()
+            pageErrorView.visibility == View.VISIBLE -> backFromError()
             else -> confirmCloseTab()
         }
     }
@@ -800,11 +968,14 @@ class MainActivity : Activity() {
             .setTitle(R.string.close_tab_title)
             .setMessage(R.string.close_tab_message)
             .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.close_tab) { _, _ ->
-                webView.loadUrl("about:blank")
-                showHome()
-            }
+            .setPositiveButton(R.string.close_tab) { _, _ -> closeToHome() }
             .show()
+    }
+
+    /** Close the page (blank it, so nothing keeps playing behind) and go home. */
+    private fun closeToHome() {
+        webView.loadUrl("about:blank")
+        showHome()
     }
 
     /** BACK on the home overlay is the app's root: confirm before exiting to the launcher. */
@@ -821,9 +992,17 @@ class MainActivity : Activity() {
     companion object {
         private const val CHIP_TIMEOUT_MS = 30_000L
         private const val LINE_FADE_MS = 200L
+        private const val EMPTY_PAGE_CHECK_MS = 1_000L
         private const val REQ_STORAGE = 101
         private const val REQ_IMPORT_FAVORITES = 102
         private const val OBTAINIUM_ADD_URL = "obtainium://add/https://github.com/m-salehi-v/mrowser"
         private const val OBTAINIUM_URL = "https://github.com/ImranR98/Obtainium"
+
+        /**
+         * Set when the renderer died and [recreate] is under way: the page that was showing
+         * (empty when none was), for the new instance to show Page crashed for. Static because
+         * the recreated Activity is a new object; read once and cleared in onCreate.
+         */
+        private var crashedUrl: String? = null
     }
 }
