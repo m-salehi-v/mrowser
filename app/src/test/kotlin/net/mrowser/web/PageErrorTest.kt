@@ -28,6 +28,7 @@ class PageErrorTest {
         assertNull(PageError.classify(-1, "net::ERR_ABORTED"))
         assertNull(PageError.classify(-10, "net::ERR_UNKNOWN_URL_SCHEME"))
         assertNull(PageError.classify(-1, "net::ERR_BLOCKED_BY_CLIENT"))
+        assertNull(PageError.classify(-10, "net::ERR_FOO"))
     }
 
     @Test fun `a cancelled description wins over a code that would show an error`() {
@@ -43,6 +44,11 @@ class PageErrorTest {
         assertEquals(PageErrorKind.NOT_SECURE, PageError.classify(-1, "net::ERR_CERT_AUTHORITY_INVALID"))
         assertEquals(PageErrorKind.CONNECTION, PageError.classify(-1, "net::ERR_CONNECTION_CLOSED"))
         assertEquals(PageErrorKind.CONNECTION, PageError.classify(-1, "net::ERR_CONNECTION_FAILED"))
+    }
+
+    @Test fun `an empty-bodied http error status is a server error whatever the code`() {
+        assertEquals(PageErrorKind.SERVER, PageError.classify(-1, "net::ERR_HTTP_RESPONSE_CODE_FAILURE"))
+        assertEquals(PageErrorKind.SERVER, PageError.classify(-7, "net::ERR_HTTP_RESPONSE_CODE_FAILURE"))
     }
 
     @Test fun `code label`() = assertEquals("ERR_NAME_NOT_RESOLVED", PageError.codeLabel("net::ERR_NAME_NOT_RESOLVED"))

@@ -29,6 +29,7 @@ object PageError {
     /** First match wins, so `ERR_CONNECTION_TIMED_OUT` is a timeout before it is a connection error. */
     private val RULES = listOf(
         Rule(PageErrorKind.TIMED_OUT) { it.endsWith("TIMED_OUT") },
+        Rule(PageErrorKind.SERVER) { it == "ERR_HTTP_RESPONSE_CODE_FAILURE" }, // an empty-bodied 4xx/5xx
         Rule(PageErrorKind.NO_INTERNET) { it == "ERR_INTERNET_DISCONNECTED" || it == "ERR_NETWORK_CHANGED" },
         Rule(PageErrorKind.NOT_FOUND) { it == "ERR_NAME_NOT_RESOLVED" || it == "ERR_NAME_RESOLUTION_FAILED" },
         Rule(PageErrorKind.NOT_SECURE) { it.startsWith("ERR_CERT_") || it.startsWith("ERR_SSL_") },
@@ -47,11 +48,12 @@ object PageError {
 
     /**
      * Evaluates to `true` when the page has nothing to see: no body, or no non-blank text and no
-     * image, video, frame, canvas or svg. One expression that cannot throw.
+     * media, frame, embed or form field (a frameset body counts too). One expression that cannot
+     * throw, and it fails safe to `false` (not empty) so a page is never covered by mistake.
      */
     const val EMPTY_PAGE_SCRIPT: String =
         "(function(){try{var b=document.body;if(!b)return true;" +
-            "return !/\\S/.test(b.innerText||'')&&!b.querySelector('img,video,iframe,canvas,svg');" +
+            "return !/\\S/.test(b.innerText||'')&&!b.querySelector('img,video,iframe,canvas,svg,object,embed,audio,picture,input,textarea,select,frame');" +
             "}catch(e){return false;}})()"
 
     /** `evaluateJavascript` hands the expression's value back as JSON, so `true` arrives as `"true"`. */
