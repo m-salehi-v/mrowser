@@ -29,7 +29,9 @@ class BrowserWebChromeClient(
     /** True when a pop-up's destination is on the block list; see [AdBlocker.isBlockedPopup]. */
     private val isBlockedPopup: (String) -> Boolean = { false },
     /** Hand a non-web URL a pop-up aimed at to the system; see [ExternalSchemePolicy]. */
-    private val launchExternal: (String) -> Unit = {}
+    private val launchExternal: (String) -> Unit = {},
+    /** Load progress of the current page, 0..100. */
+    private val onProgress: (Int) -> Unit = {}
 ) : WebChromeClient() {
 
     private var customView: View? = null
@@ -41,6 +43,11 @@ class BrowserWebChromeClient(
     override fun onReceivedTitle(view: WebView?, title: String?) {
         val url = view?.url ?: return
         if (!title.isNullOrBlank()) onTitle(url, title)
+    }
+
+    override fun onProgressChanged(view: WebView?, newProgress: Int) {
+        super.onProgressChanged(view, newProgress)
+        onProgress(newProgress)
     }
 
     /**

@@ -2,12 +2,17 @@ package net.mrowser.stream
 
 import android.graphics.Bitmap
 import android.net.Uri
+import android.net.http.SslError
+import android.webkit.RenderProcessGoneDetail
+import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import net.mrowser.adblock.AdBlocker
 import net.mrowser.web.ExternalSchemePolicy
+import net.mrowser.web.PageLoadEvents
 
 /**
  * Feeds every request URL to the StreamSniffer, answers listed ad requests with a stand-in
@@ -22,8 +27,19 @@ class SniffingWebViewClient(
     /** Hand a non-web URL (`obtainium://`, `intent://`, `mailto:`) to the system. */
     private val onExternalScheme: (String) -> Unit = {},
     /** A top-level navigation to a listed host was refused; the page stays. */
-    private val onNavigationBlocked: () -> Unit = {}
+    private val onNavigationBlocked: () -> Unit = {},
+    /** Page-load signals (starting, visible, errors); see [PageLoadEvents]. */
+    private val pageEvents: PageLoadEvents = object : PageLoadEvents {}
 ) : WebViewClient() {
+
+    /** The main-frame URL being loaded, to tell a main-frame SSL error from a sub-resource one. */
+    @Volatile
+    private var navigatingUrl: String? = null
+
+    private fun starting(url: String) {
+        navigatingUrl = url
+        pageEvents.onStarting(url)
+    }
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
@@ -31,8 +47,42 @@ class SniffingWebViewClient(
             adBlocker.onPageStarted(url)
             sniffer.onPageStarted(url)
             onNavigate(url)
+            starting(url)
         }
     }
+
+    override fun onPageCommitVisible(view: WebView?, url: String?) {
+        super.onPageCommitVisible(view, url)
+        if (url != null) pageEvents.onCommitVisible(url)
+    }
+
+    override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+        super.onReceivedError(view, request, error)
+        if (request == null || error == null || !request.isForMainFrame) return
+        pageEvents.onMainFrameError(request.url.toString(), error.errorCode, error.description?.toString())
+    }
+
+    override fun onReceivedHttpError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        errorResponse: WebResourceResponse?
+    ) {
+        super.onReceivedHttpError(view, request, errorResponse)
+        if (request == null || errorResponse == null || !request.isForMainFrame) return
+        if (errorResponse.statusCode >= 400) {
+            pageEvents.onMainFrameHttpError(request.url.toString(), errorResponse.statusCode)
+        }
+    }
+
+    /** Always cancels (never proceeds past a bad certificate); only the main frame is reported. */
+    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
+        handler?.cancel()
+        val url = error?.url ?: return
+        if (url == navigatingUrl) pageEvents.onMainFrameSslError(url)
+    }
+
+    override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean =
+        pageEvents.onRendererGone()
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
@@ -44,7 +94,12 @@ class SniffingWebViewClient(
         val url = request?.url ?: return false
         val target = url.toString()
         if (consume(url.scheme, target, request.hasGesture())) return true
-        return request.isForMainFrame && refuseIfListed(target)
+        if (!request.isForMainFrame) return false
+        if (refuseIfListed(target)) return true
+        // Not consumed and not refused: the page really is about to navigate. This is the
+        // earliest signal of a click; onPageStarted waits for the server.
+        starting(target)
+        return false
     }
 
     @Deprecated("Kept for API < 24, which does not get the WebResourceRequest overload.")
@@ -55,7 +110,9 @@ class SniffingWebViewClient(
         // working on those devices; refusing every one of them is the bug being fixed.
         if (consume(Uri.parse(target).scheme, target, isUserGesture = true)) return true
         // No frame flag either: this overload is only called for top-level navigations.
-        return refuseIfListed(target)
+        if (refuseIfListed(target)) return true
+        starting(target)
+        return false
     }
 
     /** @return true when mrowser took the navigation and the WebView must not load it. */
