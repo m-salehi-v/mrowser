@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The page menu (⋯ in the capsule bar), shown in its own PopupWindow by PageMenu. Two rows in
+<!-- The page menu (⋯ in the capsule bar), shown in its own PopupWindow by PageMenu, whose
+     background is the card (page_menu_bg) so the window's elevation casts its shadow. Two rows in
      the settings style: Desktop site (a switch row, activated for "on") and Zoom, one focus
      target whose LEFT/RIGHT step the zoom and whose OK resets it; the − and + only show it. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:background="@drawable/page_menu_bg">
+    android:padding="12dp">
 
     <LinearLayout
         android:id="@+id/pageMenuDesktopRow"

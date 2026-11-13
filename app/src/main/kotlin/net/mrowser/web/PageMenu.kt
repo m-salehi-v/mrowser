@@ -1,8 +1,6 @@
 package net.mrowser.web
 
 import android.annotation.SuppressLint
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -93,7 +91,9 @@ class PageMenu(
         render()
 
         val window = PopupWindow(view, (WIDTH_DP * density).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT, true)
-        window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        // The panel's card is the window's background, not the content's: the elevation's
+        // shadow follows the background's outline, and a transparent one casts none.
+        window.setBackgroundDrawable(context.getDrawable(R.drawable.page_menu_bg))
         window.elevation = ELEVATION_DP * density
         window.isOutsideTouchable = true
         window.setOnDismissListener { if (popup === window) { popup = null; shownSite = null } }
