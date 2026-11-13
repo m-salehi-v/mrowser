@@ -132,6 +132,8 @@ class MainActivity : Activity() {
     private var errorUrl: String? = null
     /** The failed load never committed (a refused certificate); see [ErrorNavigation]. */
     private var errorNeverCommitted = false
+    /** Latched when the screen is shown; see [ErrorNavigation.Facts.freshTab]. */
+    private var errorFromFreshTab = false
     /** Times focus was taken back from the page for the screen now showing; see onCreate. */
     private var errorFocusReseats = 0
 
@@ -526,6 +528,7 @@ class MainActivity : Activity() {
         errorKind = kind
         errorUrl = url
         errorNeverCommitted = neverCommitted
+        errorFromFreshTab = ErrorNavigation.isFreshTab(clearHistoryOnLoad, webView.url)
         errorFocusReseats = 0
         // The capsule lives in CursorLayout, under this screen, and would stay in focus search.
         chrome.dismiss()
@@ -546,7 +549,7 @@ class MainActivity : Activity() {
     /** The WebView as it is now, for the pure [ErrorNavigation]. */
     private fun errorFacts(failedUrl: String) = ErrorNavigation.Facts(
         neverCommitted = errorNeverCommitted,
-        clearHistoryOnLoad = clearHistoryOnLoad,
+        freshTab = errorFromFreshTab,
         currentUrl = webView.url,
         failedUrl = failedUrl,
         canGoBack = webView.canGoBack()

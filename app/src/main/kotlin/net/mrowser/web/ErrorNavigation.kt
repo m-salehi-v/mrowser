@@ -18,8 +18,14 @@ object ErrorNavigation {
     data class Facts(
         /** The failed load never committed — only a refused certificate (`onMainFrameSslError`). */
         val neverCommitted: Boolean,
-        /** Opened from home as a fresh tab whose back-stack is not cleared yet. */
-        val clearHistoryOnLoad: Boolean,
+        /**
+         * The failed load was a fresh tab (opened from home, or with no web page behind it),
+         * **latched when the error was shown**. Not the live `clearHistoryOnLoad`: the cancelled
+         * load's own late `onPageFinished` clears that, and by then `WebView.url` can report the
+         * failed URL, which would turn a fresh tab's refused certificate into an uncover of a
+         * blank page.
+         */
+        val freshTab: Boolean,
         /** `WebView.url` now. */
         val currentUrl: String?,
         /** The URL that failed to load. */
@@ -44,8 +50,9 @@ object ErrorNavigation {
      * back-stack is cleared at finish), so it goes home whether or not the load committed.
      */
     fun back(f: Facts): Back = when {
-        f.neverCommitted && !f.clearHistoryOnLoad && isWeb(f.currentUrl) -> Back.UNCOVER
-        f.canGoBack && !f.clearHistoryOnLoad -> Back.GO_BACK
+        f.freshTab -> Back.HOME
+        f.neverCommitted && isWeb(f.currentUrl) -> Back.UNCOVER
+        f.canGoBack -> Back.GO_BACK
         else -> Back.HOME
     }
 
@@ -58,6 +65,10 @@ object ErrorNavigation {
      */
     fun retry(f: Facts): Retry =
         if (!f.neverCommitted && f.currentUrl == f.failedUrl) Retry.RELOAD else Retry.LOAD_FAILED_URL
+
+    /** Whether a load failing now is a fresh tab: opened from home, or nothing web behind it. */
+    fun isFreshTab(clearHistoryOnLoad: Boolean, currentUrl: String?): Boolean =
+        clearHistoryOnLoad || !isWeb(currentUrl)
 
     private fun isWeb(url: String?): Boolean =
         url != null && (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true))
