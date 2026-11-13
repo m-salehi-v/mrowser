@@ -48,21 +48,32 @@ object PageError {
 
     /**
      * Evaluates to `true` when the page has nothing to see: no body, or no non-blank text and no
-     * media, frame, embed or form field (a frameset body counts too). One expression that cannot
-     * throw, and it fails safe to `false` (not empty) so a page is never covered by mistake.
+     * media, frame, embed or form field (a frameset body counts too). Chromium's own net-error
+     * page ("Webpage not available", committed for an empty-bodied 4xx/5xx when no
+     * `onReceivedError` comes) has text, so it is recognised by its `#main-frame-error` element
+     * or its `neterror` body class and answers [NET_ERROR_PAGE] instead. One expression that
+     * cannot throw, and it fails safe to `false` (not empty) so a page is never covered by
+     * mistake.
      */
     const val EMPTY_PAGE_SCRIPT: String =
         "(function(){try{var b=document.body;if(!b)return true;" +
+            "if(document.getElementById('main-frame-error')||/(^|\\s)neterror(\\s|$)/.test(b.className||''))return 'neterror';" +
             "return !/\\S/.test(b.innerText||'')&&!b.querySelector('img,video,iframe,canvas,svg,object,embed,audio,picture,input,textarea,select,frame');" +
             "}catch(e){return false;}})()"
 
+    /** What [EMPTY_PAGE_SCRIPT] answers for Chromium's own error page. */
+    const val NET_ERROR_PAGE = "neterror"
+
     /** `evaluateJavascript` hands the expression's value back as JSON, so `true` arrives as `"true"`. */
-    fun isEmptyPage(scriptResult: String?): Boolean = scriptResult?.trim() == "true"
+    fun isEmptyPage(scriptResult: String?): Boolean = scriptResult?.trim() == "true" || isNetErrorPage(scriptResult)
+
+    /** Chromium's error page, which `evaluateJavascript` returns as the JSON string `"neterror"`. */
+    private fun isNetErrorPage(scriptResult: String?): Boolean = scriptResult?.trim() == "\"$NET_ERROR_PAGE\""
 
     /**
      * Empty answers in a row (a check apart) before an HTTP-error page counts as empty. A site's
      * own app shell can show nothing but a CSS spinner at the first check; one that is still
-     * empty a second later has nothing coming.
+     * empty a second later has nothing coming. Chromium's error page needs only one.
      */
     const val EMPTY_CHECKS = 2
 
@@ -70,6 +81,8 @@ object PageError {
 
     /** What the [pass]th (1-based) empty-page check concludes from its [scriptResult]. */
     fun emptyVerdict(pass: Int, scriptResult: String?): EmptyVerdict = when {
+        // Chromium's error page is final: no site script is going to fill it in
+        isNetErrorPage(scriptResult) -> EmptyVerdict.EMPTY
         !isEmptyPage(scriptResult) -> EmptyVerdict.NOT_EMPTY
         pass < EMPTY_CHECKS -> EmptyVerdict.CHECK_AGAIN
         else -> EmptyVerdict.EMPTY

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import android.widget.TextView
 import net.mrowser.R
@@ -49,17 +50,20 @@ class PageErrorView @JvmOverloads constructor(
     }
 
     /**
-     * Shows [kind] for [url]; [code] is the dim technical line (hidden when blank). With
-     * [takeFocus] false the screen comes up without pulling focus — an overlay is in front of it
-     * and keeps the D-pad until it closes. [rendererKilled] (with [PageErrorKind.CRASHED]) says
-     * the system closed the page to free memory rather than it crashing, which reads differently.
+     * Shows [kind] for [url]; [code] is the dim technical line (hidden when blank). The screen
+     * takes focus unless [mayTakeFocus] says otherwise — an overlay is in front of it and keeps
+     * the D-pad until it closes. That is asked when focus is actually moved, not now: a fast
+     * error (a refused certificate on a local server) can be reported while the view tree is
+     * still settling from the overlay that opened the page. [rendererKilled] (with
+     * [PageErrorKind.CRASHED]) says the system closed the page to free memory rather than it
+     * crashing, which reads differently.
      */
     fun show(
         kind: PageErrorKind,
         url: String,
         code: String,
         canGoBack: Boolean,
-        takeFocus: Boolean = true,
+        mayTakeFocus: () -> Boolean = { true },
         rendererKilled: Boolean = false,
     ) {
         val host = UrlHost.of(url) ?: url
@@ -71,7 +75,20 @@ class PageErrorView @JvmOverloads constructor(
         visibility = View.VISIBLE
         // Post: a synchronous requestFocus right after VISIBLE can no-op before the layout pass
         // (matches the overlays).
-        if (takeFocus) post { restoreFocus() }
+        post { claimFocus(mayTakeFocus) }
+    }
+
+    /** Takes focus if it may and hasn't it; a request refused before the screen's first layout
+     *  pass is made once more after it. */
+    private fun claimFocus(mayTakeFocus: () -> Boolean) {
+        if (visibility != View.VISIBLE || hasFocus() || !mayTakeFocus()) return
+        if (restoreFocus()) return
+        viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                viewTreeObserver.removeOnGlobalLayoutListener(this)
+                if (visibility == View.VISIBLE && !hasFocus() && mayTakeFocus()) restoreFocus()
+            }
+        })
     }
 
     /**

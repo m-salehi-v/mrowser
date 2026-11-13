@@ -132,6 +132,8 @@ class MainActivity : Activity() {
     private var errorUrl: String? = null
     /** The failed load never committed (a refused certificate); see [ErrorNavigation]. */
     private var errorNeverCommitted = false
+    /** Times focus was taken back from the page for the screen now showing; see onCreate. */
+    private var errorFocusReseats = 0
 
     /** The URL the last [PageLoadEvent.Started] began, so its own later `onPageStarted` (at
      *  commit, for a clicked link) continues the line instead of restarting it. */
@@ -386,6 +388,16 @@ class MainActivity : Activity() {
         settingsView.bind(settings) { adBlocker.list }
         settingsView.bindFavorites(onExport = ::exportFavorites, onImport = ::importFavorites)
         pageErrorView.bind(onRetry = ::retryFromError, onBack = ::backFromError, onHome = ::closeToHome)
+        // Focus that drops onto the page while the error screen owns it (the WebView took it back
+        // after a certificate error from home, on the TV) is put back at once, rather than
+        // costing the user a swallowed keypress in dispatchKeyEvent's recovery.
+        // Capped per screen, so a page that keeps grabbing focus cannot ping-pong with it.
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
+            if (webViewGone || zoneOf(newFocus) != OverlayFocus.Zone.PAGE) return@addOnGlobalFocusChangeListener
+            if (!errorScreenOwnsFocus() || errorFocusReseats >= MAX_ERROR_FOCUS_RESEATS) return@addOnGlobalFocusChangeListener
+            errorFocusReseats++
+            pageErrorView.post { if (errorScreenOwnsFocus()) pageErrorView.restoreFocus() }
+        }
 
         layout.post { cursor.center(webView.width, webView.height) }
 
@@ -483,6 +495,15 @@ class MainActivity : Activity() {
         pageErrorView.hide()
     }
 
+    /** The error screen is up with no overlay over it: D-pad focus belongs on it ([OverlayFocus]). */
+    private fun errorScreenOwnsFocus(): Boolean = OverlayFocus.recoveryTarget(
+        settingsVisible = settingsView.visibility == View.VISIBLE,
+        historyVisible = historyView.visibility == View.VISIBLE,
+        homeVisible = homeView.visibility == View.VISIBLE,
+        errorVisible = pageErrorView.visibility == View.VISIBLE,
+        focus = focusZone()
+    ) == OverlayFocus.Zone.ERROR
+
     private fun overlayVisible(): Boolean = homeView.visibility == View.VISIBLE ||
         historyView.visibility == View.VISIBLE || settingsView.visibility == View.VISIBLE
 
@@ -505,10 +526,14 @@ class MainActivity : Activity() {
         errorKind = kind
         errorUrl = url
         errorNeverCommitted = neverCommitted
-        val overlayUp = overlayVisible()
+        errorFocusReseats = 0
         // The capsule lives in CursorLayout, under this screen, and would stay in focus search.
         chrome.dismiss()
-        pageErrorView.show(kind, url, code, canGoBackFromError(), takeFocus = !overlayUp, rendererKilled = rendererKilled)
+        pageErrorView.show(
+            kind, url, code, canGoBackFromError(),
+            mayTakeFocus = { !overlayVisible() },
+            rendererKilled = rendererKilled
+        )
     }
 
     private fun hidePageError() {
@@ -1017,8 +1042,10 @@ class MainActivity : Activity() {
     }
 
     /** Which of the five subtrees currently holds D-pad focus, for [OverlayFocus]. */
-    private fun focusZone(): OverlayFocus.Zone {
-        var v: View? = currentFocus
+    private fun focusZone(): OverlayFocus.Zone = zoneOf(currentFocus)
+
+    private fun zoneOf(view: View?): OverlayFocus.Zone {
+        var v: View? = view
         while (v != null) {
             when (v) {
                 settingsView -> return OverlayFocus.Zone.SETTINGS
@@ -1083,6 +1110,7 @@ class MainActivity : Activity() {
         private const val CHIP_TIMEOUT_MS = 30_000L
         private const val LINE_FADE_MS = 200L
         private const val EMPTY_PAGE_CHECK_MS = 1_000L
+        private const val MAX_ERROR_FOCUS_RESEATS = 3
         private const val REQ_STORAGE = 101
         private const val REQ_IMPORT_FAVORITES = 102
         private const val OBTAINIUM_ADD_URL = "obtainium://add/https://github.com/m-salehi-v/mrowser"
