@@ -11,7 +11,7 @@ import net.mrowser.R
 
 /**
  * "Update available": version, release notes, size, and a Download that puts the APK in public
- * `Downloads/`. mrowser does not install it — see the design doc for why.
+ * `Downloads/`, where mrowser's Downloads page (or a file manager) installs it.
  *
  * Progress is polled rather than watched through `ACTION_DOWNLOAD_COMPLETE`, which on targetSdk
  * 34 would need `RECEIVER_EXPORTED` and lifecycle registration for one line of text. The poll is

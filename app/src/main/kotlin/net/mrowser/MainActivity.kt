@@ -45,6 +45,7 @@ import net.mrowser.data.HistoryEntry
 import net.mrowser.data.JsonFavoritesStore
 import net.mrowser.data.JsonHistoryStore
 import net.mrowser.data.JsonSettingsStore
+import net.mrowser.download.Downloader
 import net.mrowser.handoff.HandoffController
 import net.mrowser.home.DestructiveButton
 import net.mrowser.home.FavoriteDialog
@@ -54,7 +55,6 @@ import net.mrowser.home.OverlayFocus
 import net.mrowser.home.SettingsView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
-import net.mrowser.update.ApkDownloader
 import net.mrowser.update.JsonUpdateStore
 import net.mrowser.update.ReleaseFetcher
 import net.mrowser.update.UpdateController
@@ -712,7 +712,7 @@ class MainActivity : Activity() {
      * Download. The dialog stays ignorant of request codes — it just gets a yes or a no.
      */
     private fun ensureStoragePermission(onResult: (Boolean) -> Unit) {
-        if (ApkDownloader.hasStoragePermission(this)) {
+        if (Downloader.hasStoragePermission(this)) {
             onResult(true)
             return
         }
@@ -823,9 +823,9 @@ class MainActivity : Activity() {
             context = this,
             onFallback = { url -> openUrl(url) },
             // Without Obtainium installed this says what it is and where to get it, and stops
-            // there. It deliberately does NOT offer to open Obtainium's release page here: mrowser
-            // cannot install an APK, so that page is a dead end on a TV — the same chicken-and-egg
-            // that makes this app's own update end at "saved to Downloads".
+            // there. It deliberately does NOT offer to open Obtainium's release page here: the
+            // user would still have to pick the right APK out of its assets, download it and
+            // install it by hand, which is no easier than the update this dialog is offering.
             onNoApp = {
                 AlertDialog.Builder(this)
                     .setTitle(R.string.obtainium_title)

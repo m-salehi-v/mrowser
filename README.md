@@ -128,13 +128,14 @@ No ADB is strictly required — copying the APK to the device and opening it wor
 
 mrowser checks GitHub for a new stable release once a day and, when there is one, shows a quiet
 **Update available** line at the bottom of the home screen. Opening it shows the release notes and
-a **Download** button that saves the APK to your `Downloads/` folder; install it from there with
-your file manager. Your settings, favorites and history are kept — the new APK is signed with the
-same key, so it updates in place.
+a **Download** button that saves the APK to your `Downloads/` folder. Your settings, favorites and
+history are kept — the new APK is signed with the same key, so it updates in place.
 
-mrowser does not install the APK for you. Doing that requires the `REQUEST_INSTALL_PACKAGES`
-permission, and mrowser would rather not hold it. If your TV has no file manager, use Obtainium
-below — the dialog's **Automatic updates** button sets it up.
+The APK then appears on mrowser's **Downloads** page. **Install** there hands it to Android's own
+installer, which shows the app and asks you to confirm; the first time, Android also asks you to
+allow installs from mrowser. Nothing is ever installed without your press. A file manager works
+too, and Obtainium below — the dialog's **Automatic updates** button sets it up — keeps mrowser
+updated for you.
 
 ### Automatic updates with Obtainium
 
@@ -213,7 +214,7 @@ Run a single test class:
 - **Android TV** (registers as a Leanback launcher app; also runs on phones/tablets as a landscape browser)
 - **Android 6.0+** (`minSdk 23`, `targetSdk 34`)
 - **No Google Play Services** required
-- Only the **INTERNET** permission
+- Permissions: Internet, storage on Android 9 and older (for downloads), and permission to ask Android to install apps you download
 
 ---
 
@@ -247,7 +248,7 @@ Yes. mrowser registers as a system browser, so an `http`/`https` link from anoth
 Yes. mrowser renders side-loaded subtitles itself, so the **sub-sync box** in the player lets you nudge subtitle timing by ±0.5s per press (up to ±30s), applied **instantly without rebuffering** — true **ExoPlayer subtitle sync** that the underlying player can't do on its own.
 
 **Does it work without Google services / on de-Googled TVs?**
-Yes. mrowser has **no Google Play Services** dependency and needs only the INTERNET permission.
+Yes. mrowser has **no Google Play Services** dependency. It needs Internet, storage on Android 9 and older (for downloads), and permission to ask Android to install apps you download.
 
 **What subtitle formats are supported?**
 Side-loaded **WebVTT (.vtt)** and **SubRip (.srt)** tracks discovered alongside the stream. Embedded/HLS-muxed text tracks are intentionally dropped (these sites use side-loaded VTT, which are the ones that need live sync).

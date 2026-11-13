@@ -23,6 +23,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -83,9 +84,13 @@ class PlayerActivity : Activity() {
             if (cookie.isNullOrEmpty()) dataSpec
             else dataSpec.withAdditionalHeaders(mapOf("Cookie" to cookie))
         }
+        // DefaultDataSource opens local URIs itself (a finished download's content:// or file://)
+        // and hands http(s) to the resolving factory, so the per-host cookies above still apply.
         val exo = ExoPlayer.Builder(this)
             .setTrackSelector(trackSelector)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(
+                DefaultMediaSourceFactory(DefaultDataSource.Factory(this, dataSourceFactory))
+            )
             .build()
         player = exo
         playerView.player = exo

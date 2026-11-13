@@ -88,7 +88,12 @@
     <string name="update_downloading">Downloading… %1$s / %2$s</string>
     <string name="update_downloading_starting">Downloading…</string>
     <string name="update_downloading_unknown">Downloading… %1$s</string>
-    <string name="update_saved">Saved to Downloads/%1$s\n\nOpen it with your file manager to install. Your settings and favorites are kept.</string>
+    <string name="update_saved">Saved to Downloads/%1$s\n\nInstall it from mrowser\'s Downloads page or your file manager. Your settings and favorites are kept.</string>
+    <string name="install_permission_title">Allow installs from mrowser</string>
+    <string name="install_permission_message">To install apps you download, Android needs your OK once. On the next screen turn on Allow from this source, then come back and press Install again.</string>
+    <string name="install_permission_open">Open settings</string>
+    <string name="download_no_installer">This TV has no app installer.</string>
+    <string name="download_file_removed">That file is no longer in Downloads.</string>
     <string name="update_failed">Download failed. Try again.</string>
     <string name="update_manual">mrowser can\'t save the file on this device.\n\nOpen this on another device:\n%1$s\n\nOr use Obtainium to keep mrowser updated for you.</string>
     <string name="obtainium_title">Obtainium not installed</string>
