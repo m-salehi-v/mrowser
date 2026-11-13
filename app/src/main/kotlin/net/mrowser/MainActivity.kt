@@ -80,6 +80,7 @@ import net.mrowser.web.BrowserWebChromeClient
 import net.mrowser.web.ChromeController
 import net.mrowser.web.CursorController
 import net.mrowser.web.CursorLayout
+import net.mrowser.web.DesktopUserAgent
 import net.mrowser.web.ErrorNavigation
 import net.mrowser.web.ExternalIntentLauncher
 import net.mrowser.web.IncomingUrl
@@ -91,10 +92,13 @@ import net.mrowser.web.PageLoad
 import net.mrowser.web.PageLoadEvent
 import net.mrowser.web.PageLoadEvents
 import net.mrowser.web.PageLoadState
+import net.mrowser.web.PageZoom
 import net.mrowser.web.RegistrableDomain
+import net.mrowser.web.SiteSettings
 import net.mrowser.web.UrlDisplay
 import net.mrowser.web.UrlHost
 import net.mrowser.web.UrlNormalizer
+import net.mrowser.web.UserAgentSwitch
 
 class MainActivity : Activity() {
 
@@ -190,6 +194,18 @@ class MainActivity : Activity() {
     /** The renderer died and the WebView was destroyed; nothing may touch it until [recreate]. */
     private var webViewGone = false
 
+    /** The WebView's own User-Agent, and the desktop one derived from it ([DesktopUserAgent]). */
+    private lateinit var defaultUa: String
+    private lateinit var desktopUa: String
+    /** Which of the two the WebView is sending now. */
+    private var uaDesktop = false
+    /**
+     * The guard against User-Agent reload loops. UI thread only (it is not thread-safe): it is
+     * used from shouldOverrideUrlLoading, onPageStarted and the user's own actions, never from
+     * shouldInterceptRequest. Reset only by a real user action — see [UserAgentSwitch].
+     */
+    private val uaSwitch = UserAgentSwitch()
+
     /** The WebView's page-load signals: the loading feedback and the error screen. */
     private val pageEvents = object : PageLoadEvents {
         override fun onStarting(url: String) {
@@ -214,7 +230,10 @@ class MainActivity : Activity() {
             }
         }
 
-        override fun onCommitVisible(url: String) = applyLoad(PageLoadEvent.Committed)
+        override fun onCommitVisible(url: String) {
+            applyLoad(PageLoadEvent.Committed)
+            applyZoomFor(url)
+        }
 
         override fun onMainFrameError(url: String, code: Int, description: String?) {
             // null: cancelled, not failed (our own ad cancel, a download, a scheme) — show nothing
@@ -339,9 +358,13 @@ class MainActivity : Activity() {
                 updateUrlText(url)
                 // onPageStarted: a new page may offer downloads again (a download never commits)
                 downloadOffers.reset()
+                switchUserAgentLate(url)
+                // Best effort: the new document may not exist yet. Commit and finish apply it again.
+                applyZoomFor(url)
             },
             onLoaded = { url ->
                 applyLoad(PageLoadEvent.Finished)
+                applyZoomFor(url)
                 if (httpErrorStatus != 0) scheduleEmptyPageCheck(url, httpErrorStatus)
                 httpErrorUrl = null
                 httpErrorStatus = 0
@@ -359,7 +382,8 @@ class MainActivity : Activity() {
             },
             onExternalScheme = { url -> externalLinks.launch(url) },
             onNavigationBlocked = { Toast.makeText(this, R.string.navigation_blocked, Toast.LENGTH_SHORT).show() },
-            pageEvents = pageEvents
+            pageEvents = pageEvents,
+            userAgentGate = ::userAgentGate
         )
         webView.webViewClient = webClient
         chromeClient = BrowserWebChromeClient(
@@ -372,7 +396,11 @@ class MainActivity : Activity() {
             isBlockedPopup = { url -> adBlocker.isBlockedPopup(url) },
             launchExternal = { url -> externalLinks.launch(url) },
             onProgress = { applyLoad(PageLoadEvent.Progress(it)) },
-            beforeLoad = { url -> webClient.expectNavigation(url) }
+            beforeLoad = { url ->
+                webClient.expectNavigation(url)
+                // The relay loads the pop-up itself (no shouldOverrideUrlLoading): its agent now.
+                applyUserAgent(wantsDesktop(url))
+            }
         )
         webView.webChromeClient = chromeClient
         // A page only ever offers a file: nothing is saved until the user presses Download.
@@ -404,6 +432,9 @@ class MainActivity : Activity() {
             allowUniversalAccessFromFileURLs = false
             allowContentAccess = false
         }
+        defaultUa = webView.settings.userAgentString
+        desktopUa = DesktopUserAgent.from(defaultUa)
+        uaDesktop = false
 
         chrome = ChromeController(bar, urlInput, webView)
         val cursor = CursorController(webView, { settings.get().cursorSpeed.multiplier }) { layout.invalidate() }
@@ -414,8 +445,12 @@ class MainActivity : Activity() {
         layout.onChipClick = { handoff.play() }
         layout.downloadChip = downloadChip
         layout.onDownloadChipClick = { showDownloads(fromHome = false) }
-        // The user's own click on the page may ask for a file again after a Cancel.
-        layout.onPageTap = { downloadOffers.reset() }
+        // The user's own click on the page may ask for a file again after a Cancel, and may switch
+        // the User-Agent again (API 23 has no gesture flag to tell a click from a redirect).
+        layout.onPageTap = {
+            downloadOffers.reset()
+            uaSwitch.onUserNavigation()
+        }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
         // Refuse the reveal in fullscreen (the bar would sit under the video) and report
@@ -458,7 +493,8 @@ class MainActivity : Activity() {
             activity = this,
             downloads = downloads,
             play = handoff::play,
-            userAgent = { webView.settings.userAgentString },
+            // A retry asks with the agent the file's site would get now, not the current page's.
+            userAgent = { url -> userAgentFor(url) },
             ensureStoragePermission = ::ensureStoragePermission
         )
         // Clear finished only hides rows, the files stay.
@@ -481,8 +517,7 @@ class MainActivity : Activity() {
             chrome.onInteracted()
         }
         reloadButton.setOnClickListener {
-            startLoad(webView.url)
-            webView.reload()
+            reloadPage()
             chrome.onInteracted()
         }
         homeButton.setOnClickListener { showHome() }
@@ -632,10 +667,7 @@ class MainActivity : Activity() {
         val retry = ErrorNavigation.retry(errorFacts(url))
         hidePageError()
         when (retry) {
-            ErrorNavigation.Retry.RELOAD -> {
-                startLoad(url)
-                webView.reload()
-            }
+            ErrorNavigation.Retry.RELOAD -> reloadPage(url)
             ErrorNavigation.Retry.LOAD_FAILED_URL -> loadPage(url)
         }
     }
@@ -698,6 +730,9 @@ class MainActivity : Activity() {
         layout.requestFocus()
         clearHistoryOnLoad = true
         adBlocker.onUserNavigation()
+        uaSwitch.onUserNavigation()
+        // The user's own navigation to a file link is never held back by a decline on the last page.
+        downloadOffers.reset()
         loadPage(url)
         chrome.onPageInteracted()
         showNavHintOnce()
@@ -710,8 +745,78 @@ class MainActivity : Activity() {
      */
     private fun loadPage(url: String) {
         webClient.expectNavigation(url)
+        // The agent is in place before the request: setting it never reloads, so no guard is
+        // needed here.
+        applyUserAgent(wantsDesktop(url))
         startLoad(url)
         webView.loadUrl(url)
+    }
+
+    /** Every app-initiated reload: as [loadPage], with the agent the page's site wants now. */
+    private fun reloadPage(url: String? = webView.url) {
+        if (url != null) webClient.expectNavigation(url)
+        applyUserAgent(wantsDesktop(url))
+        startLoad(url)
+        webView.reload()
+    }
+
+    /** Desktop or mobile for [url]'s site, read live; a null or non-web URL gets the default. */
+    private fun wantsDesktop(url: String?): Boolean {
+        val s = settings.get()
+        return SiteSettings.wantsDesktop(SiteSettings.site(url), s.desktopByDefault, s.desktopOverride)
+    }
+
+    private fun userAgentFor(url: String?): String = if (wantsDesktop(url)) desktopUa else defaultUa
+
+    /** Switches the WebView's agent; it applies to requests from now on and reloads nothing. */
+    private fun applyUserAgent(desktop: Boolean) {
+        if (desktop == uaDesktop || webViewGone) return
+        webView.settings.userAgentString = if (desktop) desktopUa else defaultUa
+        uaDesktop = desktop
+    }
+
+    /**
+     * shouldOverrideUrlLoading's say on a top-level navigation (a click, a script, a redirect):
+     * when its site wants the other agent, cancel it and load it again with that agent — once
+     * per site until the next user navigation ([UserAgentSwitch]), so a ping-pong cannot loop.
+     */
+    private fun userAgentGate(url: String, userGesture: Boolean): Boolean {
+        if (userGesture) uaSwitch.onUserNavigation()
+        val want = wantsDesktop(url)
+        if (!uaSwitch.decide(SiteSettings.site(url), uaDesktop, want)) return false
+        applyUserAgent(want)
+        // Not from inside shouldOverrideUrlLoading itself; loadPage starts the loading line and
+        // tells the client the URL, so a certificate error on it still shows the error screen.
+        uiHandler.post { if (!webViewGone) loadPage(url) }
+        return true
+    }
+
+    /**
+     * The safety net, at onPageStarted: a load the gate never saw (back/forward, a POST, a
+     * pop-up) went out with the wrong agent. Reload it with the right one, under the same guard.
+     */
+    private fun switchUserAgentLate(url: String) {
+        val want = wantsDesktop(url)
+        if (!uaSwitch.decide(SiteSettings.site(url), uaDesktop, want)) return
+        applyUserAgent(want)
+        uiHandler.post { if (!webViewGone) reloadPage(url) }
+    }
+
+    /** The page menu's Desktop site toggle: the user's own action, so the guard starts over. */
+    private fun reloadForUserAgent() {
+        uaSwitch.onUserNavigation()
+        adBlocker.onUserNavigation()
+        reloadPage()
+    }
+
+    /** CSS zoom on the root element ([PageZoom]): re-applied per page, never reloads. */
+    private fun applyZoom(percent: Int) {
+        if (webViewGone) return
+        webView.evaluateJavascript(PageZoom.script(PageZoom.snap(percent)), null)
+    }
+
+    private fun applyZoomFor(url: String) {
+        applyZoom(SiteSettings.zoomFor(settings.get().zoomBySite, SiteSettings.site(url)))
     }
 
     /** Starts the loading feedback for a load the app begins; [url] is where it goes, if known. */

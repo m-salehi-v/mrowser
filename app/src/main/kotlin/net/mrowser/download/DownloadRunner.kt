@@ -30,7 +30,8 @@ class DownloadRunner(
     private val activity: Activity,
     private val downloads: DownloadsController,
     private val play: (PlaybackRequest) -> Unit,
-    private val userAgent: () -> String,
+    /** The User-Agent to fetch [url] with (the desktop one when its site wants desktop). */
+    private val userAgent: (url: String) -> String,
     private val ensureStoragePermission: ((Boolean) -> Unit) -> Unit,
 ) {
 
@@ -97,7 +98,7 @@ class DownloadRunner(
                 return@ensureStoragePermission
             }
             val cookie = CookieManager.getInstance().getCookie(info.url)
-            if (downloads.retry(info, cookie, userAgent()) == null) {
+            if (downloads.retry(info, cookie, userAgent(info.url)) == null) {
                 Toast.makeText(activity, R.string.download_failed_to_start, Toast.LENGTH_LONG).show()
             }
         }
