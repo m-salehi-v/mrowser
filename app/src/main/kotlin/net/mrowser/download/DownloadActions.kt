@@ -23,6 +23,8 @@ sealed interface DownloadEffect {
 object DownloadActions {
     const val APK_MIME = "application/vnd.android.package-archive"
 
+    private val NO_OP = DownloadEffect.Hide(emptySet())
+
     private val VIDEO_EXTENSIONS = setOf(
         "mp4", "m4v", "mkv", "webm", "mov", "ts", "m2ts", "3gp", "flv", "avi", "mpg", "mpeg",
     )
@@ -51,7 +53,8 @@ object DownloadActions {
         val finished = info.status == DownloadStatus.SUCCESSFUL
         val failed = info.status == DownloadStatus.FAILED
         return buildList {
-            if ((finished || failed) && !fileMissing) add(DownloadOption.PRIMARY)
+            // A failed download usually leaves no file, so Retry must not depend on one.
+            if (failed || (finished && !fileMissing)) add(DownloadOption.PRIMARY)
             if (info.isActive) add(DownloadOption.CANCEL)
             if (finished && !fileMissing) add(DownloadOption.DELETE_FILE)
             if (!info.isActive) add(DownloadOption.REMOVE_FROM_LIST)
@@ -62,7 +65,11 @@ object DownloadActions {
     fun effect(option: DownloadOption, info: DownloadInfo, fileMissing: Boolean = false): DownloadEffect =
         when (option) {
             DownloadOption.PRIMARY -> DownloadEffect.Run(primary(info, fileMissing))
-            DownloadOption.CANCEL, DownloadOption.DELETE_FILE -> DownloadEffect.RemoveFromManager(info.id)
+            // remove() deletes the file, so a row can only be removed by the option that fits its state.
+            DownloadOption.CANCEL ->
+                if (info.isActive) DownloadEffect.RemoveFromManager(info.id) else NO_OP
+            DownloadOption.DELETE_FILE ->
+                if (info.status == DownloadStatus.SUCCESSFUL) DownloadEffect.RemoveFromManager(info.id) else NO_OP
             DownloadOption.REMOVE_FROM_LIST -> DownloadEffect.Hide(setOf(info.id))
             DownloadOption.COPY_LINK -> DownloadEffect.CopyLink(info.url)
         }

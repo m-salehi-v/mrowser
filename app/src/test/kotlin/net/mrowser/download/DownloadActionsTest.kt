@@ -43,6 +43,11 @@ class DownloadActionsTest {
         assertEquals(listOf(REMOVE_FROM_LIST, COPY_LINK), DownloadActions.options(info(1, SUCCESSFUL), fileMissing = true))
     }
 
+    @Test fun `a failed row offers Retry even with no file`() {
+        assertEquals(Primary.RETRY, DownloadActions.primary(info(1, FAILED), fileMissing = true))
+        assertEquals(listOf(PRIMARY, REMOVE_FROM_LIST, COPY_LINK), DownloadActions.options(info(1, FAILED), fileMissing = true))
+    }
+
     @Test fun `remove from list only hides`() =
         assertEquals(DownloadEffect.Hide(setOf(7L)), DownloadActions.effect(REMOVE_FROM_LIST, info(7, SUCCESSFUL)))
 
@@ -52,9 +57,16 @@ class DownloadActionsTest {
     )
 
     @Test fun `only cancel and delete file ever reach DownloadManager remove`() {
-        for (s in DownloadStatus.values()) for (o in DownloadOption.values()) {
-            val e = DownloadActions.effect(o, info(1, s))
-            if (e is DownloadEffect.RemoveFromManager) assertTrue("$o on $s", o == CANCEL || o == DELETE_FILE)
+        for (s in DownloadStatus.values()) for (o in DownloadOption.values()) for (missing in listOf(false, true)) {
+            val e = DownloadActions.effect(o, info(1, s), missing)
+            if (e is DownloadEffect.RemoveFromManager) {
+                assertTrue("$o on $s", o == CANCEL || o == DELETE_FILE)
+                assertTrue("$o on $s", if (o == CANCEL) info(1, s).isActive else s == SUCCESSFUL)
+            }
+        }
+        for (s in listOf(SUCCESSFUL, FAILED)) assertEquals(DownloadEffect.Hide(emptySet()), DownloadActions.effect(CANCEL, info(1, s)))
+        for (s in listOf(RUNNING, PAUSED, PENDING, FAILED)) {
+            assertEquals(DownloadEffect.Hide(emptySet()), DownloadActions.effect(DELETE_FILE, info(1, s)))
         }
         assertEquals(DownloadEffect.RemoveFromManager(2L), DownloadActions.effect(CANCEL, info(2, RUNNING)))
         assertEquals(DownloadEffect.RemoveFromManager(1L), DownloadActions.effect(DELETE_FILE, info(1, SUCCESSFUL)))
