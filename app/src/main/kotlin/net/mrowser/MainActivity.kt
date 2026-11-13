@@ -282,6 +282,9 @@ class MainActivity : Activity() {
                     clearHistoryOnLoad = false
                     webView.clearHistory()
                 }
+                // The error page has committed (and a fresh tab's history is cleared) only now,
+                // after the error was reported: bring Go back in line with what BACK will do.
+                if (pageErrorView.visibility == View.VISIBLE) pageErrorView.setCanGoBack(canGoBackFromError())
             },
             onExternalScheme = { url -> externalLinks.launch(url) },
             onNavigationBlocked = { Toast.makeText(this, R.string.navigation_blocked, Toast.LENGTH_SHORT).show() },
@@ -424,7 +427,10 @@ class MainActivity : Activity() {
         when {
             // Recreated after the renderer died: say so and load nothing — not even the launch
             // link, which may be the very page that crashed — until the user picks Try again.
-            crashed != null && isWebUrl(crashed) -> showPageError(PageErrorKind.CRASHED, crashed, "")
+            crashed != null && isWebUrl(crashed) -> {
+                hideAllOverlays() // home starts VISIBLE, and the screen would come up under it
+                showPageError(PageErrorKind.CRASHED, crashed, "")
+            }
             crashed != null -> showHome()
             link != null -> openUrl(link)
             else -> showHome()
@@ -479,8 +485,22 @@ class MainActivity : Activity() {
         if (hadFocus) layout.requestFocus()
     }
 
-    /** A page opened from home clears its back-stack when it finishes, so it has none to go to. */
-    private fun canGoBackFromError(): Boolean = webView.canGoBack() && !clearHistoryOnLoad
+    /**
+     * Go back is offered when there is somewhere to go: the page still behind a refused load
+     * (see [pageKeptBehindError]), or history. A page opened from home clears its back-stack
+     * when it finishes, so it has none.
+     */
+    private fun canGoBackFromError(): Boolean =
+        pageKeptBehindError() || (webView.canGoBack() && !clearHistoryOnLoad)
+
+    /**
+     * A refused certificate cancels the load before it commits, so the page the link was
+     * clicked on is still the current entry behind the screen — Go back means "stay on it", not
+     * `goBack()`, which would skip it. Not for a fresh tab ([clearHistoryOnLoad]): what is
+     * behind that one is the previous tab's blank page.
+     */
+    private fun pageKeptBehindError(): Boolean =
+        errorKind == PageErrorKind.NOT_SECURE && !clearHistoryOnLoad && webView.url?.let(::isWebUrl) == true
 
     /** Try again: a crash reloads into the fresh WebView; otherwise the failed URL again. A load
      *  that never committed (a refused certificate) left the previous page current, so only
@@ -496,8 +516,14 @@ class MainActivity : Activity() {
         if (webView.url == url) webView.reload() else webView.loadUrl(url)
     }
 
-    /** Go back (and BACK on the error screen): the previous page, or home with no history. */
+    /** Go back (and BACK on the error screen): the page a refused load left in place, else the
+     *  previous page, or home with no history. */
     private fun backFromError() {
+        if (pageKeptBehindError()) {
+            hidePageError()
+            layout.requestFocus()
+            return
+        }
         if (!canGoBackFromError()) {
             closeToHome()
             return

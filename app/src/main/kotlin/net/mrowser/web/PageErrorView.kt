@@ -58,11 +58,22 @@ class PageErrorView @JvmOverloads constructor(
         message.text = context.getString(messageRes(kind), host)
         this.code.text = code
         this.code.visibility = if (code.isBlank()) View.GONE else View.VISIBLE
-        backButton.visibility = if (canGoBack) View.VISIBLE else View.GONE
+        setCanGoBack(canGoBack)
         visibility = View.VISIBLE
         // Post: a synchronous requestFocus right after VISIBLE can no-op before the layout pass
         // (matches the overlays).
         if (takeFocus) post { restoreFocus() }
+    }
+
+    /**
+     * Shows or hides Go back. Whether there is history can change while the screen is up (the
+     * error page commits as an entry after the error is reported), so it is refreshed then; a
+     * focused Go back that goes away hands focus to Try again.
+     */
+    fun setCanGoBack(canGoBack: Boolean) {
+        val hadFocus = backButton.isFocused
+        backButton.visibility = if (canGoBack) View.VISIBLE else View.GONE
+        if (!canGoBack && hadFocus) retryButton.requestFocus()
     }
 
     fun hide() {
