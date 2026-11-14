@@ -67,7 +67,8 @@
     <string name="import_favorites_done_skipped">Imported %1$d favorites (%2$d already present, %3$d skipped)</string>
     <string name="import_bookmarks_done">Imported %1$d favorites from bookmarks.html (%2$d already present)</string>
     <string name="import_bookmarks_done_skipped">Imported %1$d favorites from bookmarks.html (%2$d already present, %3$d skipped)</string>
-    <string name="import_favorites_capped">Only the first %1$d new ones were added; %2$d left out.</string>
+    <string name="import_bookmarks_capped">Imported %1$d favorites from bookmarks.html; %2$d more were left out.</string>
+    <string name="import_favorites_capped">Imported %1$d favorites; %2$d more were left out.</string>
     <string name="import_favorites_empty">No favorites found in that file.</string>
     <string name="import_favorites_invalid">That isn\'t a favorites or bookmarks file.</string>
     <string name="import_favorites_unreadable">Couldn\'t read that file.</string>

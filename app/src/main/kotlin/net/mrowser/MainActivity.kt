@@ -174,6 +174,10 @@ class MainActivity : Activity() {
     private var errorUrl: String? = null
     /** The failed load never committed (a refused certificate); see [ErrorNavigation]. */
     private var errorNeverCommitted = false
+    /** Latched when the screen is shown; see [ErrorNavigation.Facts.freshTab]. */
+    private var errorFromFreshTab = false
+    /** Times focus was taken back from the page for the screen now showing; see onCreate. */
+    private var errorFocusReseats = 0
 
     /** The URL the last [PageLoadEvent.Started] began, so its own later `onPageStarted` (at
      *  commit, for a clicked link) continues the line instead of restarting it. */
@@ -182,6 +186,7 @@ class MainActivity : Activity() {
     /** A main-frame 4xx/5xx waiting for its page to finish; see [scheduleEmptyPageCheck]. */
     private var httpErrorUrl: String? = null
     private var httpErrorStatus = 0
+    private var httpErrorAction = PageError.HttpErrorAction.IGNORE
     private var emptyPageCheck: Runnable? = null
 
     /** Bumped by every navigation start, so a late empty-page answer for an old page is dropped. */
@@ -202,6 +207,7 @@ class MainActivity : Activity() {
             if (url != httpErrorUrl) {
                 httpErrorUrl = null
                 httpErrorStatus = 0
+                httpErrorAction = PageError.HttpErrorAction.IGNORE
             }
             hidePageError()
             // about:blank (close tab, home) and other non-web URLs show no loading feedback here
@@ -232,9 +238,10 @@ class MainActivity : Activity() {
             )
         }
 
-        override fun onMainFrameHttpError(url: String, status: Int) {
+        override fun onMainFrameHttpError(url: String, status: Int, headers: Map<String, String>) {
             httpErrorUrl = url
             httpErrorStatus = status
+            httpErrorAction = PageError.httpErrorAction(status, headers)
         }
 
         /**
@@ -342,9 +349,17 @@ class MainActivity : Activity() {
             },
             onLoaded = { url ->
                 applyLoad(PageLoadEvent.Finished)
-                if (httpErrorStatus != 0) scheduleEmptyPageCheck(url, httpErrorStatus)
+                when (httpErrorAction) {
+                    PageError.HttpErrorAction.IGNORE -> Unit
+                    // no body: Chromium has put its own error page up, which no script can read
+                    PageError.HttpErrorAction.SHOW -> if (pageErrorView.visibility != View.VISIBLE) {
+                        showPageError(PageErrorKind.SERVER, url, getString(R.string.page_error_code_http, httpErrorStatus))
+                    }
+                    PageError.HttpErrorAction.CHECK_PAGE -> scheduleEmptyPageCheck(url, httpErrorStatus)
+                }
                 httpErrorUrl = null
                 httpErrorStatus = 0
+                httpErrorAction = PageError.HttpErrorAction.IGNORE
                 recordHistory(url, webView.title)
                 // Opening from home starts a fresh tab: drop any prior back-stack so
                 // BACK at this page reaches root (close-tab) instead of walking old
@@ -470,6 +485,16 @@ class MainActivity : Activity() {
         settingsView.bind(settings) { adBlocker.list }
         settingsView.bindFavorites(onExport = ::exportFavorites, onImport = ::importFavorites)
         pageErrorView.bind(onRetry = ::retryFromError, onBack = ::backFromError, onHome = ::closeToHome)
+        // Focus that drops onto the page while the error screen owns it (the WebView took it back
+        // after a certificate error from home, on the TV) is put back at once, rather than
+        // costing the user a swallowed keypress in dispatchKeyEvent's recovery.
+        // Capped per screen, so a page that keeps grabbing focus cannot ping-pong with it.
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { _, newFocus ->
+            if (webViewGone || zoneOf(newFocus) != OverlayFocus.Zone.PAGE) return@addOnGlobalFocusChangeListener
+            if (!errorScreenOwnsFocus() || errorFocusReseats >= MAX_ERROR_FOCUS_RESEATS) return@addOnGlobalFocusChangeListener
+            errorFocusReseats++
+            pageErrorView.post { if (errorScreenOwnsFocus()) pageErrorView.restoreFocus() }
+        }
 
         layout.post { cursor.center(webView.width, webView.height) }
 
@@ -570,6 +595,16 @@ class MainActivity : Activity() {
         refreshDownloadChip()
     }
 
+    /** The error screen is up with no overlay over it: D-pad focus belongs on it ([OverlayFocus]). */
+    private fun errorScreenOwnsFocus(): Boolean = OverlayFocus.recoveryTarget(
+        settingsVisible = settingsView.visibility == View.VISIBLE,
+        historyVisible = historyView.visibility == View.VISIBLE,
+        downloadsVisible = downloadsView.visibility == View.VISIBLE,
+        homeVisible = homeView.visibility == View.VISIBLE,
+        errorVisible = pageErrorView.visibility == View.VISIBLE,
+        focus = focusZone()
+    ) == OverlayFocus.Zone.ERROR
+
     private fun overlayVisible(): Boolean = homeView.visibility == View.VISIBLE ||
         historyView.visibility == View.VISIBLE || downloadsView.visibility == View.VISIBLE ||
         settingsView.visibility == View.VISIBLE
@@ -593,10 +628,15 @@ class MainActivity : Activity() {
         errorKind = kind
         errorUrl = url
         errorNeverCommitted = neverCommitted
-        val overlayUp = overlayVisible()
+        errorFromFreshTab = ErrorNavigation.isFreshTab(clearHistoryOnLoad, webView.url)
+        errorFocusReseats = 0
         // The capsule lives in CursorLayout, under this screen, and would stay in focus search.
         chrome.dismiss()
-        pageErrorView.show(kind, url, code, canGoBackFromError(), takeFocus = !overlayUp, rendererKilled = rendererKilled)
+        pageErrorView.show(
+            kind, url, code, canGoBackFromError(),
+            mayTakeFocus = { !overlayVisible() },
+            rendererKilled = rendererKilled
+        )
         refreshDownloadChip()
     }
 
@@ -611,7 +651,7 @@ class MainActivity : Activity() {
     /** The WebView as it is now, for the pure [ErrorNavigation]. */
     private fun errorFacts(failedUrl: String) = ErrorNavigation.Facts(
         neverCommitted = errorNeverCommitted,
-        clearHistoryOnLoad = clearHistoryOnLoad,
+        freshTab = errorFromFreshTab,
         currentUrl = webView.url,
         failedUrl = failedUrl,
         canGoBack = webView.canGoBack()
@@ -904,19 +944,21 @@ class MainActivity : Activity() {
         favorites.addAll(capped.favorites)
         homeView.refresh()
         val fromHtml = parsed.source == FavoritesBackup.Source.BOOKMARKS_HTML
-        var message = if (parsed.skipped == 0) {
-            getString(
+        // One short line: Android 12+ cuts a text toast at two lines, so a capped import says
+        // what was left out instead of the done message plus an appended sentence.
+        val message = when {
+            capped.leftOut > 0 -> getString(
+                if (fromHtml) R.string.import_bookmarks_capped else R.string.import_favorites_capped,
+                summary.added, capped.leftOut
+            )
+            parsed.skipped == 0 -> getString(
                 if (fromHtml) R.string.import_bookmarks_done else R.string.import_favorites_done,
                 summary.added, summary.alreadyPresent
             )
-        } else {
-            getString(
+            else -> getString(
                 if (fromHtml) R.string.import_bookmarks_done_skipped else R.string.import_favorites_done_skipped,
                 summary.added, summary.alreadyPresent, parsed.skipped
             )
-        }
-        if (capped.leftOut > 0) {
-            message += "\n" + getString(R.string.import_favorites_capped, FavoritesBackup.MAX_NEW, capped.leftOut)
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
@@ -1219,8 +1261,10 @@ class MainActivity : Activity() {
     }
 
     /** Which of the six subtrees currently holds D-pad focus, for [OverlayFocus]. */
-    private fun focusZone(): OverlayFocus.Zone {
-        var v: View? = currentFocus
+    private fun focusZone(): OverlayFocus.Zone = zoneOf(currentFocus)
+
+    private fun zoneOf(view: View?): OverlayFocus.Zone {
+        var v: View? = view
         while (v != null) {
             when (v) {
                 settingsView -> return OverlayFocus.Zone.SETTINGS
@@ -1295,6 +1339,7 @@ class MainActivity : Activity() {
         private const val CHIP_DONE_MS = 5_000L
         private const val LINE_FADE_MS = 200L
         private const val EMPTY_PAGE_CHECK_MS = 1_000L
+        private const val MAX_ERROR_FOCUS_RESEATS = 3
         private const val REQ_STORAGE = 101
         private const val REQ_IMPORT_FAVORITES = 102
         private const val OBTAINIUM_ADD_URL = "obtainium://add/https://github.com/m-salehi-v/mrowser"
