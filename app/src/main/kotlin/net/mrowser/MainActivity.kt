@@ -800,19 +800,21 @@ class MainActivity : Activity() {
         favorites.addAll(capped.favorites)
         homeView.refresh()
         val fromHtml = parsed.source == FavoritesBackup.Source.BOOKMARKS_HTML
-        var message = if (parsed.skipped == 0) {
-            getString(
+        // One short line: Android 12+ cuts a text toast at two lines, so a capped import says
+        // what was left out instead of the done message plus an appended sentence.
+        val message = when {
+            capped.leftOut > 0 -> getString(
+                if (fromHtml) R.string.import_bookmarks_capped else R.string.import_favorites_capped,
+                summary.added, capped.leftOut
+            )
+            parsed.skipped == 0 -> getString(
                 if (fromHtml) R.string.import_bookmarks_done else R.string.import_favorites_done,
                 summary.added, summary.alreadyPresent
             )
-        } else {
-            getString(
+            else -> getString(
                 if (fromHtml) R.string.import_bookmarks_done_skipped else R.string.import_favorites_done_skipped,
                 summary.added, summary.alreadyPresent, parsed.skipped
             )
-        }
-        if (capped.leftOut > 0) {
-            message += "\n" + getString(R.string.import_favorites_capped, FavoritesBackup.MAX_NEW, capped.leftOut)
         }
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
