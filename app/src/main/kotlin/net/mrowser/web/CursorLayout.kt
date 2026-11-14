@@ -4,12 +4,15 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.KeyEvent
 import android.webkit.WebView
 import android.widget.FrameLayout
+import net.mrowser.R
 
 /**
  * Hosts the WebView + chrome bar, routes D-pad input to the cursor / chrome,
@@ -47,6 +50,26 @@ class CursorLayout @JvmOverloads constructor(
         strokeWidth = 2f * density
         color = Color.parseColor("#CCFFFFFF")
     }
+
+    /**
+     * A page is loading: the cursor wears a spinning ring (CURSOR mode only). Setting it
+     * redraws once; while true and drawn, the ring keeps itself animating, and it asks for
+     * nothing when false or detached.
+     */
+    var busy = false
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
+
+    private val busyArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = BUSY_STROKE_DP * density
+        strokeCap = Paint.Cap.ROUND
+        color = context.getColor(R.color.accent)
+    }
+    private val busyBounds = RectF()
 
     private val longPressHandler = Handler(Looper.getMainLooper())
     private var okDown = false
@@ -173,8 +196,21 @@ class CursorLayout @JvmOverloads constructor(
             val r = 10f * density
             canvas.drawCircle(cursor.x, cursor.y, r, dotPaint)
             canvas.drawCircle(cursor.x, cursor.y, r, outlinePaint)
+            if (busy && isAttachedToWindow) {
+                val ring = BUSY_RADIUS_DP * density
+                busyBounds.set(cursor.x - ring, cursor.y - ring, cursor.x + ring, cursor.y + ring)
+                val angle = (SystemClock.uptimeMillis() % BUSY_PERIOD_MS) * 360f / BUSY_PERIOD_MS
+                canvas.drawArc(busyBounds, angle, BUSY_SWEEP_DEG, false, busyArcPaint)
+                postInvalidateOnAnimation()
+            }
         }
     }
 
-    companion object { const val LONG_PRESS_MS = 500L }
+    companion object {
+        const val LONG_PRESS_MS = 500L
+        private const val BUSY_RADIUS_DP = 18f
+        private const val BUSY_STROKE_DP = 3f
+        private const val BUSY_PERIOD_MS = 900L
+        private const val BUSY_SWEEP_DEG = 90f
+    }
 }

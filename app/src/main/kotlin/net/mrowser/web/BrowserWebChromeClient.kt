@@ -29,7 +29,11 @@ class BrowserWebChromeClient(
     /** True when a pop-up's destination is on the block list; see [AdBlocker.isBlockedPopup]. */
     private val isBlockedPopup: (String) -> Boolean = { false },
     /** Hand a non-web URL a pop-up aimed at to the system; see [ExternalSchemePolicy]. */
-    private val launchExternal: (String) -> Unit = {}
+    private val launchExternal: (String) -> Unit = {},
+    /** Load progress of the current page, 0..100. */
+    private val onProgress: (Int) -> Unit = {},
+    /** Called with a pop-up's URL right before it is loaded into the current WebView. */
+    private val beforeLoad: (String) -> Unit = {}
 ) : WebChromeClient() {
 
     private var customView: View? = null
@@ -41,6 +45,11 @@ class BrowserWebChromeClient(
     override fun onReceivedTitle(view: WebView?, title: String?) {
         val url = view?.url ?: return
         if (!title.isNullOrBlank()) onTitle(url, title)
+    }
+
+    override fun onProgressChanged(view: WebView?, newProgress: Int) {
+        super.onProgressChanged(view, newProgress)
+        onProgress(newProgress)
     }
 
     /**
@@ -118,8 +127,12 @@ class BrowserWebChromeClient(
      */
     private fun loadOrLaunch(host: WebView, url: String) {
         val decision = ExternalSchemePolicy.decide(Uri.parse(url).scheme, isUserGesture = true)
-        if (decision == ExternalSchemePolicy.Decision.LetWebViewLoad) host.loadUrl(url)
-        else launchExternal(url)
+        if (decision == ExternalSchemePolicy.Decision.LetWebViewLoad) {
+            beforeLoad(url)
+            host.loadUrl(url)
+        } else {
+            launchExternal(url)
+        }
     }
 
     override fun onShowCustomView(view: View, cb: CustomViewCallback) {
