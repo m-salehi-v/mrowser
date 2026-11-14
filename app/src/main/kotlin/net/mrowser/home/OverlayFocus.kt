@@ -1,7 +1,7 @@
 package net.mrowser.home
 
 /**
- * Pure focus-recovery rule for the three overlays, the page-error screen and the
+ * Pure focus-recovery rule for the four overlays, the page-error screen and the
  * page behind them.
  *
  * D-pad focus search is window-global and the root layout's first focusable child
@@ -15,20 +15,22 @@ package net.mrowser.home
 object OverlayFocus {
 
     /** A view tree D-pad focus can sit in. [NONE] is "nothing focused at all". */
-    enum class Zone { SETTINGS, HISTORY, HOME, ERROR, PAGE, NONE }
+    enum class Zone { SETTINGS, HISTORY, DOWNLOADS, HOME, ERROR, PAGE, NONE }
 
     /**
      * The zone that should own focus for what is on screen, or null when [focus]
      * already sits there and nothing needs re-seating.
      *
      * Overlays are focus-modal (only one is ever visible), but the flags are ranked
-     * so a transient double-visible state still resolves the same way every time.
+     * so a transient double-visible state still resolves the same way every time:
+     * settings, history, downloads, home.
      * The error screen ([net.mrowser.web.PageErrorView]) stands in for the page, so
      * it ranks below every overlay and above the page.
      */
     fun recoveryTarget(
         settingsVisible: Boolean,
         historyVisible: Boolean,
+        downloadsVisible: Boolean,
         homeVisible: Boolean,
         errorVisible: Boolean,
         focus: Zone
@@ -36,6 +38,7 @@ object OverlayFocus {
         val owner = when {
             settingsVisible -> Zone.SETTINGS
             historyVisible -> Zone.HISTORY
+            downloadsVisible -> Zone.DOWNLOADS
             homeVisible -> Zone.HOME
             errorVisible -> Zone.ERROR
             else -> Zone.PAGE

@@ -10,10 +10,18 @@ class OverlayFocusTest {
     private fun target(
         settings: Boolean = false,
         history: Boolean = false,
+        downloads: Boolean = false,
         home: Boolean = false,
         error: Boolean = false,
         focus: Zone
-    ) = OverlayFocus.recoveryTarget(settings, history, home, errorVisible = error, focus = focus)
+    ) = OverlayFocus.recoveryTarget(
+        settingsVisible = settings,
+        historyVisible = history,
+        downloadsVisible = downloads,
+        homeVisible = home,
+        errorVisible = error,
+        focus = focus
+    )
 
     @Test fun `focus already inside the visible overlay needs no recovery`() {
         assertNull(target(home = true, focus = Zone.HOME))
@@ -63,10 +71,22 @@ class OverlayFocusTest {
     }
 
     @Test fun `the error screen owns focus over the page`() =
-        assertEquals(OverlayFocus.Zone.ERROR, OverlayFocus.recoveryTarget(false, false, false, true, OverlayFocus.Zone.PAGE))
+        assertEquals(
+            OverlayFocus.Zone.ERROR,
+            OverlayFocus.recoveryTarget(
+                settingsVisible = false, historyVisible = false, downloadsVisible = false,
+                homeVisible = false, errorVisible = true, focus = OverlayFocus.Zone.PAGE
+            )
+        )
 
     @Test fun `home outranks the error screen`() =
-        assertEquals(OverlayFocus.Zone.HOME, OverlayFocus.recoveryTarget(false, false, true, true, OverlayFocus.Zone.ERROR))
+        assertEquals(
+            OverlayFocus.Zone.HOME,
+            OverlayFocus.recoveryTarget(
+                settingsVisible = false, historyVisible = false, downloadsVisible = false,
+                homeVisible = true, errorVisible = true, focus = OverlayFocus.Zone.ERROR
+            )
+        )
 
     @Test fun `focus already on the error screen needs no recovery`() {
         assertNull(target(error = true, focus = Zone.ERROR))
@@ -79,5 +99,16 @@ class OverlayFocusTest {
     @Test fun `settings and history outrank the error screen`() {
         assertEquals(Zone.SETTINGS, target(settings = true, error = true, focus = Zone.ERROR))
         assertEquals(Zone.HISTORY, target(history = true, error = true, focus = Zone.ERROR))
+    }
+
+    @Test fun `the downloads page owns focus while it is up`() =
+        assertEquals(Zone.DOWNLOADS, target(downloads = true, focus = Zone.PAGE))
+
+    @Test fun `focus already in downloads needs no recovery`() =
+        assertNull(target(downloads = true, focus = Zone.DOWNLOADS))
+
+    @Test fun `downloads ranks below settings and history, above home and the error screen`() {
+        assertEquals(Zone.HISTORY, target(history = true, downloads = true, focus = Zone.DOWNLOADS))
+        assertEquals(Zone.DOWNLOADS, target(downloads = true, home = true, error = true, focus = Zone.HOME))
     }
 }

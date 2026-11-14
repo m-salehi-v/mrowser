@@ -29,4 +29,10 @@ class ByteSizeTest {
         assertEquals("", ByteSize.format(0L))
         assertEquals("", ByteSize.format(-1L))
     }
+
+    @Test fun `a gigabyte and up reads in GB`() {
+        assertEquals("2.4 GB", ByteSize.format(2_400_000_000L))
+        assertEquals("1.0 GB", ByteSize.format(999_960_000L))   // never "1000.0 MB"
+        assertEquals("999.9 MB", ByteSize.format(999_900_000L))
+    }
 }

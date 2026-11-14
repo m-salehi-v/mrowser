@@ -1,6 +1,7 @@
 package net.mrowser.stream
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -74,5 +75,83 @@ class StreamSnifferTest {
         runPending()
         assertEquals(0, announced)
         assertTrue(!s.hasStream())
+    }
+
+    @Test fun `a file the page offered as a download is not handed to the player`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/movie.mp4")
+        s.onDownload("https://cdn.net/movie.mp4")
+        runPending()
+        assertEquals(0, announced)
+        assertFalse(s.hasStream())
+    }
+
+    @Test fun `a download leaves the page's other streams alone`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/movie.mp4")
+        s.onRequest("https://cdn.net/trailer.mp4")
+        s.onDownload("https://cdn.net/movie.mp4")
+        runPending()
+        assertEquals(1, announced)
+        assertTrue(s.hasStream())
+    }
+
+    @Test fun `a main-frame file that never becomes the page is not handed to the player`() {
+        // A link to a file: the request is sent, then the response turns out to be a download
+        // (or arrives after the grace window, or redirects to a URL onDownload never matches).
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://host.net/get/movie.mp4", isForMainFrame = true)
+        runPending()
+        assertEquals(0, announced)
+        assertFalse(s.hasStream())
+    }
+
+    @Test fun `an attachment behind a redirect does not open the player`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://host.net/get/movie.mp4", isForMainFrame = true)
+        s.onDownload("https://cdn.net/signed/movie.mp4?sig=abc")
+        runPending()
+        assertEquals(0, announced)
+        assertFalse(s.hasStream())
+    }
+
+    @Test fun `a main-frame file the WebView opens as its page is handed to the player`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/movie.mp4", isForMainFrame = true)
+        s.onPageStarted("https://cdn.net/movie.mp4")
+        assertTrue(s.hasStream())
+        runPending()
+        assertEquals(1, announced)
+    }
+
+    @Test fun `a main-frame file is dropped when a different page commits`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/movie.mp4", isForMainFrame = true)
+        s.onPageStarted("https://site.net/other")
+        runPending()
+        assertEquals(0, announced)
+        assertFalse(s.hasStream())
+    }
+
+    @Test fun `a sub-resource file keeps the grace window`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/movie.mp4", isForMainFrame = false)
+        assertEquals(0, announced)
+        runPending()
+        assertEquals(1, announced)
+    }
+
+    @Test fun `a main-frame manifest still announces at once`() {
+        val s = sniffer()
+        s.onPageStarted("https://site.net/watch")
+        s.onRequest("https://cdn.net/master.m3u8", isForMainFrame = true)
+        assertEquals(1, announced)
     }
 }

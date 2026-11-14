@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The download chip's badge: a 36dp accent circle with a white down-arrow over a tray. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="36dp"
+    android:height="36dp"
+    android:viewportWidth="36"
+    android:viewportHeight="36">
+    <path
+        android:fillColor="@color/accent"
+        android:pathData="M18,0A18,18 0,1 1,18 36A18,18 0,1 1,18 0Z" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M18,10.5L18,21.5M13,16.75L18,21.75L23,16.75M12,25.5L24,25.5" />
+</vector>

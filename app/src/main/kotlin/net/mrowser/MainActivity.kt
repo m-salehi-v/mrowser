@@ -22,8 +22,11 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.webkit.CookieManager
+import android.webkit.MimeTypeMap
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
+import android.webkit.URLUtil
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -45,6 +48,20 @@ import net.mrowser.data.HistoryEntry
 import net.mrowser.data.JsonFavoritesStore
 import net.mrowser.data.JsonHistoryStore
 import net.mrowser.data.JsonSettingsStore
+import net.mrowser.download.ChipText
+import net.mrowser.download.DownloadConfirmDialog
+import net.mrowser.download.DownloadFileName
+import net.mrowser.download.DownloadOfferGate
+import net.mrowser.download.DownloadRequest
+import net.mrowser.download.DownloadRunner
+import net.mrowser.download.DownloadSpec
+import net.mrowser.download.DownloadText
+import net.mrowser.download.Downloader
+import net.mrowser.download.DownloadsButton
+import net.mrowser.download.DownloadsController
+import net.mrowser.download.DownloadsSnapshot
+import net.mrowser.download.DownloadsView
+import net.mrowser.download.JsonDownloadsStore
 import net.mrowser.handoff.HandoffController
 import net.mrowser.home.DestructiveButton
 import net.mrowser.home.FavoriteDialog
@@ -54,7 +71,7 @@ import net.mrowser.home.OverlayFocus
 import net.mrowser.home.SettingsView
 import net.mrowser.stream.SniffingWebViewClient
 import net.mrowser.stream.StreamSniffer
-import net.mrowser.update.ApkDownloader
+import net.mrowser.update.ByteSize
 import net.mrowser.update.JsonUpdateStore
 import net.mrowser.update.ReleaseFetcher
 import net.mrowser.update.UpdateController
@@ -103,6 +120,28 @@ class MainActivity : Activity() {
     private lateinit var externalLinks: ExternalIntentLauncher
     private lateinit var updates: UpdateController
     private lateinit var updateIo: ExecutorService
+    private lateinit var downloads: DownloadsController
+    private lateinit var downloadChip: View
+    private lateinit var downloadChipLabel: TextView
+    private lateinit var downloadChipTrailing: TextView
+    private lateinit var downloadsView: DownloadsView
+    private lateinit var downloadsButton: DownloadsButton
+
+    /** The last poll, so the chip can be redrawn when an overlay closes or the done line ends. */
+    private var lastDownloads: DownloadsSnapshot? = null
+
+    /** "Downloaded · name" or "Download failed · name", shown for [CHIP_DONE_MS] after one ends. */
+    private var downloadDone: ChipText? = null
+    private val downloadDoneEnd = Runnable {
+        downloadDone = null
+        refreshDownloadChip()
+    }
+
+    /** The download confirm on screen, if any: one at a time, so a page cannot stack prompts. */
+    private var downloadConfirm: AlertDialog? = null
+
+    /** After a Cancel, the same page cannot bring the confirm back: see [DownloadOfferGate]. */
+    private val downloadOffers = DownloadOfferGate()
 
     /** One outstanding storage-permission ask at a time; see ensureStoragePermission. */
     private var pendingStoragePermission: ((Boolean) -> Unit)? = null
@@ -110,6 +149,9 @@ class MainActivity : Activity() {
     /** True when history was opened from the home overlay (BACK returns to home);
      *  false when opened from the chrome bar mid-browse (BACK returns to the page). */
     private var historyFromHome = false
+
+    /** The same for the Downloads page: opened from home's pill, or from the bar or the chip. */
+    private var downloadsFromHome = false
 
     /** True while [showPageUrl] itself is writing the field, so the edit watcher can tell
      *  the page's URL apart from the user typing over it. */
@@ -230,9 +272,13 @@ class MainActivity : Activity() {
         urlInput = findViewById(R.id.urlInput)
         playChip = findViewById(R.id.playChip)
         loadingLine = findViewById(R.id.loadingLine)
+        downloadChip = findViewById(R.id.downloadChip)
+        downloadChipLabel = findViewById(R.id.downloadChipLabel)
+        downloadChipTrailing = findViewById(R.id.downloadChipTrailing)
         homeView = findViewById(R.id.homeView)
         historyView = findViewById(R.id.historyView)
         settingsView = findViewById(R.id.settingsView)
+        downloadsView = findViewById(R.id.downloadsView)
         pageErrorView = findViewById(R.id.pageErrorView)
         val bar = findViewById<View>(R.id.chromeBar)
         val backButton = findViewById<ImageButton>(R.id.backButton)
@@ -243,6 +289,7 @@ class MainActivity : Activity() {
         adBlockCount = findViewById(R.id.adBlockCount)
         val homeButton = findViewById<ImageButton>(R.id.homeButton)
         val historyButton = findViewById<ImageButton>(R.id.historyButton)
+        downloadsButton = findViewById(R.id.downloadsButton)
 
         favorites = JsonFavoritesStore(File(filesDir, "favorites.json"))
         history = JsonHistoryStore(File(filesDir, "history.json"))
@@ -295,7 +342,11 @@ class MainActivity : Activity() {
         webClient = SniffingWebViewClient(
             sniffer,
             adBlocker,
-            onNavigate = { url -> updateUrlText(url) },
+            onNavigate = { url ->
+                updateUrlText(url)
+                // onPageStarted: a new page may offer downloads again (a download never commits)
+                downloadOffers.reset()
+            },
             onLoaded = { url ->
                 applyLoad(PageLoadEvent.Finished)
                 when (httpErrorAction) {
@@ -329,8 +380,8 @@ class MainActivity : Activity() {
         chromeClient = BrowserWebChromeClient(
             activity = this,
             container = layout,
-            onEnter = { chrome.dismiss(); playChip.visibility = View.GONE; layout.invalidate() },
-            onExit = { layout.invalidate() },
+            onEnter = { chrome.dismiss(); playChip.visibility = View.GONE; refreshDownloadChip(); layout.invalidate() },
+            onExit = { refreshDownloadChip(); layout.invalidate() },
             onTitle = { url, title -> recordHistory(url, title) },
             onPopupBlocked = { Toast.makeText(this, R.string.popup_blocked, Toast.LENGTH_SHORT).show() },
             isBlockedPopup = { url -> adBlocker.isBlockedPopup(url) },
@@ -339,6 +390,17 @@ class MainActivity : Activity() {
             beforeLoad = { url -> webClient.expectNavigation(url) }
         )
         webView.webChromeClient = chromeClient
+        // A page only ever offers a file: nothing is saved until the user presses Download.
+        webView.setDownloadListener { url, userAgent, disposition, mimeType, length ->
+            onDownloadOffered(url, userAgent, disposition, mimeType, length)
+        }
+        downloads = DownloadsController(
+            context = this,
+            store = JsonDownloadsStore(File(filesDir, "downloads.json")),
+            isPageOpen = { downloadsView.visibility == View.VISIBLE },
+            onSnapshot = ::renderDownloads,
+            handler = uiHandler
+        )
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -365,6 +427,10 @@ class MainActivity : Activity() {
         layout.chrome = chrome
         layout.playChip = playChip
         layout.onChipClick = { handoff.play() }
+        layout.downloadChip = downloadChip
+        layout.onDownloadChipClick = { showDownloads(fromHome = false) }
+        // The user's own click on the page may ask for a file again after a Cancel.
+        layout.onPageTap = { downloadOffers.reset() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
         // Refuse the reveal in fullscreen (the bar would sit under the video) and report
@@ -381,9 +447,13 @@ class MainActivity : Activity() {
             searchEngine = { settings.get().searchEngine },
             onEdit = { fav -> FavoriteDialog.show(this, favorites, fav) { url -> homeView.refresh(url) } },
             onHistory = { showHistory(fromHome = true) },
+            onDownloads = { showDownloads(fromHome = true) },
             onSettings = { showSettings() },
             onUpdate = { release ->
-                UpdateDialog.show(this, release, ::ensureStoragePermission, ::openObtainium)
+                UpdateDialog.show(
+                    this, release, ::ensureStoragePermission, ::openObtainium,
+                    onEnqueued = { downloads.kick() }
+                )
             }
         )
         // Straight from the cache, so the line is there on the first frame; then once more if
@@ -398,6 +468,19 @@ class MainActivity : Activity() {
                 favorites.add(Favorite(entry.title, entry.url))
                 Toast.makeText(this, R.string.add_favorite, Toast.LENGTH_SHORT).show()
             }
+        )
+        val downloadRunner = DownloadRunner(
+            activity = this,
+            downloads = downloads,
+            play = handoff::play,
+            userAgent = { webView.settings.userAgentString },
+            ensureStoragePermission = ::ensureStoragePermission
+        )
+        // Clear finished only hides rows, the files stay.
+        downloadsView.bind(
+            onPrimary = downloadRunner::primary,
+            onOptions = downloadRunner::options,
+            onClearFinished = { downloads.clearFinished() }
         )
         settingsView.bind(settings) { adBlocker.list }
         settingsView.bindFavorites(onExport = ::exportFavorites, onImport = ::importFavorites)
@@ -429,6 +512,7 @@ class MainActivity : Activity() {
         }
         homeButton.setOnClickListener { showHome() }
         historyButton.setOnClickListener { showHistory(fromHome = false) }
+        downloadsButton.setOnClickListener { showDownloads(fromHome = false) }
         favoriteButton.setOnClickListener {
             toggleCurrentFavorite()
             chrome.onInteracted()
@@ -496,7 +580,7 @@ class MainActivity : Activity() {
     }
 
     /** Show exactly one overlay at a time: a second VISIBLE overlay steals window-global
-     *  D-pad focus (focus search can't move past it), so every transition hides all three
+     *  D-pad focus (focus search can't move past it), so every transition hides all four
      *  first, then the caller shows the one it wants (or none, for openUrl). The address bar
      *  goes too: left up under an overlay, its buttons sit in the same focus search — the
      *  capsule's right-hand cluster is level with home's History and settings buttons, so
@@ -505,21 +589,25 @@ class MainActivity : Activity() {
         chrome.dismiss()
         homeView.hide()
         historyView.hide()
+        downloadsView.hide()
         settingsView.hide()
         pageErrorView.hide()
+        refreshDownloadChip()
     }
 
     /** The error screen is up with no overlay over it: D-pad focus belongs on it ([OverlayFocus]). */
     private fun errorScreenOwnsFocus(): Boolean = OverlayFocus.recoveryTarget(
         settingsVisible = settingsView.visibility == View.VISIBLE,
         historyVisible = historyView.visibility == View.VISIBLE,
+        downloadsVisible = downloadsView.visibility == View.VISIBLE,
         homeVisible = homeView.visibility == View.VISIBLE,
         errorVisible = pageErrorView.visibility == View.VISIBLE,
         focus = focusZone()
     ) == OverlayFocus.Zone.ERROR
 
     private fun overlayVisible(): Boolean = homeView.visibility == View.VISIBLE ||
-        historyView.visibility == View.VISIBLE || settingsView.visibility == View.VISIBLE
+        historyView.visibility == View.VISIBLE || downloadsView.visibility == View.VISIBLE ||
+        settingsView.visibility == View.VISIBLE
 
     private fun isWebUrl(url: String): Boolean =
         url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
@@ -549,12 +637,14 @@ class MainActivity : Activity() {
             mayTakeFocus = { !overlayVisible() },
             rendererKilled = rendererKilled
         )
+        refreshDownloadChip()
     }
 
     private fun hidePageError() {
         if (pageErrorView.visibility != View.VISIBLE) return
         val hadFocus = pageErrorView.hasFocus()
         pageErrorView.hide()
+        refreshDownloadChip()
         if (hadFocus) layout.requestFocus()
     }
 
@@ -715,17 +805,32 @@ class MainActivity : Activity() {
     private fun showHome() {
         hideAllOverlays()
         homeView.show()
+        refreshDownloadChip()
     }
 
     private fun showSettings() {
         hideAllOverlays()
         settingsView.show()
+        refreshDownloadChip()
     }
 
     private fun showHistory(fromHome: Boolean) {
         historyFromHome = fromHome
         hideAllOverlays()
         historyView.show()
+        refreshDownloadChip()
+    }
+
+    /** The Downloads page; [fromHome] decides where BACK returns, as for History. */
+    private fun showDownloads(fromHome: Boolean) {
+        downloadsFromHome = fromHome
+        hideAllOverlays()
+        // The last poll first, so the page is never blank while a failed query keeps it.
+        lastDownloads?.let { downloadsView.render(it.rows) }
+        downloadsView.show()
+        // Polls now, and every second while the page is open (isPageOpen).
+        downloads.kick()
+        refreshDownloadChip()
     }
 
     /** First launch only: write the shipped starter favorites. Guarded by a persisted
@@ -751,7 +856,7 @@ class MainActivity : Activity() {
      * Download. The dialog stays ignorant of request codes — it just gets a yes or a no.
      */
     private fun ensureStoragePermission(onResult: (Boolean) -> Unit) {
-        if (ApkDownloader.hasStoragePermission(this)) {
+        if (Downloader.hasStoragePermission(this)) {
             onResult(true)
             return
         }
@@ -864,9 +969,9 @@ class MainActivity : Activity() {
             context = this,
             onFallback = { url -> openUrl(url) },
             // Without Obtainium installed this says what it is and where to get it, and stops
-            // there. It deliberately does NOT offer to open Obtainium's release page here: mrowser
-            // cannot install an APK, so that page is a dead end on a TV — the same chicken-and-egg
-            // that makes this app's own update end at "saved to Downloads".
+            // there. It deliberately does NOT offer to open Obtainium's release page here: the
+            // user would still have to pick the right APK out of its assets, download it and
+            // install it by hand, which is no easier than the update this dialog is offering.
             onNoApp = {
                 AlertDialog.Builder(this)
                     .setTitle(R.string.obtainium_title)
@@ -910,6 +1015,87 @@ class MainActivity : Activity() {
         showingPageUrl = false
         val lock = if (parts?.secure == true) R.drawable.ic_lock else 0
         urlInput.setCompoundDrawablesRelativeWithIntrinsicBounds(lock, 0, 0, 0)
+    }
+
+    /**
+     * The page offered a file (`Content-Disposition: attachment`, or a type the WebView cannot
+     * show). Runs on the UI thread. Nothing is saved until the user presses Download in the
+     * confirm dialog — a page can never start a download by itself.
+     */
+    private fun onDownloadOffered(url: String, userAgent: String?, disposition: String?, mimeType: String?, length: Long) {
+        // The click's load became a download, and no finish will come: end the ring now rather
+        // than at the timeout. Only that load's: a download a script fires while some other page
+        // is loading leaves that page's line alone. A redirect to the file is no miss — each hop
+        // goes through shouldOverrideUrlLoading (API 24+), which moves startedUrl along; where one
+        // does not, the ring ends at its timeout as before.
+        if (MainFrameUrl.same(url, startedUrl)) applyLoad(PageLoadEvent.Failed)
+        // A video file sent as an attachment was also seen as a request; the player must not
+        // open on it 1.5s later.
+        sniffer.onDownload(url)
+        if (!DownloadRequest.isSupported(url)) {
+            Toast.makeText(this, R.string.download_unsupported, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (downloadConfirm?.isShowing == true) return
+        val ticket = when (val verdict = downloadOffers.offer()) {
+            is DownloadOfferGate.Verdict.Offer -> verdict.ticket
+            is DownloadOfferGate.Verdict.Blocked -> {
+                if (verdict.notify) Toast.makeText(this, R.string.download_repeat_blocked, Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+        val cleanMime = DownloadFileName.cleanMime(mimeType)
+        val name = DownloadFileName.sanitize(URLUtil.guessFileName(url, disposition, cleanMime))
+        val ext = name.substringAfterLast('.', "").lowercase()
+        val mime = cleanMime ?: ext.takeIf { it.isNotEmpty() }?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+        val size = ByteSize.format(length).ifBlank { getString(R.string.download_unknown_size) }
+        val host = UrlHost.of(url) ?: url
+        // The page as it was when the file was offered: the Referer, and the row's source.
+        val pageUrl = webView.url
+        downloadConfirm = DownloadConfirmDialog.show(this, name, size, host, onDecline = { downloadOffers.declined(ticket) }) {
+            ensureStoragePermission { granted ->
+                if (!granted) {
+                    Toast.makeText(this, R.string.download_storage_denied, Toast.LENGTH_LONG).show()
+                    return@ensureStoragePermission
+                }
+                val headers = DownloadRequest.headers(CookieManager.getInstance().getCookie(url), userAgent, pageUrl, url)
+                val id = downloads.start(DownloadSpec(url, name, mime, headers), pageUrl)
+                if (id == null) Toast.makeText(this, R.string.download_failed_to_start, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** One poll's result: a download that just finished or failed says so for a moment, else the summary. */
+    private fun renderDownloads(s: DownloadsSnapshot) {
+        lastDownloads = s
+        val active = s.summary.active > 0
+        downloadsButton.setRing(active, s.summary.percent)
+        homeView.showDownloadsActive(active)
+        if (downloadsView.visibility == View.VISIBLE) downloadsView.render(s.rows)
+        DownloadText.chipEnded(s.finished, s.failed)?.let {
+            downloadDone = it
+            uiHandler.removeCallbacks(downloadDoneEnd)
+            uiHandler.postDelayed(downloadDoneEnd, CHIP_DONE_MS)
+        }
+        refreshDownloadChip()
+    }
+
+    /**
+     * The download chip shows only over the page: not under an overlay or the error screen, and
+     * not in HTML5 fullscreen, where it would sit on the video. The player is its own Activity.
+     */
+    private fun refreshDownloadChip() {
+        val text = downloadDone ?: lastDownloads?.let { DownloadText.chip(it.summary) }
+        val onPage = !overlayVisible() && pageErrorView.visibility != View.VISIBLE &&
+            !(::chromeClient.isInitialized && chromeClient.isFullscreen)
+        if (text == null || !onPage) {
+            downloadChip.visibility = View.GONE
+            return
+        }
+        downloadChipLabel.text = text.label
+        downloadChipTrailing.text = text.trailing
+        downloadChipTrailing.visibility = if (text.trailing == null) View.GONE else View.VISIBLE
+        downloadChip.visibility = View.VISIBLE
     }
 
     private fun showChip() {
@@ -982,12 +1168,14 @@ class MainActivity : Activity() {
     override fun onPause() {
         super.onPause()
         if (::webView.isInitialized && !webViewGone) webView.onPause()
+        if (::downloads.isInitialized) downloads.stop()
     }
 
     override fun onResume() {
         super.onResume()
         if (::webView.isInitialized && !webViewGone) webView.onResume()
         if (::sniffer.isInitialized && sniffer.hasStream() && !overlayVisible()) showChip()
+        if (::downloads.isInitialized) downloads.kick()
     }
 
     override fun onRequestPermissionsResult(
@@ -1016,6 +1204,10 @@ class MainActivity : Activity() {
         uiHandler.removeCallbacks(loadTimeout)
         cancelEmptyPageCheck()
         loadingLine.animate().cancel()
+        if (::downloads.isInitialized) downloads.stop()
+        uiHandler.removeCallbacks(downloadDoneEnd)
+        downloadConfirm?.dismiss()
+        downloadConfirm = null
         // Leaving for good (not the recreate() after a dead renderer, which is a configuration
         // change): a crash screen still pending must not greet the next cold launch.
         if (isFinishing && !isChangingConfigurations) {
@@ -1049,6 +1241,7 @@ class MainActivity : Activity() {
             val target = OverlayFocus.recoveryTarget(
                 settingsVisible = settingsView.visibility == View.VISIBLE,
                 historyVisible = historyView.visibility == View.VISIBLE,
+                downloadsVisible = downloadsView.visibility == View.VISIBLE,
                 homeVisible = homeView.visibility == View.VISIBLE,
                 errorVisible = pageErrorView.visibility == View.VISIBLE,
                 focus = focusZone()
@@ -1056,6 +1249,7 @@ class MainActivity : Activity() {
             val recovered = when (target) {
                 OverlayFocus.Zone.SETTINGS -> settingsView.restoreFocus()
                 OverlayFocus.Zone.HISTORY -> historyView.restoreFocus()
+                OverlayFocus.Zone.DOWNLOADS -> downloadsView.restoreFocus()
                 OverlayFocus.Zone.HOME -> homeView.restoreFocus()
                 OverlayFocus.Zone.ERROR -> pageErrorView.restoreFocus()
                 OverlayFocus.Zone.PAGE -> layout.requestFocus()
@@ -1066,7 +1260,7 @@ class MainActivity : Activity() {
         return super.dispatchKeyEvent(event)
     }
 
-    /** Which of the five subtrees currently holds D-pad focus, for [OverlayFocus]. */
+    /** Which of the six subtrees currently holds D-pad focus, for [OverlayFocus]. */
     private fun focusZone(): OverlayFocus.Zone = zoneOf(currentFocus)
 
     private fun zoneOf(view: View?): OverlayFocus.Zone {
@@ -1075,6 +1269,7 @@ class MainActivity : Activity() {
             when (v) {
                 settingsView -> return OverlayFocus.Zone.SETTINGS
                 historyView -> return OverlayFocus.Zone.HISTORY
+                downloadsView -> return OverlayFocus.Zone.DOWNLOADS
                 homeView -> return OverlayFocus.Zone.HOME
                 pageErrorView -> return OverlayFocus.Zone.ERROR
                 layout -> return OverlayFocus.Zone.PAGE
@@ -1093,9 +1288,17 @@ class MainActivity : Activity() {
             }
             historyView.visibility == View.VISIBLE -> {
                 historyView.hide()
+                refreshDownloadChip()
                 // Return to wherever history was opened from. Back on the page, a load that failed
                 // meanwhile has put the error screen up, and that takes the D-pad.
                 if (historyFromHome) showHome()
+                else if (!pageErrorView.restoreFocus()) layout.requestFocus()
+            }
+            downloadsView.visibility == View.VISIBLE -> {
+                downloadsView.hide()
+                refreshDownloadChip()
+                // Back to where it was opened from, as for History.
+                if (downloadsFromHome) showHome()
                 else if (!pageErrorView.restoreFocus()) layout.requestFocus()
             }
             homeView.visibility == View.VISIBLE -> confirmExit()
@@ -1133,6 +1336,7 @@ class MainActivity : Activity() {
 
     companion object {
         private const val CHIP_TIMEOUT_MS = 30_000L
+        private const val CHIP_DONE_MS = 5_000L
         private const val LINE_FADE_MS = 200L
         private const val EMPTY_PAGE_CHECK_MS = 1_000L
         private const val MAX_ERROR_FOCUS_RESEATS = 3

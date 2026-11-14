@@ -43,6 +43,13 @@ class CursorLayout @JvmOverloads constructor(
     var playChip: android.view.View? = null
     var onChipClick: () -> Unit = {}
 
+    /** The download progress chip; OK over it opens the Downloads page. */
+    var downloadChip: android.view.View? = null
+    var onDownloadChipClick: () -> Unit = {}
+
+    /** The user clicked on the page itself (not a chip), after the click is dispatched. */
+    var onPageTap: () -> Unit = {}
+
     private val density = resources.displayMetrics.density
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E50914") }
     private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -136,15 +143,22 @@ class CursorLayout @JvmOverloads constructor(
                 okDown = false
                 longPressHandler.removeCallbacks(longPress)
                 if (!longPressed) {
-                    if (chipContains(cursor.x, cursor.y)) onChipClick() else cursor.tap()
+                    when {
+                        chipContains(playChip, cursor.x, cursor.y) -> onChipClick()
+                        chipContains(downloadChip, cursor.x, cursor.y) -> onDownloadChipClick()
+                        else -> {
+                            cursor.tap()
+                            onPageTap()
+                        }
+                    }
                 }
             }
         }
         return true
     }
 
-    private fun chipContains(x: Float, y: Float): Boolean {
-        val chip = playChip ?: return false
+    private fun chipContains(chip: android.view.View?, x: Float, y: Float): Boolean {
+        if (chip == null) return false
         if (chip.visibility != android.view.View.VISIBLE) return false
         return x >= chip.left && x <= chip.right && y >= chip.top && y <= chip.bottom
     }

@@ -1,15 +1,12 @@
 package net.mrowser.update
 
-import android.Manifest
 import android.app.Activity
-import android.app.DownloadManager
-import android.content.Context
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
 import android.util.Log
 import net.mrowser.R
+import net.mrowser.download.DownloadActions
+import net.mrowser.download.DownloadSpec
+import net.mrowser.download.DownloadStatus
+import net.mrowser.download.Downloader
 
 /** How an enqueued download is getting on. */
 sealed class Progress {
@@ -20,28 +17,20 @@ sealed class Progress {
 }
 
 /**
- * Android glue over the system `DownloadManager`.
+ * The update channel's side of [Downloader]: it saves the release APK to public `Downloads/`
+ * under a fixed name, after checking the URL is GitHub's and the version is digits and dots.
  *
- * mrowser never installs the APK — that would need `REQUEST_INSTALL_PACKAGES`, which this app
- * deliberately does not hold. The file goes to public `Downloads/` instead, the one place a file
- * manager can still reach under scoped storage, and the user installs it from there.
- *
- * This is also the wrapper a general download manager would build on; expect it to generalise
- * into a `Downloader` taking a URL, a filename and a MIME type.
+ * Saving is all it does. The file then shows on mrowser's Downloads page like any other download,
+ * and installing it is a user's press there (or on Install update), which hands it to Android's
+ * installer through `ApkInstaller` — the installer asks the user to confirm.
  */
 object ApkDownloader {
 
-    const val APK_MIME = "application/vnd.android.package-archive"
+    const val APK_MIME = DownloadActions.APK_MIME
 
     private const val TAG = "ApkDownloader"
 
     fun fileName(release: Release): String = "mrowser-${release.version}.apk"
-
-    /** Free from API 29 (scoped storage); a real check below it. */
-    fun hasStoragePermission(context: Context): Boolean =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ||
-            context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
-            PackageManager.PERMISSION_GRANTED
 
     /** The download id, or null when it could not be started — caller shows the manual route. */
     fun enqueue(activity: Activity, release: Release): Long? {
@@ -52,60 +41,30 @@ object ApkDownloader {
         // Defence in depth, not a live hole: release.version feeds the destination filename
         // below, and UpdateCheckPolicy.bannerFor already refuses any version VersionCompare
         // can't read as digits-and-dots. But that invariant lives three modules away with no
-        // test pinning the coupling, and this function is documented as the reusable core a
-        // future general download manager will generalise — so it guards its own input too.
+        // test pinning the coupling, so this guards its own input too.
         if (release.version.any { !it.isDigit() && it != '.' }) {
             Log.w(TAG, "refusing a release version with unexpected characters")
             return null
         }
-        if (!hasStoragePermission(activity)) return null
-        val dm = activity.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
-            ?: return null
-        return try {
-            dm.enqueue(
-                DownloadManager.Request(Uri.parse(release.apkUrl))
-                    .setTitle(activity.getString(R.string.update_download_title, release.version))
-                    .setMimeType(APK_MIME)
-                    .setNotificationVisibility(
-                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                    )
-                    // A name that already exists gets a "-1" suffix from DownloadManager; the
-                    // dialog reports the name it asked for, which is the one a fresh box sees.
-                    .setDestinationInExternalPublicDir(
-                        Environment.DIRECTORY_DOWNLOADS, fileName(release)
-                    )
-                    .setAllowedOverMetered(true)
+        return Downloader.enqueue(
+            activity,
+            DownloadSpec(
+                url = release.apkUrl,
+                fileName = fileName(release),
+                mimeType = APK_MIME,
+                headers = emptyMap(),
+                title = activity.getString(R.string.update_download_title, release.version),
             )
-        } catch (e: Exception) {
-            Log.w(TAG, "enqueue failed", e)
-            null
-        }
+        )
     }
 
-    fun progress(activity: Activity, id: Long): Progress = try {
-        val dm = activity.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager
-            ?: return Progress.Failed
-        val cursor = dm.query(DownloadManager.Query().setFilterById(id)) ?: return Progress.Failed
-        cursor.use {
-            if (!it.moveToFirst()) return Progress.Failed
-            val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-            val soFar =
-                it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-            val total =
-                it.getLong(it.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-            when (status) {
-                DownloadManager.STATUS_SUCCESSFUL -> Progress.Done
-                DownloadManager.STATUS_FAILED -> Progress.Failed
-                else -> Progress.Running(soFar, total)
-            }
+    /** Polled every second by UpdateDialog; a failed query reads as a failed download. */
+    fun progress(activity: Activity, id: Long): Progress {
+        val info = Downloader.query(activity, id)?.firstOrNull() ?: return Progress.Failed
+        return when (info.status) {
+            DownloadStatus.SUCCESSFUL -> Progress.Done
+            DownloadStatus.FAILED -> Progress.Failed
+            else -> Progress.Running(info.bytesSoFar, info.totalBytes)
         }
-    } catch (e: Exception) {
-        // A SecurityException or SQLiteException from a stripped or operator-locked Downloads
-        // provider is realistic on the TV boxes this app targets — the same firmware class the
-        // DownloadManager service lookup above already anticipates. UpdateDialog polls this
-        // every second for the whole download, so a crash here would take down the process
-        // mid-download; degrade like enqueue does instead.
-        Log.w(TAG, "progress query failed", e)
-        Progress.Failed
     }
 }

@@ -1,11 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- The update channel saves the APK into public Downloads, where a file manager can reach
-         it; mrowser never installs it, so there is no REQUEST_INSTALL_PACKAGES here. Scoped
-         storage makes this free from API 29, hence the cap. -->
+    <!-- Downloads (the update channel's APK among them) are saved into public Downloads, where a
+         file manager can reach them too. Scoped storage makes this free from API 29, hence the
+         cap. -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
+    <!-- Hands a downloaded APK to the system installer (ApkInstaller), always after the user's
+         press on Install; the installer then asks the user to confirm. Nothing installs silently. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Package visibility (API 30+): without this, resolving the favorites-import picker returns
          null even where DocumentsUI exists, and every box would look picker-less. -->
     <queries>

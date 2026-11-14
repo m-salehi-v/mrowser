@@ -3,6 +3,7 @@ package net.mrowser.player
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.res.ColorStateList
+import android.net.Uri
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -23,6 +24,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -83,9 +86,19 @@ class PlayerActivity : Activity() {
             if (cookie.isNullOrEmpty()) dataSpec
             else dataSpec.withAdditionalHeaders(mapOf("Cookie" to cookie))
         }
+        // A finished download plays from its content:// or file:// URI, which only DefaultDataSource
+        // opens. A web stream keeps the http-only factory: DefaultDataSource would also follow a
+        // file:, content: or asset: URI that a hostile manifest lists, and read local data.
+        val scheme = Uri.parse(request.url).scheme?.lowercase()
+        val sourceFactory: DataSource.Factory =
+            if (scheme == "content" || scheme == "file") {
+                DefaultDataSource.Factory(this, dataSourceFactory)
+            } else {
+                dataSourceFactory
+            }
         val exo = ExoPlayer.Builder(this)
             .setTrackSelector(trackSelector)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(sourceFactory))
             .build()
         player = exo
         playerView.player = exo

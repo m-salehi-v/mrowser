@@ -154,11 +154,20 @@
             <ImageButton
                 android:id="@+id/historyButton"
                 style="@style/Widget.Mrowser.BarIcon"
-                android:nextFocusRight="@id/historyButton"
                 android:nextFocusUp="@id/historyButton"
                 android:nextFocusDown="@id/historyButton"
                 android:src="@drawable/ic_history"
                 android:contentDescription="@string/history" />
+
+            <!-- Draws a thin progress ring around its icon while anything downloads. -->
+            <net.mrowser.download.DownloadsButton
+                android:id="@+id/downloadsButton"
+                style="@style/Widget.Mrowser.BarIcon"
+                android:nextFocusRight="@id/downloadsButton"
+                android:nextFocusUp="@id/downloadsButton"
+                android:nextFocusDown="@id/downloadsButton"
+                android:src="@drawable/ic_download"
+                android:contentDescription="@string/downloads" />
         </LinearLayout>
 
         <!-- A capsule with an accent play button; CursorLayout hit-tests its bounds for OK. -->
@@ -180,6 +189,53 @@
             android:textColor="@color/on_surface"
             android:textSize="17sp"
             android:visibility="gone" />
+
+        <!-- Download progress, bottom-left so it never meets the centred play chip (the label's
+             maxWidth keeps it short of the centre). CursorLayout hit-tests its bounds for OK. -->
+        <LinearLayout
+            android:id="@+id/downloadChip"
+            android:layout_width="wrap_content"
+            android:layout_height="52dp"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="32dp"
+            android:layout_marginBottom="36dp"
+            android:background="@drawable/chip_bg"
+            android:elevation="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="22dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_download_chip" />
+
+            <TextView
+                android:id="@+id/downloadChipLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:maxWidth="180dp"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/on_surface"
+                android:textSize="17sp" />
+
+            <TextView
+                android:id="@+id/downloadChipTrailing"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:singleLine="true"
+                android:fontFeatureSettings="tnum"
+                android:textColor="@color/text_secondary"
+                android:textSize="17sp"
+                android:visibility="gone" />
+        </LinearLayout>
     </net.mrowser.web.CursorLayout>
 
     <!-- Why a page didn't load. Outside CursorLayout, whose dispatchKeyEvent would take the
@@ -197,6 +253,12 @@
 
     <net.mrowser.home.HistoryView
         android:id="@+id/historyView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <net.mrowser.download.DownloadsView
+        android:id="@+id/downloadsView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />

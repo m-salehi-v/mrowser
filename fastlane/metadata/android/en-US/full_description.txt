@@ -29,7 +29,7 @@ Websites assume a mouse. mrowser gives you a virtual cursor driven by the D-pad,
 
 <b>Private and self-contained</b>
 
-* Internet access only, plus storage on Android 9 and older for downloads
+* Internet, storage on Android 9 and older (for downloads), and permission to ask Android to install apps you download
 * Checks GitHub for updates once a day; sends nothing about you
 * No Google Play Services, no accounts, no analytics, no telemetry
 * Works on de-Googled and minimal Android TV builds

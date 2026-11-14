@@ -39,13 +39,13 @@ object FavoritesBackupFile {
         "com.android.providers.downloads.documents", "downloads"
     )
 
-    /** Below API 29 this needs WRITE_EXTERNAL_STORAGE — see ApkDownloader.hasStoragePermission. */
+    /** Below API 29 this needs WRITE_EXTERNAL_STORAGE — see Downloader.hasStoragePermission. */
     fun export(context: Context, json: String): String? = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) exportScoped(context, json)
         else exportLegacy(context, json)
     } catch (e: Exception) {
         // IOException, or a SecurityException / IllegalStateException from a stripped or
-        // operator-locked media provider — the same firmware class ApkDownloader anticipates.
+        // operator-locked media provider — the same firmware class Downloader anticipates.
         Log.w(TAG, "export failed", e)
         null
     }
