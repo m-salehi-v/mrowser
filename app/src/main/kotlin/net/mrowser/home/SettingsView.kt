@@ -13,8 +13,9 @@ import net.mrowser.adblock.BlockList
 import net.mrowser.data.CursorSpeed
 import net.mrowser.data.Settings
 import net.mrowser.data.SettingsRepository
+import net.mrowser.web.SearchEngine
 
-/** Settings overlay: auto-open, display-mode matching, pop-up blocker, ad blocker, cursor speed,
+/** Settings overlay: auto-open, display-mode matching, search engine, pop-up blocker, ad blocker, cursor speed,
  *  block-list info, favorites export/import. */
 class SettingsView @JvmOverloads constructor(
     context: Context,
@@ -26,8 +27,10 @@ class SettingsView @JvmOverloads constructor(
     private val resolutionRow: View
     private val popupRow: View
     private val adsRow: View
+    private val searchRow: View
     private val cursorRow: View
     private val listsRow: View
+    private val searchValue: TextView
     private val cursorValue: TextView
     private val listsValue: TextView
 
@@ -45,8 +48,10 @@ class SettingsView @JvmOverloads constructor(
         resolutionRow = findViewById(R.id.settingsResolutionRow)
         popupRow = findViewById(R.id.settingsPopupRow)
         adsRow = findViewById(R.id.settingsAdsRow)
+        searchRow = findViewById(R.id.settingsSearchRow)
         cursorRow = findViewById(R.id.settingsCursorRow)
         listsRow = findViewById(R.id.settingsListsRow)
+        searchValue = findViewById(R.id.settingsSearchValue)
         cursorValue = findViewById(R.id.settingsCursorValue)
         listsValue = findViewById(R.id.settingsListsValue)
 
@@ -55,6 +60,7 @@ class SettingsView @JvmOverloads constructor(
         resolutionRow.setOnClickListener { toggleMatchResolution() }
         popupRow.setOnClickListener { toggleBlockPopups() }
         adsRow.setOnClickListener { toggleBlockAds() }
+        searchRow.setOnClickListener { pickSearchEngine() }
         cursorRow.setOnClickListener { pickCursor() }
         listsRow.setOnClickListener { showLists() }
         findViewById<View>(R.id.settingsExportRow).setOnClickListener { onExportFavorites() }
@@ -96,6 +102,7 @@ class SettingsView @JvmOverloads constructor(
         showToggle(resolutionRow, R.string.match_resolution_title, s.matchResolution)
         showToggle(popupRow, R.string.block_popups_title, s.blockPopups)
         showToggle(adsRow, R.string.block_ads_title, s.blockAds)
+        searchValue.text = s.searchEngine.label
         cursorValue.setText(cursorLabelRes(s.cursorSpeed))
         listsValue.text = grouped(blockList().size)
     }
@@ -139,6 +146,20 @@ class SettingsView @JvmOverloads constructor(
         val s = current()
         repository?.update(s.copy(blockAds = !s.blockAds))
         render()
+    }
+
+    private fun pickSearchEngine() {
+        val options = SearchEngine.values()
+        val labels = options.map { it.label }.toTypedArray()
+        // Single-choice, as pickCursor: the current engine carries the checked dot.
+        AlertDialog.Builder(context)
+            .setTitle(R.string.search_engine_title)
+            .setSingleChoiceItems(labels, options.indexOf(current().searchEngine)) { dialog, which ->
+                repository?.update(current().copy(searchEngine = options[which]))
+                render()
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun pickCursor() {

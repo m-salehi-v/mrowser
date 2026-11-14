@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">mrowser</string>
-    <string name="url_hint">Enter address</string>
+    <string name="url_hint">Search or type a web address</string>
     <string name="go">Go</string>
     <string name="back">Back</string>
     <string name="reload">Reload</string>
@@ -41,6 +41,7 @@
     <string name="auto_open_title">Auto-open synced player</string>
     <string name="match_frame_rate_title">Match frame rate</string>
     <string name="match_resolution_title">Match resolution</string>
+    <string name="search_engine_title">Search engine</string>
     <string name="cursor_speed_title">Cursor speed</string>
     <string name="settings_section_playback">Playback</string>
     <string name="settings_section_browsing">Browsing</string>
@@ -64,8 +65,12 @@
     <string name="export_favorites_denied">Storage permission is needed to save to Downloads.</string>
     <string name="import_favorites_done">Imported %1$d favorites (%2$d already present)</string>
     <string name="import_favorites_done_skipped">Imported %1$d favorites (%2$d already present, %3$d skipped)</string>
+    <string name="import_bookmarks_done">Imported %1$d favorites from bookmarks.html (%2$d already present)</string>
+    <string name="import_bookmarks_done_skipped">Imported %1$d favorites from bookmarks.html (%2$d already present, %3$d skipped)</string>
+    <string name="import_bookmarks_capped">Imported %1$d favorites from bookmarks.html; %2$d more were left out.</string>
+    <string name="import_favorites_capped">Imported %1$d favorites; %2$d more were left out.</string>
     <string name="import_favorites_empty">No favorites found in that file.</string>
-    <string name="import_favorites_invalid">That isn\'t an mrowser favorites file.</string>
+    <string name="import_favorites_invalid">That isn\'t a favorites or bookmarks file.</string>
     <string name="import_favorites_unreadable">Couldn\'t read that file.</string>
     <string name="import_favorites_no_picker_title">No file picker</string>
     <string name="import_favorites_no_picker">This device has no file picker, so mrowser can\'t open a file to import.\n\nExport still works: it saves %1$s to Downloads.</string>

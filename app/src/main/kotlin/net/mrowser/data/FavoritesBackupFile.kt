@@ -30,8 +30,9 @@ object FavoritesBackupFile {
 
     private const val TAG = "FavoritesBackupFile"
 
-    /** Larger than any real favorites list; a wrong pick must not read a video into memory. */
-    private const val MAX_BYTES = 1 shl 20
+    /** Larger than any real favorites list or bookmarks.html (Firefox embeds a favicon per
+     *  bookmark); a wrong pick must not read a video into memory. */
+    private const val MAX_BYTES = 8 shl 20
 
     /** The Downloads root of the system's Downloads documents provider. */
     private val DOWNLOADS_DOCUMENT: Uri = DocumentsContract.buildDocumentUri(
