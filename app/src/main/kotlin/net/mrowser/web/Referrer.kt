@@ -5,8 +5,7 @@ import java.net.URISyntaxException
 
 /**
  * Pure: the Referer a browser sends from a page to a URL, under its default policy,
- * `strict-origin-when-cross-origin`. Used where the app makes the request on the page's behalf:
- * a download, and a click the User-Agent gate cancelled and re-issued with `loadUrl`.
+ * `strict-origin-when-cross-origin`, for a request the app makes on the page's behalf (a download).
  */
 object Referrer {
 
