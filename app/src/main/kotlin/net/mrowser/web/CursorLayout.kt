@@ -63,11 +63,6 @@ class CursorLayout @JvmOverloads constructor(
             invalidate()
         }
 
-    private val busyTrackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = BUSY_STROKE_DP * density
-        color = context.getColor(R.color.cursor_busy_track)
-    }
     private val busyArcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = BUSY_STROKE_DP * density
@@ -203,7 +198,6 @@ class CursorLayout @JvmOverloads constructor(
             canvas.drawCircle(cursor.x, cursor.y, r, outlinePaint)
             if (busy && isAttachedToWindow) {
                 val ring = BUSY_RADIUS_DP * density
-                canvas.drawCircle(cursor.x, cursor.y, ring, busyTrackPaint)
                 busyBounds.set(cursor.x - ring, cursor.y - ring, cursor.x + ring, cursor.y + ring)
                 val angle = (SystemClock.uptimeMillis() % BUSY_PERIOD_MS) * 360f / BUSY_PERIOD_MS
                 canvas.drawArc(busyBounds, angle, BUSY_SWEEP_DEG, false, busyArcPaint)
