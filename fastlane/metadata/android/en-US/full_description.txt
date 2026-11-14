@@ -16,6 +16,15 @@ Side-loaded subtitles are almost never quite in step. mrowser renders them itsel
 <b>Every site reachable from the remote</b>
 Websites assume a mouse. mrowser gives you a virtual cursor driven by the D-pad, with acceleration and edge detection, so hover menus, small controls and non-focusable links all become clickable from the couch. OK clicks, a long press switches to normal focus navigation, and cursor speed is adjustable.
 
+<b>A browser, not just a player</b>
+
+* Type an address or just words: a search goes to DuckDuckGo, Google, Bing, Brave Search or Startpage
+* Files a site offers are saved to Downloads once you confirm, with a Downloads page to play, open, retry or install them
+* APKs install through Android's own installer, which asks you first
+* A page menu switches a site to its desktop version and zooms it from 50% to 200%, remembered per site
+* A loading line while a page loads, and a plain-words error screen with Try again when one fails
+* Favourites import from a browser's bookmarks.html (Chrome, Firefox, Edge, Safari)
+
 <b>Built for TV hardware and TV remotes</b>
 
 * Address bar opens on a held BACK, for the many remotes with no MENU key

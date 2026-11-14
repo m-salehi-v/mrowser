@@ -1,0 +1,13 @@
+Search, downloads and a page menu.
+
+Added: search from the address field; pick the engine in Settings.
+
+Added: downloads. Files are saved after you confirm; the Downloads page plays videos, opens files and installs APKs through Android's installer.
+
+Added: a ⋯ menu with Desktop site and Zoom, remembered per site.
+
+Added: a loading line, and an error screen instead of a blank page.
+
+Added: import favourites from bookmarks.html.
+
+Fixed (untested on Fire TV): dialogs cut off on Fire OS.
