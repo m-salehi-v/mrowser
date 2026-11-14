@@ -10,4 +10,4 @@ Added: a loading line, and an error screen instead of a blank page.
 
 Added: import favourites from bookmarks.html.
 
-Fixed: dialogs cut off on the left on Fire OS.
+Fixed (untested on Fire TV): dialogs cut off on Fire OS.
