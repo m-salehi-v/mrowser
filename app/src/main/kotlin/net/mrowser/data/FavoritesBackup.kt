@@ -24,10 +24,38 @@ object FavoritesBackup {
     private const val APP = "mrowser"
     private const val VERSION = 1
 
+    /** Where an imported file came from: this app's own export, or a browser's bookmarks.html. */
+    enum class Source { MROWSER, BOOKMARKS_HTML }
+
     /** [skipped] counts entries dropped as malformed or not a web page, for the import message. */
-    data class Parsed(val favorites: List<Favorite>, val skipped: Int)
+    data class Parsed(val favorites: List<Favorite>, val skipped: Int, val source: Source = Source.MROWSER)
 
     data class Summary(val added: Int, val alreadyPresent: Int)
+
+    /** The most new favorites one import adds: a browser's bookmarks can run to thousands. */
+    const val MAX_NEW = 200
+
+    /** [favorites] is what to merge; [leftOut] counts the distinct new urls dropped by the cap. */
+    data class Capped(val favorites: List<Favorite>, val leftOut: Int)
+
+    /** Keeps every [imported] entry whose url is already in [existing] (merging it is harmless)
+     *  and the first [max] distinct new urls, in file order. */
+    fun capNew(existing: List<Favorite>, imported: List<Favorite>, max: Int = MAX_NEW): Capped {
+        val have = existing.mapTo(HashSet()) { it.url }
+        val taken = HashSet<String>()
+        var leftOut = 0
+        val kept = ArrayList<Favorite>()
+        val dropped = HashSet<String>()
+        for (f in imported) {
+            when {
+                f.url in have || f.url in taken -> kept += f
+                f.url in dropped -> Unit
+                taken.size < max -> { taken += f.url; kept += f }
+                else -> { dropped += f.url; leftOut++ }
+            }
+        }
+        return Capped(kept, leftOut)
+    }
 
     fun toJson(items: List<Favorite>): String =
         JSONObject()
@@ -36,8 +64,12 @@ object FavoritesBackup {
             .put("favorites", JSONArray(FavoritesJson.toJson(items)))
             .toString(2)
 
-    /** The favorites in [text], possibly none; null when it is not a favorites file at all. */
-    fun parse(text: String): Parsed? {
+    /** The favorites in [text], possibly none; null when it is not a favorites file at all. JSON
+     *  first, then a browser's bookmarks.html. */
+    fun parse(text: String): Parsed? =
+        parseJson(text) ?: if (BookmarksHtml.looksLike(text)) BookmarksHtml.parse(text) else null
+
+    private fun parseJson(text: String): Parsed? {
         val root = try {
             JSONTokener(text).nextValue()
         } catch (e: JSONException) {
