@@ -105,7 +105,7 @@
       <a class="btn primary" href="https://github.com/m-salehi-v/mrowser/releases/latest">Download the APK</a>
       <a class="btn" href="https://github.com/m-salehi-v/mrowser">Source on GitHub</a>
     </div>
-    <p class="meta"><span>MIT licensed</span><span>Android 6.0+</span><span>No Play Services</span><span>One permission: INTERNET</span></p>
+    <p class="meta"><span>MIT licensed</span><span>Android 6.0+</span><span>No Play Services</span><span>No accounts, no tracking</span></p>
   </div>
 </header>
 
@@ -158,8 +158,16 @@
         <p>A bundled list of about 90,000 known ad hosts, refreshed weekly. Requests to them are answered with an empty stand-in, so a page waiting on its ads still finishes loading, and a script that hijacks your click to open an ad tab gets nowhere. The shield in the address bar counts what was stopped, and allows a site in one press. The video stream is never touched.</p>
       </div>
       <div>
+        <h3>A browser you can live in</h3>
+        <p>Type words in the address field to search — DuckDuckGo by default, or Google, Bing, Brave Search or Startpage. A ⋯ menu switches a site to its desktop version and zooms it from 50% to 200%, remembered per site. A red line shows a page loading, and a page that fails says why in plain words, with Try again, Go back and Home. Favourites import from a browser's <code>bookmarks.html</code>.</p>
+      </div>
+      <div>
+        <h3>Downloads, when you say so</h3>
+        <p>A file a site offers is saved to the TV's Downloads folder once you confirm it. The Downloads page shows progress, speed and time left; OK plays a video in the native player, opens a file, retries a failed one, or hands an APK to Android's own installer, which asks you before anything is installed.</p>
+      </div>
+      <div>
         <h3>Small, quiet, and yours</h3>
-        <p>One permission: INTERNET. No Play Services, no accounts, no analytics, no telemetry. Plain Kotlin, no Compose beyond Media3, a single module — light enough for weak TV boxes.</p>
+        <p>Internet, storage on Android 9 and older, and permission to ask Android to install an APK you download. No Play Services, no accounts, no analytics, no telemetry. Plain Kotlin, no Compose beyond Media3, a single module — light enough for weak TV boxes.</p>
       </div>
     </div>
   </div>
@@ -195,8 +203,10 @@
         <tr><td>OK</td><td>Click at the cursor</td></tr>
         <tr><td>OK long-press</td><td>Switch between cursor mode and focus mode</td></tr>
         <tr><td>D-pad held at the screen edge</td><td>Scroll at the cursor — so a cookie dialog with its own scrollbar scrolls too</td></tr>
-        <tr><td>MENU <em>or</em> BACK held</td><td>Open the address bar — the hold is for remotes with no MENU key</td></tr>
+        <tr><td>MENU <em>or</em> BACK held</td><td>Open the address bar to type an address or a search — the hold is for remotes with no MENU key</td></tr>
         <tr><td>BACK tapped</td><td>Address bar → page history → close page → home</td></tr>
+        <tr><td>⋯ in the address bar</td><td>Desktop site and zoom for this site; LEFT / RIGHT steps the zoom</td></tr>
+        <tr><td>OK on a download</td><td>Play, install, open or retry it; hold OK for more options</td></tr>
         <tr><td>− / + in the player</td><td>Shift subtitle timing by 0.5s, live, with no rebuffer</td></tr>
       </tbody>
     </table>
@@ -212,6 +222,7 @@
       <li>Allow installs from unknown sources for whichever app you used.</li>
       <li>Launch mrowser from the Android TV launcher — it registers as a Leanback app.</li>
     </ol>
+    <p>mrowser checks GitHub for a new release once a day and says so at the bottom of the home screen. Its Download saves the new APK, which then installs from the Downloads page through Android's installer; your favourites and settings are kept.</p>
     <p>For automatic updates, add the repository to <a href="https://github.com/ImranR98/Obtainium">Obtainium</a> as an app source:</p>
     <pre><code>https://github.com/m-salehi-v/mrowser</code></pre>
     <p class="note"><b>What it covers:</b> sites that stream over HLS, DASH, or a plain video file (MP4, M4V, WebM, MKV) — which is most of the streaming web. Detection reads the page's request URLs, so a site that hides its stream behind its own protocol (YouTube among them) is not handed off, and DRM/Widevine content stays in the browser by design. Both still play in the page, just without the native player.</p>

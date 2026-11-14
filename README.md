@@ -65,14 +65,18 @@ mrowser fixes all three:
 - **Native Media3 / ExoPlayer playback** — correct **A/V sync**, with in-player **quality**, **audio-track**, and **playback-speed** selection in the player's settings gear.
 - **Live subtitle sync** — the app renders side-loaded subtitles itself (VTT **and** SRT) so you can nudge their timing **±0.5s per press** (clamped to ±30s) **instantly, with no rebuffer** — solving the classic "subtitles are a second behind" problem ExoPlayer can't fix live.
 - **Smart subtitle labelling** — side-loaded tracks carry no language metadata, so mrowser infers a readable name (English, Persian, …) from the subtitle URL, else a generic `Subtitle N`.
-- **Home screen with favorites** — a favorites grid; add/remove the current page with the ★ button.
+- **Search from the address field** — type an address or just words: anything that doesn't read as an address goes to your search engine (DuckDuckGo by default; Google, Bing, Brave Search or Startpage in Settings).
+- **Home screen with favorites** — a favorites grid; add/remove the current page with the ★ button. Export them to a file, and import that file or a `bookmarks.html` exported from Chrome, Firefox, Edge or Safari.
 - **Browsing history** — newest-first, deduplicated, with relative "Nm ago" labels; long-press to favorite.
 - **Ad blocking** — requests to ~90k known ad and pop-under hosts (OISD small + HaGeZi Pop-Up Ads, bundled and refreshed weekly) are answered with an empty stand-in, and a `window.open` or in-page redirect to one of them is refused while the page stays put. Per-site allow from the chrome bar, blocked counter, never touches the video stream itself.
 - **System browser registration** — links from other apps offer mrowser in the chooser, and one arriving while it runs navigates the page you are on instead of stacking a second browser. A link that belongs to another app (`market://`, `mailto:`, `intent://`, …) is handed to the system when you click it rather than dead-ending on the WebView's error page.
+- **Downloads** — a file a site offers is saved to the device's `Downloads/` folder once you confirm it, with the page's cookies attached. The **Downloads** page shows progress, speed and time left, and plays a video in the native player, opens a file, retries a failed download, or installs an APK through Android's own installer.
+- **Desktop site and zoom** — the ⋯ menu in the chrome bar switches a site to its desktop version and zooms the page from 50% to 200%, both remembered per site; a Settings switch makes desktop the default.
+- **Loading feedback and error screen** — a thin red line and a ring round the cursor while a page loads; a page that fails to load says why in plain words (no internet, site not found, certificate problem, server error, …) with **Try again**, **Go back** and **Home**, instead of a blank or grey page.
 - **Pop-up handling** — a window the user opens loads in the current window (there are no tabs) unless its destination is a known ad host; `target="_blank"` links still work and BACK returns you.
-- **Global settings** — auto-open-player, block-pop-ups, block-ads, and cursor-speed, applied live with no restart.
+- **Global settings** — auto-open-player, display-mode matching, block-pop-ups, block-ads, search engine, desktop-site-by-default, and cursor-speed, applied live with no restart.
 - **Fullscreen HTML5 video** support in the WebView for sites that need it.
-- **D-pad chrome bar** — address bar summoned with **MENU**, with URL normalization, plus a ★ favorite toggle and a shield button that allows/blocks ads per site and shows a blocked-request count.
+- **D-pad chrome bar** — address bar summoned with **MENU** or a held **BACK**, taking an address or a search, plus a ★ favorite toggle, a shield button that allows/blocks ads per site and shows a blocked-request count, History, Downloads and the ⋯ page menu.
 - **Netflix-style dark UI**, brand red `#E50914`.
 - **Sideload-only, no Google Play Services**, `minSdk 23`.
 
@@ -157,10 +161,12 @@ mrowser is driven entirely by a standard **D-pad remote** (directional pad + OK 
 | **OK / Center** | Click at the cursor position |
 | **OK long-press** | Toggle between **CURSOR** mode (free pointer) and **FOCUS** mode |
 | **D-pad held at the top / bottom edge** | Scroll — at the cursor, so an overlay or cookie dialog with its own scrollbar scrolls too |
-| **MENU** *or* **BACK long-press** | Open the chrome / address bar to type or navigate a URL. Many TV remotes (e.g. the Mi Box 4K) have no MENU key — hold BACK for 500ms instead. |
+| **MENU** *or* **BACK long-press** | Open the chrome / address bar to type an address or a search. Many TV remotes (e.g. the Mi Box 4K) have no MENU key — hold BACK for 500ms instead. |
 | **BACK** (tap) | Step back: chrome bar → WebView history → "Close this page?" → home |
 | **★ (favorite button)** | Add/remove the current page to favorites |
 | **Shield button** | Allow/block ads on the current site (shows a blocked-request count) |
+| **Downloads button** | Open the Downloads page (a ring fills on it while something downloads) |
+| **⋯ (page menu)** | **Desktop site** switch and **Zoom** for the current site (LEFT/RIGHT steps the zoom, OK resets it) |
 
 In the **native player**:
 
@@ -171,7 +177,9 @@ In the **native player**:
 | **CC button** (sub-sync box, top-left) | Toggle subtitles on/off and pick a track |
 | **`[−]` / `[+]`** (sub-sync box) | Nudge subtitle timing by ±0.5s (live, no rebuffer) |
 
-The **home screen** offers a favorites grid, a URL entry, browsing **History**, and **Settings** (auto-open-player toggle, block-pop-ups toggle, block-ads toggle, cursor speed, and an ad-block-lists attribution row).
+On the **Downloads page**, OK runs a row's action (**Play**, **Install**, **Open** or **Retry**); hold OK or press MENU for Cancel download, Delete file, Remove from list and Copy link.
+
+The **home screen** offers a favorites grid, an address/search field, browsing **History**, **Downloads** (its icon turns red while something downloads), and **Settings** (auto-open-player, match frame rate and resolution, block pop-ups, block ads, search engine, desktop site by default, cursor speed, an ad-block-lists attribution row, and favorites export/import).
 
 > For the full, authoritative control scheme and edge cases, see the milestone specs and plans in [`docs/superpowers/`](docs/superpowers/).
 
@@ -243,6 +251,12 @@ Because they infer "blocked" from a request *failing*. mrowser answers a blocked
 
 **Can I open links from other apps in mrowser?**
 Yes. mrowser registers as a system browser, so an `http`/`https` link from another app offers it in the chooser and it appears under the system's browser category; a link arriving while it is already running navigates the page you are on. Only ordinary web addresses are followed — a `file:` or `javascript:` URL handed in from another app is refused.
+
+**Can mrowser download files?**
+Yes — a file a site offers for download (an APK, a PDF, a video sent as an attachment) is saved to `Downloads/` after you confirm it, and listed on the Downloads page. It does not download or record HLS/DASH streams; those play in the native player.
+
+**Can I bring my bookmarks from another browser?**
+Yes. Export them from Chrome, Firefox, Edge or Safari as `bookmarks.html`, then use **Settings → Import favorites**; folders are flattened into the favorites grid. Import needs a file picker, which some TV boxes do not ship.
 
 **My subtitles are out of sync — can I fix that?**
 Yes. mrowser renders side-loaded subtitles itself, so the **sub-sync box** in the player lets you nudge subtitle timing by ±0.5s per press (up to ±30s), applied **instantly without rebuffering** — true **ExoPlayer subtitle sync** that the underlying player can't do on its own.
