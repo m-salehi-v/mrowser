@@ -74,4 +74,43 @@ class PageErrorTest {
         assertEquals(PageError.EmptyVerdict.NOT_EMPTY, PageError.emptyVerdict(2, "false"))
         assertEquals(PageError.EmptyVerdict.NOT_EMPTY, PageError.emptyVerdict(2, null))
     }
+
+    @Test fun `the empty-page script recognises Chromium's own error page`() {
+        // an empty-bodied 503 clicked from a page commits "Webpage not available", which has text
+        assertTrue(PageError.EMPTY_PAGE_SCRIPT.contains("getElementById('main-frame-error')"))
+        assertTrue(PageError.EMPTY_PAGE_SCRIPT.contains("neterror(\\s|$)/.test(b.className"))
+        assertTrue(PageError.EMPTY_PAGE_SCRIPT.contains("return '${PageError.NET_ERROR_PAGE}'"))
+        // and the check for it comes before the text check, which would call that page full
+        assertTrue(
+            PageError.EMPTY_PAGE_SCRIPT.indexOf("main-frame-error") < PageError.EMPTY_PAGE_SCRIPT.indexOf("innerText")
+        )
+    }
+
+    @Test fun `Chromium's error page is empty at the first check`() {
+        assertTrue(PageError.isEmptyPage("\"neterror\""))
+        assertEquals(PageError.EmptyVerdict.EMPTY, PageError.emptyVerdict(1, "\"neterror\""))
+        assertEquals(PageError.EmptyVerdict.NOT_EMPTY, PageError.emptyVerdict(1, "\"something else\""))
+    }
+
+    @Test fun `an empty-bodied error reported through onReceivedError is still a server error`() =
+        assertEquals(PageErrorKind.SERVER, PageError.classify(-1, "net::ERR_HTTP_RESPONSE_CODE_FAILURE"))
+
+    @Test fun `an error status with no body is a server error without the page check`() {
+        assertEquals(PageError.HttpErrorAction.SHOW, PageError.httpErrorAction(503, mapOf("Content-Length" to "0")))
+        assertEquals(PageError.HttpErrorAction.SHOW, PageError.httpErrorAction(404, mapOf("content-length" to " 0 ")))
+        assertEquals(PageError.HttpErrorAction.SHOW, PageError.httpErrorAction(500, mapOf("CONTENT-LENGTH" to "0", "Server" to "x")))
+    }
+
+    @Test fun `an error status with a body, or no length, runs the page check`() {
+        // the site's own error page stays visible unless it really is empty
+        assertEquals(PageError.HttpErrorAction.CHECK_PAGE, PageError.httpErrorAction(404, mapOf("Content-Length" to "1532")))
+        assertEquals(PageError.HttpErrorAction.CHECK_PAGE, PageError.httpErrorAction(503, mapOf("Transfer-Encoding" to "chunked")))
+        assertEquals(PageError.HttpErrorAction.CHECK_PAGE, PageError.httpErrorAction(503, emptyMap()))
+        assertEquals(PageError.HttpErrorAction.CHECK_PAGE, PageError.httpErrorAction(503, null))
+    }
+
+    @Test fun `a status below 400 is not an error`() {
+        assertEquals(PageError.HttpErrorAction.IGNORE, PageError.httpErrorAction(204, mapOf("Content-Length" to "0")))
+        assertEquals(PageError.HttpErrorAction.IGNORE, PageError.httpErrorAction(399, emptyMap()))
+    }
 }

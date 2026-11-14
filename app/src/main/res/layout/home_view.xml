@@ -57,30 +57,14 @@
             android:drawableStart="@drawable/ic_history_20"
             android:text="@string/history" />
 
-        <!-- The dot is its own view: the pill's drawableTint would whiten a compound drawable. -->
-        <FrameLayout
+        <Button
+            android:id="@+id/homeDownloadsButton"
+            style="@style/Widget.Mrowser.Pill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:clipChildren="false">
-
-            <Button
-                android:id="@+id/homeDownloadsButton"
-                style="@style/Widget.Mrowser.Pill"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:drawableStart="@drawable/ic_download_20"
-                android:text="@string/downloads" />
-
-            <View
-                android:id="@+id/homeDownloadsDot"
-                android:layout_width="8dp"
-                android:layout_height="8dp"
-                android:layout_gravity="top|end"
-                android:background="@drawable/update_dot"
-                android:importantForAccessibility="no"
-                android:visibility="gone" />
-        </FrameLayout>
+            android:drawableStart="@drawable/ic_download_20"
+            android:text="@string/downloads" />
 
         <ImageButton
             android:id="@+id/homeSettingsButton"

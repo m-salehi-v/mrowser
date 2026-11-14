@@ -17,8 +17,8 @@ interface PageLoadEvents {
     /** The main frame's certificate was rejected (the load is cancelled). */
     fun onMainFrameSslError(url: String) {}
 
-    /** The main frame loaded but the server answered [status] (>= 400). */
-    fun onMainFrameHttpError(url: String, status: Int) {}
+    /** The main frame loaded but the server answered [status] (>= 400) with [headers]. */
+    fun onMainFrameHttpError(url: String, status: Int, headers: Map<String, String>) {}
 
     /**
      * A reload of a page that was a form's result was not sent: the form is never posted again,
