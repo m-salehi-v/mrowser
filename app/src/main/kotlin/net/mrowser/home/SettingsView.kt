@@ -14,8 +14,9 @@ import net.mrowser.data.CursorSpeed
 import net.mrowser.data.Settings
 import net.mrowser.data.SettingsRepository
 import net.mrowser.web.SearchEngine
+import net.mrowser.web.SiteSettings
 
-/** Settings overlay: auto-open, display-mode matching, search engine, pop-up blocker, ad blocker, cursor speed,
+/** Settings overlay: auto-open, display-mode matching, search engine, desktop-by-default, pop-up blocker, ad blocker, cursor speed,
  *  block-list info, favorites export/import. */
 class SettingsView @JvmOverloads constructor(
     context: Context,
@@ -25,6 +26,7 @@ class SettingsView @JvmOverloads constructor(
     private val autoOpenRow: View
     private val frameRateRow: View
     private val resolutionRow: View
+    private val desktopRow: View
     private val popupRow: View
     private val adsRow: View
     private val searchRow: View
@@ -46,6 +48,7 @@ class SettingsView @JvmOverloads constructor(
         autoOpenRow = findViewById(R.id.settingsAutoOpenRow)
         frameRateRow = findViewById(R.id.settingsFrameRateRow)
         resolutionRow = findViewById(R.id.settingsResolutionRow)
+        desktopRow = findViewById(R.id.settingsDesktopRow)
         popupRow = findViewById(R.id.settingsPopupRow)
         adsRow = findViewById(R.id.settingsAdsRow)
         searchRow = findViewById(R.id.settingsSearchRow)
@@ -58,6 +61,7 @@ class SettingsView @JvmOverloads constructor(
         autoOpenRow.setOnClickListener { toggleAutoOpen() }
         frameRateRow.setOnClickListener { toggleMatchFrameRate() }
         resolutionRow.setOnClickListener { toggleMatchResolution() }
+        desktopRow.setOnClickListener { toggleDesktopByDefault() }
         popupRow.setOnClickListener { toggleBlockPopups() }
         adsRow.setOnClickListener { toggleBlockAds() }
         searchRow.setOnClickListener { pickSearchEngine() }
@@ -100,6 +104,7 @@ class SettingsView @JvmOverloads constructor(
         showToggle(autoOpenRow, R.string.auto_open_title, s.autoOpenPlayer)
         showToggle(frameRateRow, R.string.match_frame_rate_title, s.matchFrameRate)
         showToggle(resolutionRow, R.string.match_resolution_title, s.matchResolution)
+        showToggle(desktopRow, R.string.desktop_by_default_title, s.desktopByDefault)
         showToggle(popupRow, R.string.block_popups_title, s.blockPopups)
         showToggle(adsRow, R.string.block_ads_title, s.blockAds)
         searchValue.text = s.searchEngine.label
@@ -133,6 +138,14 @@ class SettingsView @JvmOverloads constructor(
     private fun toggleMatchResolution() {
         val s = current()
         repository?.update(s.copy(matchResolution = !s.matchResolution))
+        render()
+    }
+
+    /** Changing the default prunes the per-site choices that now equal it, so they cannot shadow it. */
+    private fun toggleDesktopByDefault() {
+        val s = current()
+        val on = !s.desktopByDefault
+        repository?.update(s.copy(desktopByDefault = on, desktopOverride = SiteSettings.pruneDesktop(s.desktopOverride, on)))
         render()
     }
 

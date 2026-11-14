@@ -42,6 +42,7 @@
     <string name="match_frame_rate_title">Match frame rate</string>
     <string name="match_resolution_title">Match resolution</string>
     <string name="search_engine_title">Search engine</string>
+    <string name="desktop_by_default_title">Desktop site by default</string>
     <string name="cursor_speed_title">Cursor speed</string>
     <string name="settings_section_playback">Playback</string>
     <string name="settings_section_browsing">Browsing</string>
@@ -104,6 +105,12 @@
     <string name="download_repeat_blocked">Blocked repeated download requests from this page.</string>
     <string name="download_failed_to_start">Couldn\'t start the download.</string>
     <string name="downloads">Downloads</string>
+    <string name="page_menu">Page menu</string>
+    <string name="page_menu_desktop">Desktop site</string>
+    <string name="page_menu_zoom">Zoom</string>
+    <string name="page_menu_zoom_description">Zoom %1$s. Left and right change it, OK resets it.</string>
+    <string name="page_menu_remembered">Remembered for %1$s</string>
+    <string name="page_menu_no_page">Open a page first.</string>
     <string name="downloads_subtitle">Saved to Downloads on this device</string>
     <string name="downloads_clear_finished">Clear finished</string>
     <string name="downloads_empty">Files you download appear here.</string>

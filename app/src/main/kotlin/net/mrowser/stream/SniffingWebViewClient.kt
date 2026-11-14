@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
+import android.os.Message
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
@@ -31,7 +32,13 @@ class SniffingWebViewClient(
     /** A top-level navigation to a listed host was refused; the page stays. */
     private val onNavigationBlocked: () -> Unit = {},
     /** Page-load signals (starting, visible, errors); see [PageLoadEvents]. */
-    private val pageEvents: PageLoadEvents = object : PageLoadEvents {}
+    private val pageEvents: PageLoadEvents = object : PageLoadEvents {},
+    /**
+     * Asked for every top-level navigation that will go ahead. true = cancel; the app re-issues
+     * this main-frame navigation with the other User-Agent. [userGesture] is true only for a
+     * navigation the user's own click started, never for a server redirect. UI thread.
+     */
+    private val userAgentGate: (url: String, userGesture: Boolean) -> Boolean = { _, _ -> false }
 ) : WebViewClient() {
 
     /** The main-frame URL being loaded, to tell a main-frame SSL error from a sub-resource one. */
@@ -96,6 +103,16 @@ class SniffingWebViewClient(
         if (MainFrameUrl.same(url, navigatingUrl)) pageEvents.onMainFrameSslError(url)
     }
 
+    /**
+     * A reload (the bar's, the page menu's Desktop site, the User-Agent safety net) of a POST
+     * result. Never re-post a form behind the user's back; the default does the same, but
+     * silently, and the loading line would then wait out its timeout on a page that is there.
+     */
+    override fun onFormResubmission(view: WebView?, dontResend: Message?, resend: Message?) {
+        dontResend?.sendToTarget()
+        pageEvents.onReloadNotResent()
+    }
+
     /** Only called on API 26+, where [RenderProcessGoneDetail.didCrash] exists. */
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         val crashed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) detail?.didCrash() ?: true else true
@@ -114,6 +131,9 @@ class SniffingWebViewClient(
         if (consume(url.scheme, target, request.hasGesture())) return true
         if (!request.isForMainFrame) return false
         if (refuseIfListed(target)) return true
+        // A redirect keeps its click's gesture flag; counting it as a fresh click would let a
+        // redirect ping-pong between a desktop and a mobile site switch (and reload) forever.
+        if (userAgentGate(target, request.hasGesture() && !request.isRedirect)) return true
         // Not consumed and not refused: the page really is about to navigate. This is the
         // earliest signal of a click; onPageStarted waits for the server.
         starting(target)
@@ -129,6 +149,10 @@ class SniffingWebViewClient(
         if (consume(Uri.parse(target).scheme, target, isUserGesture = true)) return true
         // No frame flag either: this overload is only called for top-level navigations.
         if (refuseIfListed(target)) return true
+        // Unlike the scheme check above, no gesture here: this overload is also called for every
+        // server redirect, which would then reset the User-Agent loop guard on each hop. A click
+        // still resets it, through the cursor's page tap.
+        if (userAgentGate(target, false)) return true
         starting(target)
         return false
     }

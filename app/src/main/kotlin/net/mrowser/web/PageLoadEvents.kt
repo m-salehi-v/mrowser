@@ -21,6 +21,12 @@ interface PageLoadEvents {
     fun onMainFrameHttpError(url: String, status: Int, headers: Map<String, String>) {}
 
     /**
+     * A reload of a page that was a form's result was not sent: the form is never posted again,
+     * so the page stays as it is and no start, finish or error follows.
+     */
+    fun onReloadNotResent() {}
+
+    /**
      * The renderer is gone: [crashed] false when the system killed it (to free memory) rather
      * than it crashing. @return true when this was handled and the app must not be killed.
      */

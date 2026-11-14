@@ -50,6 +50,9 @@ class CursorLayout @JvmOverloads constructor(
     /** The user clicked on the page itself (not a chip), after the click is dispatched. */
     var onPageTap: () -> Unit = {}
 
+    /** BACK is about to take the WebView one page back (the user's own navigation). */
+    var onHistoryBack: () -> Unit = {}
+
     private val density = resources.displayMetrics.density
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#E50914") }
     private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -197,7 +200,11 @@ class CursorLayout @JvmOverloads constructor(
     private fun handleBack(): Boolean {
         if (onBack()) return true
         if (chrome.isVisible) { chrome.onPageInteracted(); return true }
-        if (webView.canGoBack()) { webView.goBack(); return true }
+        if (webView.canGoBack()) {
+            onHistoryBack()
+            webView.goBack()
+            return true
+        }
         // Root of history. We consume BACK's ACTION_DOWN above without startTracking,
         // so the Activity's back-tracking never fires onBackPressed — handle it here.
         onExitPage()
