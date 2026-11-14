@@ -35,7 +35,7 @@ class HomeView @JvmOverloads constructor(
     private val emptyHint: TextView
     private val urlInput: EditText
     private val updateButton: Button
-    private val downloadsDot: View
+    private val downloadsButton: Button
 
     private var repository: FavoritesRepository? = null
     private var onOpen: (Favorite) -> Unit = {}
@@ -68,8 +68,8 @@ class HomeView @JvmOverloads constructor(
             }
         }
         findViewById<Button>(R.id.homeHistoryButton).setOnClickListener { onHistory() }
-        findViewById<Button>(R.id.homeDownloadsButton).setOnClickListener { onDownloads() }
-        downloadsDot = findViewById(R.id.homeDownloadsDot)
+        downloadsButton = findViewById(R.id.homeDownloadsButton)
+        downloadsButton.setOnClickListener { onDownloads() }
         findViewById<ImageButton>(R.id.homeSettingsButton).setOnClickListener { onSettings() }
         updateButton = findViewById(R.id.homeUpdateButton)
         updateButton.setOnClickListener { pendingUpdate?.let { release -> onUpdate(release) } }
@@ -198,9 +198,16 @@ class HomeView @JvmOverloads constructor(
         if (release == null && hadFocus) restoreFocus()
     }
 
-    /** The Downloads pill's accent dot: on while anything downloads. */
+    /**
+     * The Downloads pill's icon turns plain accent while anything downloads. A single-colour
+     * tint (not a state list) keeps it red on the white focused pill too, like the bar's star.
+     */
     fun showDownloadsActive(active: Boolean) {
-        downloadsDot.visibility = if (active) View.VISIBLE else View.GONE
+        downloadsButton.compoundDrawableTintList = if (active) {
+            ColorStateList.valueOf(context.getColor(R.color.accent))
+        } else {
+            context.getColorStateList(R.color.pill_content)
+        }
     }
 
     private fun card(fav: Favorite): View {
