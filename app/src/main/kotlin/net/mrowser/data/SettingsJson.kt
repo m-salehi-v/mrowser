@@ -1,5 +1,6 @@
 package net.mrowser.data
 
+import net.mrowser.web.SearchEngine
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -16,6 +17,7 @@ object SettingsJson {
             .put("adsAllowedOn", JSONArray(settings.adsAllowedOn.sorted()))
             .put("matchFrameRate", settings.matchFrameRate)
             .put("matchResolution", settings.matchResolution)
+            .put("searchEngine", settings.searchEngine.id)
             .put("seeded", settings.seeded)
             .put("navHintShown", settings.navHintShown)
             .toString()
@@ -33,6 +35,7 @@ object SettingsJson {
                 adsAllowedOn = stringSet(o.optJSONArray("adsAllowedOn")) ?: defaults.adsAllowedOn,
                 matchFrameRate = o.optBoolean("matchFrameRate", defaults.matchFrameRate),
                 matchResolution = o.optBoolean("matchResolution", defaults.matchResolution),
+                searchEngine = SearchEngine.fromId(o.optString("searchEngine", null)),
                 seeded = o.optBoolean("seeded", defaults.seeded),
                 navHintShown = o.optBoolean("navHintShown", defaults.navHintShown)
             )
