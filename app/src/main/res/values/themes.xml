@@ -17,11 +17,12 @@
     -->
     <style name="Theme.Mrowser.Dialog" parent="@android:style/Theme.Material.Dialog.Alert">
         <item name="android:windowBackground">@drawable/dialog_background</item>
-        <!-- The card's width: the background has no inset, so the window is the card (#65).
-             A minimum, not a cap: windowFixedWidth* are private attributes. (On the TV a long
-             message still wraps at this width.) -->
-        <item name="android:windowMinWidthMajor">420dp</item>
-        <item name="android:windowMinWidthMinor">420dp</item>
+        <!-- A 420dp card + the background's 10dp side inset each side = config_prefDialogWidth
+             on a large screen, the width a list or long-message dialog's window takes anyway,
+             so every dialog gets the same 420dp card. A minimum, not a cap: windowFixedWidth* are
+             private attributes. (On the TV a long message still wraps at the card width.) -->
+        <item name="android:windowMinWidthMajor">440dp</item>
+        <item name="android:windowMinWidthMinor">440dp</item>
         <item name="android:dialogPreferredPadding">26dp</item>
         <item name="android:colorAccent">@color/accent</item>
         <item name="android:colorControlActivated">@color/accent</item>
